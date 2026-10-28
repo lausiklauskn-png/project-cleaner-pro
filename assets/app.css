@@ -245,3 +245,15 @@ mark { background: #ffe08a; color: inherit; border-radius: 3px; padding: 0 1px; 
 .kopie h3 { display: flex; gap: 6px; align-items: center; }
 .chip.begriff { display: inline-flex; align-items: center; gap: 4px; }
 #vorher-nachher { display: inline-flex; align-items: center; gap: 4px; width: auto; }
+
+/* Installieren / Aktualisieren im Kopf: am Handy nur das Symbol */
+#installieren[hidden] { display: none; }
+#aktualisieren[data-neu] { background: var(--petrol); border-color: #fff; }
+@media (max-width: 640px) { #installieren .t, #aktualisieren .t { display: none; } #installieren, #aktualisieren { padding: 3px 8px; } }
+.meldung { position: absolute; top: 64px; right: 12px; z-index: 30; max-width: min(420px, calc(100% - 24px)); background: #fff; color: #15283a;
+  border: 1px solid var(--linie); border-radius: 12px; padding: 10px 12px; box-shadow: 0 10px 30px rgb(0 0 0 / .2); font-size: .9rem; line-height: 1.4; }
+.meldung[hidden] { display: none; }
+.meldung p { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+#meldung-zu { float: right; margin: -2px -2px 4px 8px; padding: 3px 6px; }
+@media (max-width: 420px) { #neu .t { display: none; } #neu { padding: 3px 8px; } .kopf { gap: 6px; } }
+@media (max-width: 350px) { .nurlesen { display: none; } }

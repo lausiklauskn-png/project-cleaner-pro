@@ -16,6 +16,8 @@ Kurzauftrag zum Kopieren ausgeben.
 | `assets/beispiel.js` | Erfundenes Beispielprojekt (Knopf „🧪 Beispielprojekt“ und Proben). |
 | `modules/25_pseudonym.js`, `assets/pruefer-anhang.js`, `pruefer-formate.js`, `pruefer-mail.js`, `pruefer.js`, `vendor/pdfjs/` | **byte-1:1** aus Sende-Prüfer (`d8a8c54`) bzw. Sage/Auslieferungsprüfer, per SHA-256 in `tests/probe.mjs` gepinnt (`PINS`). **Nie hier abwandeln** — dort pflegen, neu kopieren, Pin nachziehen, `CACHE_VERSION` in `sw.js` erhöhen. |
 
+- **Fassung:** bei jeder Änderung an einer Datei aus `CORE` (sw.js) `CACHE_VERSION` **und** `APP_FASSUNG` (app.js) gleich erhöhen — sonst bleibt am Handy die alte Fassung; die Probe vergleicht beide. Kopf-Knöpfe „Installieren“ und „Aktualisieren“ (leert nur den `reiniger-…`-Vorrat).
+
 - **`node_modules` und Build-Ordner** (`UEBERSPRINGEN` im Kern) werden nie gelesen, auch im ZIP nie entpackt
   (jede Datei im ZIP wird erst auf Abruf entpackt). Ein gezogener Ordner wird gar nicht geöffnet.
 - **Was nicht gelesen werden konnte, heißt „ungeprüft“**, nie sauber (verschlüsselt im ZIP, Git-Pakete,
@@ -35,8 +37,8 @@ Kurzauftrag zum Kopieren ausgeben.
 ## Prüfen
 
 ```bash
-npm test             # 149 grün · 0 ROT (2026-10-28, Stufe 2)
-npm run gegenprobe   # 27 gefangen · 0 blind · 0 falsch · 0 tot (2026-10-28, Stufe 2)
+npm test             # 154 grün · 0 ROT (2026-10-28, Installieren/Aktualisieren)
+npm run gegenprobe   # 29 gefangen · 0 blind · 0 falsch · 0 tot (2026-10-28)
 ```
 
 ## ⚠ Nicht gemessen

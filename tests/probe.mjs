@@ -60,6 +60,8 @@ ok("Kern importiert nur die Wortlisten (sonst nichts von außen)",
 ok("Kern hat seine Typen (reiniger-kern.d.ts)", existsSync(join(WURZEL, "assets/reiniger-kern.d.ts")));
 const sw = lies("sw.js");
 ok("Vorrat: pdf.js steht nicht darin (wird erst bei Bedarf geholt)", !/pdfjs/.test(sw));
+ok("Fassung: APP_FASSUNG in app.js = Nummer in CACHE_VERSION von sw.js (sonst bleibt am Handy die alte Fassung)",
+  (/APP_FASSUNG = "(\d+)"/.exec(lies("assets/app.js")) || [])[1] === (/CACHE_VERSION = "reiniger-v(\d+)"/.exec(sw) || [])[1]);
 ok("Vorrat: die Wortlisten stehen darin (sonst offline kein Kern)", /"assets\/reiniger-listen\.js"/.test(sw));
 
 const req = createRequire(import.meta.url);
@@ -287,6 +289,20 @@ ok("Leere Fläche: Kristall und „CLEANER“ stehen da", await seite.evaluate((
   const w = document.querySelector(".einwurf .wort"), i = document.querySelector(".einwurf .kristall");
   return !!w && w.textContent === "CLEANER" && getComputedStyle(w).color === "rgb(255, 255, 255)" && i.complete && i.naturalWidth > 0;
 }));
+ok("Kopf: Knöpfe „Installieren“ und „Aktualisieren“ da (im Browser, nicht als App)", await seite.evaluate(() =>
+  !document.querySelector("#installieren").hidden && !!document.querySelector("#aktualisieren") && document.querySelector("#installieren svg.ikon") && document.querySelector("#aktualisieren svg.ikon")));
+await seite.click("#installieren");
+ok("Installieren ohne Angebot des Browsers: sagt warum und wie (Chrome-Menü)", await seite.evaluate(() =>
+  !document.querySelector("#meldung").hidden && /bietet die Installation gerade nicht an/.test(document.querySelector("#meldung-text").textContent) && /App installieren/.test(document.querySelector("#meldung-text").textContent)));
+await seite.click("#meldung-zu");
+ok("Meldung lässt sich schließen", await seite.evaluate(() => document.querySelector("#meldung").hidden));
+await seite.evaluate(() => { window.__vorher = 1; return caches.open("reiniger-alt").then((c) => c.put("/x", new Response("alt"))); });
+{
+  const geladen = Promise.race([seite.waitForNavigation({ waitUntil: "load" }).then(() => true, () => false), new Promise((ok) => setTimeout(() => ok(false), 8000))]);
+  await seite.click("#aktualisieren");
+  const neu = await geladen;
+  ok("Aktualisieren: Seite lädt neu, alter Code-Vorrat ist gelöscht", neu && await seite.evaluate(async () => window.__vorher === undefined && !(await caches.keys()).includes("reiniger-alt")));
+}
 ok("Favicon und Logo zeigen den Kristall", /favicon-32\.png/.test(html) && /logo-96\.png/.test(html));
 
 async function alleGroessen(zustand) {

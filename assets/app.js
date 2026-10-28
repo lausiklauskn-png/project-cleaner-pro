@@ -20,7 +20,7 @@ const IKONEN = {
   ordner: "M3 6h6l2 2h10v11H3z",
   datei: "M6 3h8l4 4v14H6z M14 3v4h4",
   probe: "M9 3h6 M10 3v6l-5 9a1 1 0 0 0 1 2h12a1 1 0 0 0 1-2l-5-9V3 M7.5 14h9",
-  neu: "M4 12a8 8 0 1 0 2.4-5.7 M4 4v4h4",
+  neu: "M6 3h8l4 4v14H6z M14 3v4h4 M12 11v6 M9 14h6",
   reinigen: "M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z",
   laden: "M12 4v11 M7 10l5 5 5-5 M5 20h14",
   teilen: "M12 15V4 M7 9l5-5 5 5 M5 14v6h14v-6",
@@ -427,9 +427,56 @@ for (const k of document.querySelectorAll(".reiter-knopf")) k.addEventListener("
   for (const x of document.querySelectorAll(".reiter-knopf")) x.setAttribute("aria-pressed", String(x === k));
 });
 
+/* ── Installieren und Aktualisieren (Klaus 2026-10-28) ─────────────────────
+   Ablauf und Texte übernommen aus dem Auslieferungsprüfer (assets/installieren.js, dort seit 2026-09-30
+   am Tablet getragen), hier mit Strich-Symbolen und ohne Inline-Stile (CSP). */
+export const APP_FASSUNG = "4";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
+let installEreignis = null;
+function alsApp() {
+  try { return matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: window-controls-overlay)").matches || matchMedia("(display-mode: minimal-ui)").matches || navigator.standalone === true; }
+  catch { return false; }
+}
+function melde(text) { $("#meldung-text").textContent = text; $("#meldung").hidden = false; }
+$("#meldung-zu").addEventListener("click", () => { $("#meldung").hidden = true; });
+function installKnopf() { const k = $("#installieren"); k.hidden = alsApp(); k.dataset.lage = alsApp() ? "app" : installEreignis ? "angeboten" : "nicht-angeboten"; }
+addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEreignis = e; installKnopf(); });
+addEventListener("appinstalled", () => { installEreignis = null; installKnopf(); melde("Installiert. Die App liegt jetzt auf dem Startbildschirm bzw. in der App-Liste."); });
+try { matchMedia("(display-mode: standalone)").addEventListener("change", installKnopf); } catch { /* alt */ }
+$("#installieren").addEventListener("click", () => {
+  if (installEreignis) {
+    const e = installEreignis; installEreignis = null;
+    e.prompt();
+    e.userChoice.then((w) => { melde(w && w.outcome === "accepted" ? "Installiert. Die App liegt jetzt auf dem Startbildschirm bzw. in der App-Liste." : "Nicht installiert — abgebrochen."); installKnopf(); }).catch(installKnopf);
+    return;
+  }
+  melde("Der Browser bietet die Installation gerade nicht an.\n\n" +
+    "Häufigster Grund: Chrome hält die App schon für installiert. Trägt das Symbol auf dem Startbildschirm ein kleines Chrome-Zeichen, ist es nur eine VERKNÜPFUNG (öffnet in Chrome), keine App.\n\n" +
+    "So wird es eine App: Symbol lange drücken → Entfernen bzw. Deinstallieren, diese Seite neu laden, dann hier „Installieren“ tippen.\n\n" +
+    "Sonst von Hand: Chrome ⋮ → „App installieren“ bzw. „Zum Startbildschirm hinzufügen“. Am Windows-PC: in der Adressleiste rechts das Symbol „App installieren“.\n\n" +
+    "Bitte NICHT „Websitedaten löschen“: alle Apps unter dieser Adresse teilen sich einen Speicher.");
+});
+installKnopf();
+
+/* Aktualisieren: neue Fassung beim Server erfragen, den Vorrat des Service-Workers leeren, neu laden.
+   Es wird nur der Code-Vorrat gelöscht (Namen „reiniger-…“), nie Daten anderer Apps unter derselben Adresse. */
+async function aktualisieren() {
+  if (ergebnis && !confirm("Neu laden? Die laufende Prüfung und nicht heruntergeladene Ergebnisse gehen dabei verloren.")) return;
+  const k = $("#aktualisieren"); k.disabled = true;
+  try {
+    const reg = "serviceWorker" in navigator ? await navigator.serviceWorker.getRegistration() : null;
+    if (reg) await reg.update().catch(() => {});
+    if (typeof caches !== "undefined") { const n = await caches.keys(); await Promise.all(n.filter((x) => x.startsWith("reiniger-")).map((x) => caches.delete(x))); }
+  } catch { /* trotzdem neu laden */ }
+  location.reload();
+}
+$("#aktualisieren").addEventListener("click", aktualisieren);
+$("#aktualisieren").title = "Neue Fassung holen (jetzt: Fassung " + APP_FASSUNG + ")";
+/* Liegt eine neue Fassung bereit, wird der Knopf hervorgehoben. */
+if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("controllerchange", () => { const k = $("#aktualisieren"); k.dataset.neu = ""; k.title = "Neue Fassung da — tippen zum Laden"; });
+
 /* Offline-Fähigkeit: nur der Code wird abgelegt, nie Daten. */
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol) && !new URLSearchParams(location.search).has("ohne-sw"))
-  navigator.serviceWorker.register("sw.js").catch(() => {});
+  navigator.serviceWorker.register("sw.js").then((reg) => reg.update().catch(() => {})).catch(() => {});
 
 /* nur für die Proben */
-window.__reiniger = { oeffneAnsicht, starte, ergebnis: () => ergebnis, gereinigt: () => gereinigt, beispielProjekt };
+window.__reiniger = { oeffneAnsicht, APP_FASSUNG, starte, ergebnis: () => ergebnis, gereinigt: () => gereinigt, beispielProjekt };
