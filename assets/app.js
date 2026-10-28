@@ -1,5 +1,6 @@
-/* Projekt-Reiniger Pro — die Oberfläche (Stufe 1: einwerfen, Inventur, anzeigen; nur lesen).
-   Alles Fremde wird nur als Text gesetzt (textContent), nie als HTML. Nichts wird gespeichert. */
+/* Projekt-Reiniger Pro — die Oberfläche (Stufe 1: einwerfen, Inventur, anzeigen · Stufe 2: entscheiden,
+   saubere Kopie bauen, Nachprüfung). Alles Fremde wird nur als Text gesetzt (textContent), nie als HTML.
+   Nichts wird gespeichert; die Zuordnung (Marke → alter Wert) lebt nur im Speicher, bis „↺ Neu“. */
 import * as Kern from "./reiniger-kern.js";
 import { beispielProjekt } from "./beispiel.js";
 
@@ -16,6 +17,7 @@ function el(tag, attr, ...kinder) {
 const gross = (n) => n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(1).replace(".", ",") + " KB" : (n / 1048576).toFixed(1).replace(".", ",") + " MB";
 
 let ergebnis = null, laeuft = false;
+let eingeworfen = [], entscheidungen = null, gebaut = null;
 
 /* pdf.js aus dem eigenen Ordner (nicht im Vorrat des Workers). */
 window.addEventListener("load", () => {
@@ -71,6 +73,7 @@ async function starte(liste) {
   const fs = $("#fortschritt"); fs.hidden = false;
   try {
     const ein = await Kern.einwerfen(liste);
+    eingeworfen = ein.dateien;
     ergebnis = await Kern.pruefe(ein.dateien, {
       fortschritt: (nr, gesamt, pfad) => { $("#fortschritt-text").textContent = "Lese " + nr + " von " + gesamt + ": " + pfad; const b = $("#fortschritt-balken"); b.max = gesamt; b.value = nr; },
     });
@@ -80,11 +83,13 @@ async function starte(liste) {
       hinweise: ["Die Prüfung brach ab (" + (e && e.message || e) + "). Nichts ist geprüft."] };
   }
   fs.hidden = true; laeuft = false;
+  entscheidungen = Kern.vorschlag(ergebnis); gebaut = null;
   zeigen();
 }
 
 function zuruecksetzen() {
-  ergebnis = null;
+  ergebnis = null; eingeworfen = []; entscheidungen = null; gebaut = null;
+  $("#reinigen").replaceChildren(); $("#reinigen").hidden = true;
   $("#arbeit").hidden = true; $("#einwurf").hidden = false; $("#neu").hidden = true;
   $("#befunde").replaceChildren(); $("#inventur").replaceChildren();
 }
@@ -110,21 +115,24 @@ function zeigen() {
     chip(z.dateien, "Dateien"), chip(z.befunde, "Funde"), chip(z.markiert, "markiert", z.markiert > 0),
     chip(z.uebersprungen, "nicht gelesen"), chip(z.ungeprueft, "ungeprüft", z.ungeprueft > 0));
   $("#hinweise").replaceChildren(...ergebnis.hinweise.map((h) => el("p", { text: "⚠ " + h })));
+  zeigeLeiste();
 
   const bef = $("#befunde");
+  const nach = nachpruefungTeil();
   if (!ergebnis.buendel.length) {
-    bef.replaceChildren(leerBild(z.ungeprueft
+    bef.replaceChildren(nach || "", leerBild(z.ungeprueft
       ? "Keine Funde in dem, was gelesen werden konnte. " + z.ungeprueft + " Datei(en) sind ungeprüft — das heißt nicht sauber."
       : "Keine Funde. Die Suche arbeitet mit Mustern und Listen und findet nicht garantiert alles — bitte trotzdem selbst hinsehen."));
   } else {
-    bef.replaceChildren(...SCHICHTEN.map(([s, titel, satz]) => {
+    bef.replaceChildren(nach || "", el("p", { class: "wahl-legende", text: "Je Wert einmal entscheiden, er gilt für alle Stellen. Entfernen: in Texten steht eine Marke wie ⟦NAME-1⟧, in Code und Konfiguration ein Musterwert, damit das Programm weiterläuft." }),
+      ...SCHICHTEN.map(([s, titel, satz]) => {
       const liste = ergebnis.buendel.filter((b) => b.schicht === s);
       if (!liste.length) return null;
       return el("section", { class: "gruppe", "data-gruppe": s },
         el("h2", { text: titel + " (" + liste.reduce((n, b) => n + b.anzahl, 0) + ")" }),
         el("p", { text: satz }),
         ...liste.map(buendelKarte));
-    }));
+    }).filter(Boolean));
   }
   zeigeInventur();
 }
@@ -140,7 +148,114 @@ function buendelKarte(b) {
       el("span", { class: "anzahl", text: b.anzahl + "× in " + b.dateien + (b.dateien === 1 ? " Datei" : " Dateien") })),
     wertZeigen ? el("span", { class: "wert", "data-wert": "", text: b.wert }) : null,
     b.satz ? el("p", { class: "satz", text: b.satz }) : null,
+    wahlTeil(b),
     el("details", { class: "stellen" }, el("summary", { text: "Stellen zeigen" }), el("ol", {}, ...stellen)));
+}
+
+/* ── Entscheiden ─────────────────────────────────────────── */
+function wahlTeil(b) {
+  if (b.nurDatei || !entscheidungen) return el("p", { class: "wahl-datei", text: "Betrifft die ganze Datei — ob sie mitkommt, steht in der Inventur." });
+  const w = entscheidungen.werte.find((x) => x.schluessel === Kern.wertSchluessel(b.wert));
+  if (!w) return null;
+  const sel = el("select", { "data-entscheid": w.schluessel, "aria-label": "Was mit diesem Wert geschieht" },
+    ...Object.entries(Kern.WIE_NAME).map(([k, name]) => el("option", { value: k, text: name })));
+  sel.value = w.wie;
+  const eigen = el("input", { type: "text", "data-eigen": w.schluessel, placeholder: "eigener Wert", "aria-label": "Eigener Wert", autocomplete: "off", spellcheck: "false" });
+  eigen.value = w.eigen || ""; eigen.hidden = w.wie !== "eigen";
+  sel.addEventListener("change", () => {
+    w.wie = sel.value; veraltet();
+    for (const x of document.querySelectorAll("[data-entscheid]")) if (x.dataset.entscheid === w.schluessel) x.value = w.wie;
+    for (const x of document.querySelectorAll("[data-eigen]")) if (x.dataset.eigen === w.schluessel) x.hidden = w.wie !== "eigen";
+    zeigeLeiste();
+  });
+  eigen.addEventListener("input", () => {
+    w.eigen = eigen.value; veraltet();
+    for (const x of document.querySelectorAll("[data-eigen]")) if (x.dataset.eigen === w.schluessel && x !== eigen) x.value = w.eigen;
+  });
+  const mehr = w.arten.length > 1 ? el("span", { class: "wahl-auch", text: "gilt auch für: " + w.arten.filter((a) => a !== b.art).map((a) => Kern.ART_NAME[a] || a).join(", ") }) : null;
+  return el("div", { class: "wahl" }, el("label", {}, el("span", { text: "In der Kopie:" }), sel), eigen, mehr);
+}
+
+function dateiWahl(e) {
+  const plan = entscheidungen && entscheidungen.dateien[e.pfad];
+  if (!plan) return null;
+  if (plan.moeglich.length === 1) return el("span", { class: "chip weg", "data-datei-fest": "", title: plan.grund, text: "kommt nicht mit" });
+  const sel = el("select", { "data-datei": e.pfad, "aria-label": "In der Kopie" },
+    ...plan.moeglich.map((k) => el("option", { value: k, text: Kern.DATEI_WIE_NAME[k] })));
+  sel.value = plan.wie;
+  sel.title = plan.grund;
+  sel.addEventListener("change", () => { plan.wie = sel.value; veraltet(); zeigeLeiste(); });
+  return el("label", { class: "datei-wahl" }, el("span", { text: "Kopie:" }), sel);
+}
+
+/* Lange Beschriftung, am Handy eine kurze (CSS wählt). */
+function beschriftung(lang, kurz) { return [el("span", { class: "b-lang", text: lang }), el("span", { class: "b-kurz", text: kurz })]; }
+
+/* Wer nach dem Bauen etwas ändert, bekommt einen Hinweis: die Kopie passt nicht mehr. */
+function veraltet() { if (gebaut) gebaut.veraltet = true; }
+
+/* ── Saubere Kopie bauen ─────────────────────────────────── */
+function zeigeLeiste() {
+  const l = $("#reinigen");
+  if (!ergebnis || !entscheidungen || !ergebnis.inventur.length) { l.hidden = true; return; }
+  l.hidden = false;
+  const w = entscheidungen.werte, d = Object.values(entscheidungen.dateien);
+  const n = (f) => w.filter(f).length;
+  const satz = n((x) => x.wie !== "behalten") + " Wert(e) ersetzen, " + n((x) => x.wie === "behalten") + " behalten · " +
+    d.filter((x) => x.wie !== "weglassen").length + " Datei(en) in die Kopie, " + d.filter((x) => x.wie === "weglassen").length + " weg (ohne .git)";
+  const knopf = el("button", { type: "button", class: "knopf haupt-knopf", id: "bauen" }, gebaut ? "🧽 Neu bauen" : beschriftung("🧽 Saubere Kopie bauen", "🧽 Kopie bauen"));
+  knopf.addEventListener("click", bauen);
+  const teile = [el("p", { class: "leiste-satz", text: satz }), knopf];
+  if (gebaut) {
+    const o = gebaut.nach.offen.length;
+    teile.push(el("p", { class: "leiste-satz " + (o ? "rot" : "gut"), "data-nachpruefung": o ? "offen" : "leer",
+      text: gebaut.veraltet ? "⚠ Seit dem Bauen geändert — bitte neu bauen." : o ? "⚠ Nachprüfung: " + o + " offen — siehe Funde" : "✓ Nachprüfung: nichts offen gefunden (nicht garantiert alles)" }));
+    const zip = el("button", { type: "button", class: "knopf", id: "laden-zip" }, beschriftung("⬇ Saubere Kopie (ZIP)", "⬇ ZIP"));
+    zip.addEventListener("click", () => laden(gebaut.aus.name, gebaut.aus.zip, "application/zip"));
+    const plan = el("button", { type: "button", class: "knopf", id: "laden-plan" }, beschriftung("⬇ Stellenplan", "⬇ Plan"));
+    plan.addEventListener("click", () => laden("STELLENPLAN.txt", gebaut.aus.beilagen[0].bytes, "text/plain"));
+    const ber = el("button", { type: "button", class: "knopf", id: "laden-bericht", text: "⬇ Bericht" });
+    ber.addEventListener("click", () => laden("BERICHT.txt", gebaut.aus.beilagen[2].bytes, "text/plain"));
+    teile.push(zip, plan, ber);
+  }
+  l.replaceChildren(...teile);
+}
+
+async function bauen() {
+  if (laeuft || !entscheidungen) return;
+  laeuft = true;
+  const k = $("#bauen"); if (k) { k.disabled = true; k.textContent = "🧽 Baue …"; }
+  try {
+    const rein = await Kern.reinige(eingeworfen, entscheidungen);
+    const nach = await Kern.nachpruefe(rein, entscheidungen);
+    const aus = await Kern.ausgabe(rein, nach);
+    gebaut = { rein, nach, aus, veraltet: false };
+  } catch (e) {
+    gebaut = null;
+    $("#hinweise").append(el("p", { text: "⚠ Bauen brach ab (" + (e && e.message || e) + "). Es gibt keine saubere Kopie." }));
+  }
+  laeuft = false;
+  zeigen();
+}
+
+function nachpruefungTeil() {
+  if (!gebaut) return null;
+  const r = gebaut.rein, o = gebaut.nach.offen;
+  const zeilen = o.map((x) => el("li", { "data-offen": x.grund, text: (x.pfad ? x.pfad + " — " : "") +
+    (x.grund === "fund" && !x.nurDatei ? x.satz + " " + Array.from(new Set(x.stellen.map((s) => s.pfad + (s.zeile ? " · Zeile " + s.zeile : "")))).slice(0, 6).join(", ") : x.satz) }));
+  return el("section", { class: "nachpruefung" + (o.length ? " rot" : ""), id: "nachpruefung" },
+    el("h2", { text: o.length ? "Nachprüfung: " + o.length + " offen" : "Nachprüfung: nichts offen gefunden" }),
+    el("p", { text: r.zahlen.dateien + " Datei(en) in der Kopie, " + r.zahlen.stellen + " Stelle(n) ersetzt, " + r.zahlen.weg + " weggelassen, .git nicht dabei. " +
+      (o.length ? "Bitte die offenen Stellen entscheiden oder die Datei weglassen, dann neu bauen." : "Die Suche arbeitet mit Mustern und Listen und findet nicht garantiert alles — bitte trotzdem selbst hinsehen.") }),
+    o.length ? el("ul", {}, ...zeilen) : null,
+    el("p", { class: "klein", text: "Die Zuordnung (welche Marke für welchen Wert steht) bleibt nur bis „↺ Neu“ im Speicher. Aufbewahren kann sie erst der Tresor (Stufe 5)." }));
+}
+
+function laden(name, bytes, typ) {
+  const url = URL.createObjectURL(new Blob([bytes], { type: typ }));
+  const a = el("a", { href: url, download: name, hidden: true });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 function zeigeInventur() {
@@ -158,6 +273,8 @@ function zeigeInventur() {
     }
     for (const m of e.marken) chips.push(el("span", { class: "chip marke", "data-marke": m.kennung, title: m.satz, text: Kern.MARKE_NAME[m.kennung] || m.kennung }));
     if (e.befunde) chips.push(el("span", { class: "chip funde", text: e.befunde + " Funde" }));
+    if (e.art !== "ordner") { const w = dateiWahl(e); if (w) chips.push(w); }
+    else chips.push(el("span", { class: "chip weg", text: "kommt nicht mit" }));
     return el("li", { "data-pfad": e.pfad },
       el("span", { class: "pfad", text: e.pfad }),
       el("div", { class: "zeile2" }, ...chips),
@@ -166,7 +283,7 @@ function zeigeInventur() {
   $("#inventur").replaceChildren(
     el("div", { class: "inventur-kopf" }, el("h2", { text: "Inventur (" + ergebnis.inventur.length + ")" }),
       el("label", {}, box, "nur Auffälliges")),
-    el("p", { class: "stufen-legende", text: "Stufe 1 voll reinigen · Stufe 2 neu bauen · Stufe 3 nur prüfen (entfernen oder ersetzen). Gereinigt wird ab Stufe 2 des Projekts — jetzt wird nur gelesen." }),
+    el("p", { class: "stufen-legende", text: "Stufe 1 voll reinigen · Stufe 2 neu bauen · Stufe 3 nur prüfen (entfernen oder ersetzen). Text wird Stelle für Stelle gereinigt; Bilder, PDF und Office kommen nur unverändert mit, wenn sie ohne Funde gelesen wurden (neu gezeichnet werden sie ab Stufe 4 des Projekts)." }),
     el("ul", { class: "datei" }, ...zeilen));
 }
 
@@ -180,4 +297,4 @@ if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol) && !new 
   navigator.serviceWorker.register("sw.js").catch(() => {});
 
 /* nur für die Proben */
-window.__reiniger = { starte, ergebnis: () => ergebnis, beispielProjekt };
+window.__reiniger = { starte, ergebnis: () => ergebnis, beispielProjekt, entscheidungen: () => entscheidungen, gebaut: () => gebaut, bauen };

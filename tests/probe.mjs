@@ -1,4 +1,4 @@
-/* Projekt-Reiniger Pro — die Probe (Stufe 1).
+/* Projekt-Reiniger Pro — die Probe (Stufe 1 + 2).
  *
  *   node tests/probe.mjs            alles
  *   BILDER=<ordner> node tests/…    legt Bildschirmfotos ab
@@ -6,7 +6,10 @@
  * Teil A läuft ohne Browser (Kern, Pins), Teil B im echten Chromium.
  * Rückgabe: 0 grün · 1 rot · 2 nicht lauffähig (kein Browser) — „nicht lauffähig“ ist kein Grün.
  */
-import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync, statSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { spawnSync } from "node:child_process";
+import { crc32 as zlibCrc32 } from "node:zlib";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { createServer } from "node:http";
@@ -117,6 +120,105 @@ const { beispielProjekt } = await import(pathToFileURL(join(WURZEL, "assets/beis
   ok("ohne Modul 25: laut „UNGEPRÜFT“, nicht sauber", r.hinweise.some((h) => /Modul 25.*UNGEPRÜFT/.test(h)) && /ungeprüft/.test(r.inventur[0].ungeprueft));
 }
 
+
+/* ── A2 · Stufe 2: entscheiden, reinigen, Stellenplan, Nachprüfung, ZIP ── */
+console.log("A2 · Stufe 2 ohne Browser");
+const T8 = (s) => new TextEncoder().encode(s), D8 = (b) => new TextDecoder().decode(b);
+{
+  const dateien = await beispielProjekt();
+  const r = await Kern.pruefe(dateien);
+  const e = Kern.vorschlag(r);
+  const erika = e.werte.filter((x) => x.schluessel === "erika mustermann");
+  ok("Vorschlag: ein Wert über alle Arten ist EINE Entscheidung (Verfasser, Copyright, Git-Name)", erika.length === 1 && erika[0].arten.length >= 3 && erika[0].marke === "NAME", JSON.stringify(erika));
+  ok("Vorschlag: jeder Wert steht auf „entfernen“", e.werte.length >= 8 && e.werte.every((w) => w.wie === "entfernen"));
+  ok("Vorschlag: .git fest weg (keine andere Wahl)", e.dateien["musterapp/.git/config"].moeglich.join() === "weglassen");
+  ok("Vorschlag: .env, Sicherung, Export standardmäßig weg; README, Impressum, Code reinigen",
+    ["musterapp/.env", "musterapp/src/alt.js.bak", "musterapp/daten/kunden-export.csv"].every((p) => e.dateien[p].wie === "weglassen") &&
+    ["musterapp/README.md", "musterapp/impressum.html", "musterapp/src/start.js"].every((p) => e.dateien[p].wie === "reinigen"));
+  const rein = await Kern.reinige(dateien, e);
+  const pfade = rein.sauber.map((x) => x.pfad);
+  const text = (p) => D8(rein.sauber.find((x) => x.pfad === p).bytes);
+  ok("Saubere Kopie ohne .git", pfade.length > 0 && !pfade.some((p) => /(^|\/)\.git(\/|$)/.test(p)), pfade.join(", "));
+  ok("Saubere Kopie ohne node_modules", !pfade.some((p) => /node_modules/.test(p)));
+  ok("Saubere Kopie ohne .env, Sicherung, Export (Vorgabe)", !pfade.some((p) => /\.env$|\.bak$|kunden-export/.test(p)));
+  const alle = rein.zuordnung.map((z) => z.wert);
+  const rest = [];
+  for (const x of rein.sauber) { const t = D8(x.bytes).toLowerCase(); for (const w of alle) if (t.includes(w.toLowerCase())) rest.push(x.pfad + ": " + w); }
+  ok("kein entfernter Wert steckt noch in der Kopie", alle.length >= 8 && rest.length === 0, rest.slice(0, 3).join(" | "));
+  ok("Text: Marke statt Wert (README: ⟦NAME-1⟧, ⟦MAIL-1⟧)", /Gebaut von ⟦NAME-1⟧\./.test(text("musterapp/README.md")) && /an ⟦MAIL-1⟧ oder ⟦TELEFON-1⟧/.test(text("musterapp/README.md")), text("musterapp/README.md"));
+  ok("gleicher Wert = gleiche Nummer, anderer Wert = andere Nummer",
+    /⟦NAME-1⟧<br>/.test(text("musterapp/impressum.html")) && /Mail: ⟦MAIL-1⟧/.test(text("musterapp/impressum.html")) &&
+    /Frau ⟦NAME-1⟧,/.test(text("musterapp/brief.txt")) && /Grüße\n⟦NAME-2⟧/.test(text("musterapp/brief.txt")), text("musterapp/brief.txt"));
+  ok("Code: Musterwert statt Marke, das Programm läuft weiter (start.js)",
+    !/⟦/.test(text("musterapp/src/start.js")) && /konto = "DE00000000000000000001"/.test(text("musterapp/src/start.js")) && /geburtstag = "01\.01\.2000"/.test(text("musterapp/src/start.js")) && /Users\\\\benutzer\\\\/.test(text("musterapp/src/start.js")), text("musterapp/src/start.js"));
+  let pj = null; try { pj = JSON.parse(text("musterapp/package.json")); } catch { /* rot unten */ }
+  ok("Code: package.json bleibt gültiges JSON, mit Musterwert", !!pj && pj.author === "Max Mustermann <muster1@beispiel.example>", text("musterapp/package.json"));
+  const nach = await Kern.nachpruefe(rein, e);
+  const planT = Kern.stellenplanText(rein), planJ = Kern.stellenplanJson(rein), ber = Kern.bericht(rein, nach);
+  ok("Stellenplan und Bericht nennen keinen alten Wert (Text, JSON, Bericht)", alle.every((w) => ![planT, planJ, ber].some((x) => x.toLowerCase().includes(w.toLowerCase()))));
+  ok("Stellenplan: jede Stelle zeigt auf eine Datei der Kopie, mit Zeile", rein.stellenplan.length >= 10 && rein.stellenplan.every((x) => pfade.includes(x.pfad) && (x.zeile > 0 || x.ort)));
+  ok("Stellenplan: in der genannten Zeile steht der Ersatz", rein.stellenplan.every((x) => x.ort || text(x.pfad).split("\n")[x.zeile - 1].includes(x.ersatz)));
+  ok("Stellenplan im Format des Briefs", /musterapp\/impressum\.html\s+Zeile 1\s+⟦NAME-1⟧\s+Art: Name/.test(planT) && /musterapp\/src\/start\.js\s+Zeile 1\s+Max Mustermann \(war: Name\)/.test(planT), planT.slice(0, 400));
+  ok("Nachprüfung: mit den Vorgaben nichts offen", nach.offen.length === 0, JSON.stringify(nach.offen).slice(0, 300));
+  ok("Bericht: zählt, was ersetzt und weggelassen wurde", /Name → Marke: \d+×/.test(ber) && /musterapp\/\.env — /.test(ber) && /Nichts offen gefunden/.test(ber) && /nicht garantiert alles/.test(ber));
+
+  /* behalten, eigener Wert, .env doch reinigen, .git per Entscheidung „reinigen“ */
+  const e2 = Kern.vorschlag(r);
+  e2.werte.find((x) => x.wert === "Max Beispiel").wie = "behalten";
+  Object.assign(e2.werte.find((x) => x.schluessel === "erika mustermann"), { wie: "eigen", eigen: "Klaus Eigen" });
+  e2.dateien["musterapp/.env"].wie = "reinigen";
+  e2.dateien["musterapp/.git/config"].wie = "reinigen";
+  const r2 = await Kern.reinige(dateien, e2);
+  const t2 = (p) => { const x = r2.sauber.find((y) => y.pfad === p); return x ? D8(x.bytes) : ""; };
+  ok("behalten: der Wert bleibt stehen", /Grüße\nMax Beispiel/.test(t2("musterapp/brief.txt")));
+  ok("eigener Wert: steht überall, in Text und Code", /Gebaut von Klaus Eigen\./.test(t2("musterapp/README.md")) && /Copyright 2025 Klaus Eigen/.test(t2("musterapp/src/start.js")));
+  ok(".env auf „reinigen“: kommt mit, Schlüssel durch Musterwert ersetzt", /API_KEY=MUSTER-SCHLUESSEL-1/.test(t2("musterapp/.env")), t2("musterapp/.env"));
+  ok("auch wenn eine Entscheidung .git auf „reinigen“ setzt: .git kommt nicht mit", !r2.sauber.some((x) => /\.git\//.test(x.pfad)));
+  const n2 = await Kern.nachpruefe(r2, e2);
+  ok("Nachprüfung: bewusst Behaltenes und eigene Werte sind nicht „offen“", !n2.offen.some((o) => /Max Beispiel|Klaus Eigen/.test(o.wert || "")), JSON.stringify(n2.offen).slice(0, 300));
+}
+{
+  /* Nachprüfung muss laut werden: eine Binärdatei mit Mail, bewusst unverändert übernommen. */
+  const bin = new Uint8Array([0, 1, 2, 3, 0xff, 0xfe, ...T8("kontakt anna@beispiel.example"), 0, 0, 7]);
+  const d3 = [{ pfad: "p/daten.bin", bytes: bin }, { pfad: "p/a.txt", bytes: T8("Mail an anna@beispiel.example\n") }];
+  const r3 = await Kern.pruefe(d3), e3 = Kern.vorschlag(r3);
+  ok("Vorschlag: Binärdatei mit Funden standardmäßig weg", e3.dateien["p/daten.bin"].wie === "weglassen");
+  e3.dateien["p/daten.bin"].wie = "uebernehmen";
+  const rr3 = await Kern.reinige(d3, e3), n3 = await Kern.nachpruefe(rr3, e3);
+  ok("Nachprüfung nennt laut: ein alter Wert steckt noch in einer unverändert übernommenen Datei", n3.offen.some((o) => o.grund === "rest" && o.pfad === "p/daten.bin"), JSON.stringify(n3.offen).slice(0, 300));
+  ok("Nachprüfung nennt die ungeprüfte Datei in der Kopie", n3.offen.some((o) => o.grund === "ungeprueft" && o.pfad === "p/daten.bin"));
+  const b3 = Kern.bericht(rr3, n3);
+  ok("Bericht nennt OFFEN, ohne den Wert", /OFFEN: p\/daten\.bin/.test(b3) && !/anna@/.test(b3));
+}
+{
+  /* Wortgrenzen, Groß/klein, Dateinamen */
+  const e4 = { fassung: 1, werte: [{ schluessel: "anna", wert: "Anna", arten: ["NAME"], marke: "NAME", wie: "entfernen", eigen: "" },
+    { schluessel: "erika", wert: "erika", arten: ["BENUTZERPFAD"], marke: "BENUTZER", wie: "entfernen", eigen: "" }],
+    dateien: { "q/erika/x.md": { wie: "reinigen", moeglich: ["reinigen", "weglassen"], grund: "" } } };
+  const r4 = await Kern.reinige([{ pfad: "q/erika/x.md", bytes: T8("Anna Muster, Annabell, Hanna, ANNA, Amerika\n") }], e4);
+  ok("Ersetzen achtet auf Wortgrenzen und auf Groß/klein", r4.sauber.length === 1 && D8(r4.sauber[0].bytes) === "⟦NAME-1⟧ Muster, Annabell, Hanna, ⟦NAME-1⟧, Amerika\n", r4.sauber[0] && D8(r4.sauber[0].bytes));
+  ok("Dateinamen: ein Wert im Pfad wird zum Musterwert, im Stellenplan als „Datei- oder Ordnername“", r4.sauber[0].pfad === "q/benutzer/x.md" && r4.stellenplan.some((x) => x.ort && x.pfad === "q/benutzer/x.md"), r4.sauber[0].pfad);
+}
+{
+  /* ZIP: ein fremder Leser muss es öffnen können, Prüfsummen stimmen */
+  const dateien = await beispielProjekt();
+  const r = await Kern.pruefe(dateien), e = Kern.vorschlag(r), rein = await Kern.reinige(dateien, e), nach = await Kern.nachpruefe(rein, e);
+  const aus = await Kern.ausgabe(rein, nach);
+  ok("ZIP: Name aus dem Projektordner", aus.name === "musterapp-sauber.zip", aus.name);
+  const z = Kern.zipDateien(aus.zip);
+  const namen = z.dateien.map((d) => d.pfad);
+  ok("ZIP: Kopie plus _reiniger/ (Stellenplan, Bericht)", namen.length === rein.sauber.length + 3 && namen.includes("musterapp/_reiniger/STELLENPLAN.txt") && namen.includes("musterapp/_reiniger/BERICHT.txt"), namen.join(", "));
+  let gleich = true; for (const s of rein.sauber) { const d = z.dateien.find((x) => x.pfad === s.pfad); if (!d || Buffer.compare(Buffer.from(await d.lesen()), Buffer.from(s.bytes)) !== 0) gleich = false; }
+  ok("ZIP: jede Datei kommt Byte für Byte zurück", gleich);
+  const probe = T8("Prüfsumme ⟦NAME-1⟧ ".repeat(50));
+  ok("crc32 stimmt mit node:zlib überein", Kern.crc32(probe) === zlibCrc32(probe));
+  const ord = mkdtempSync(join(tmpdir(), "reiniger-zip-")); writeFileSync(join(ord, "k.zip"), aus.zip);
+  const py = spawnSync("python3", ["-I", "-c", "import zipfile,sys\nz=zipfile.ZipFile(sys.argv[1])\nprint(z.testzip(), len(z.namelist()))", join(ord, "k.zip")], { encoding: "utf8" });
+  rmSync(ord, { recursive: true });
+  if (py.error) console.log("  ⊘ fremder ZIP-Leser nicht da (python3 fehlt) — nicht gemessen");
+  else ok("ZIP: fremder Leser (Python zipfile) öffnet es, Prüfsummen stimmen", py.status === 0 && py.stdout.trim() === "None " + namen.length, (py.stdout + py.stderr).trim().slice(0, 200));
+}
+
 /* ── B · im Browser ─────────────────────────────────────────────── */
 console.log("B · im Browser");
 let pw; try { pw = req("playwright-core"); } catch { try { pw = req("playwright"); } catch { pw = null; } }
@@ -206,7 +308,44 @@ ok("Beispielprojekt: Funde gebündelt angezeigt", await seite.evaluate(() => doc
 ok("Beispielprojekt: Inventur zeigt Marken und Stufen", await seite.evaluate(() => !!document.querySelector('[data-marke="GIT"]') && !!document.querySelector('[data-marke="ENV"]') && !!document.querySelector('[data-stufe="1"]')));
 ok("Beispielprojekt: node_modules steht als „nicht gelesen“ da", await seite.evaluate(() => /nicht gelesen/.test((document.querySelector('[data-pfad="musterapp/node_modules/"]') || {}).textContent || "")));
 ok("Fremde Werte nur als Text (kein HTML aus dem Projekt in der Seite)", await seite.evaluate(() => !document.querySelector("#befunde h1, #inventur h1, #befunde br")));
+/* Stufe 2 im Browser: entscheiden, bauen, herunterladen */
+ok("Entscheiden: jeder ersetzbare Fund hat eine Auswahl, „Entfernen“ vorgewählt", await seite.evaluate(() => {
+  const s = Array.from(document.querySelectorAll("select[data-entscheid]")); return s.length >= 8 && s.every((x) => x.value === "entfernen");
+}));
+ok("Inventur: .git „kommt nicht mit“, .env steht auf „Weglassen“", await seite.evaluate(() =>
+  /kommt nicht mit/.test(document.querySelector('[data-pfad="musterapp/.git/config"]').textContent) &&
+  document.querySelector('select[data-datei="musterapp/.env"]').value === "weglassen"));
+ok("Leiste „Saubere Kopie bauen“ steht da", await seite.evaluate(() => !!document.querySelector("#bauen") && !document.querySelector("#reinigen").hidden));
 await alleGroessen("Funde");
+
+await seite.setViewportSize({ width: 1280, height: 800 });
+let fertig = true;
+try {
+  await seite.click("#bauen");
+  await seite.waitForFunction(() => window.__reiniger.gebaut() && document.querySelector("[data-nachpruefung]"), null, { timeout: 30000 });
+} catch { fertig = false; }
+ok("Bauen: der Knopf baut die saubere Kopie, die Nachprüfung steht da", fertig && await seite.evaluate(() =>
+  document.querySelector("[data-nachpruefung]").dataset.nachpruefung === "leer" && /nichts offen/.test(document.querySelector("#nachpruefung h2").textContent)));
+if (fertig) {
+  const [dl] = await Promise.all([seite.waitForEvent("download", { timeout: 10000 }), seite.click("#laden-zip")]);
+  const z = Kern.zipDateien(new Uint8Array(readFileSync(await dl.path())));
+  const inhalt = []; for (const d of z.dateien) inhalt.push([d.pfad, D8(await d.lesen())]);
+  ok("Download: ZIP ohne .git, mit Stellenplan, ohne die alte Mail", dl.suggestedFilename() === "musterapp-sauber.zip" && inhalt.length > 4 &&
+    !inhalt.some(([p]) => /\.git\//.test(p)) && inhalt.some(([p]) => /_reiniger\/STELLENPLAN\.txt$/.test(p)) && !inhalt.some(([, t]) => /erika\.mustermann@/i.test(t)), inhalt.map(([p]) => p).join(", "));
+  const [dl2] = await Promise.all([seite.waitForEvent("download", { timeout: 10000 }), seite.click("#laden-plan")]);
+  ok("Download: Stellenplan einzeln", dl2.suggestedFilename() === "STELLENPLAN.txt" && /⟦NAME-1⟧/.test(readFileSync(await dl2.path(), "utf8")));
+  await seite.locator('select[data-entscheid="max beispiel"]').first().selectOption("eigen");
+  ok("Eigener Wert: das Feld erscheint, die Leiste sagt „neu bauen“", await seite.evaluate(() =>
+    !document.querySelector('input[data-eigen="max beispiel"]').hidden && /neu bauen/.test(document.querySelector("#reinigen").textContent)));
+  await seite.locator('input[data-eigen="max beispiel"]').first().fill("Paul Eigen");
+  await seite.click("#bauen");
+  await seite.waitForFunction(() => window.__reiniger.gebaut() && !window.__reiniger.gebaut().veraltet && !document.querySelector("#bauen").disabled, null, { timeout: 30000 });
+  ok("Neu bauen: der eigene Wert steht in der Kopie", await seite.evaluate(() => {
+    const s = window.__reiniger.gebaut().rein.sauber.find((x) => /brief\.txt$/.test(x.pfad)); return /Grüße\nPaul Eigen/.test(new TextDecoder().decode(s.bytes));
+  }));
+}
+await alleGroessen("Ergebnis");
+
 await seite.setViewportSize({ width: 360, height: 740 });
 await seite.click('[data-reiter="inventur"]');
 ok("Handy: Reiter wechselt zur Inventur", await seite.evaluate(() => getComputedStyle(document.querySelector("#inventur")).display !== "none" && getComputedStyle(document.querySelector("#befunde")).display === "none"));

@@ -1,4 +1,4 @@
-/* Projekt-Reiniger Pro — der Kern ohne Oberfläche (Stufe 1: nur lesen).
+/* Projekt-Reiniger Pro — der Kern ohne Oberfläche (Stufe 1 lesen, Stufe 2 reinigen).
  *
  * Brief: docs/BRIEF_2026-10-28_projekt-reiniger-pro.md. Dieser Kern soll später
  * byte-1:1 in die Familienakte (Vite + React + TypeScript) wandern und dort per
@@ -8,14 +8,15 @@
  *   - die Prüfkerne (Sage-Modul 25, pruefer-anhang.js …) bringt der Aufrufer mit
  *     (`optionen.werkzeuge`), sonst liest der Kern sie von globalThis.
  *
- * Stufe 1 = Einwerfen, Inventur, harte Angaben und Metadaten. Entscheiden,
- * Reinigen, Stellenplan, Tresor kommen in späteren Stufen. `pruefe` ändert
- * keine Datei.
+ * Stufe 1 = Einwerfen, Inventur, harte Angaben und Metadaten (`pruefe` ändert
+ * keine Datei). Stufe 2 = Entscheiden (`vorschlag`), Reinigen (`reinige`: Marken
+ * und Musterwerte, saubere Kopie ohne .git, Stellenplan), Nachprüfung
+ * (`nachpruefe`), Bericht und ZIP (`zipBauen`). Tresor kommt in Stufe 5.
  *
  * Grundsatz: was nicht gelesen werden konnte, heißt „ungeprüft“, nie „sauber“.
  */
 
-export const KERN_FASSUNG = "1";
+export const KERN_FASSUNG = "2";
 
 /* Ordner, die gar nicht erst gelesen werden (Abhängigkeiten, Build-Ergebnisse). */
 export const UEBERSPRINGEN = [
@@ -421,6 +422,7 @@ export async function pruefe(dateien, optionen = {}) {
       eintrag.artName = art === "html" ? "HTML-Seite" : "Text";
       const t = textAus(bytes);
       if (!t) { eintrag.ungeprueft = "nicht als UTF-8 lesbar — ungeprüft"; continue; }
+      eintrag.textlich = true;
       if (bytes.length > TEXT_MAX) eintrag.ungeprueft = "nur die ersten " + (TEXT_MAX >> 20) + " MB durchsucht, der Rest ist ungeprüft";
       if (M25) hartInText(M25, d.pfad, t.text, melde); else eintrag.ungeprueft = "harte Angaben ungeprüft (Modul 25 fehlt)";
       metaInText(d.pfad, t.text, melde);
@@ -436,8 +438,9 @@ export async function pruefe(dateien, optionen = {}) {
       catch (e) { eintrag.ungeprueft = "Prüfer stolperte (" + (e && e.message || e) + ") — ungeprüft"; continue; }
       eintrag.art = r.art; eintrag.artName = r.artName;
       Object.assign(eintrag, einordnen(d.pfad, r.art));
+      if (r.art === "svg" && textAus(bytes)) eintrag.textlich = true;
       for (const x of r.befunde) {
-        melde({ schicht: SCHICHT_VON_KENNUNG(x.kennung), art: x.kennung, wert: x.satz, pfad: d.pfad, satz: x.satz });
+        melde({ schicht: SCHICHT_VON_KENNUNG(x.kennung), art: x.kennung, wert: x.satz, pfad: d.pfad, satz: x.satz, nurDatei: true });
       }
       if (r.text && M25) hartInText(M25, d.pfad, r.text, melde, r.textQuelle === "bild" ? "Text im Bild" : r.seiten ? "Seitentext" : "Dokumenttext");
       if (r.text) metaInText(d.pfad, r.text, melde);
@@ -483,11 +486,327 @@ export function buendeln(befunde) {
   for (const b of befunde) {
     const k = b.schicht + "|" + b.art + "|" + String(b.wert).toLowerCase();
     let x = karte.get(k);
-    if (!x) { x = { schicht: b.schicht, art: b.art, artName: ART_NAME[b.art] || b.art, wert: b.wert, vorschlag: !!b.vorschlag, satz: b.satz || "", anzahl: 0, dateien: 0, stellen: [] }; karte.set(k, x); }
+    if (!x) { x = { schicht: b.schicht, art: b.art, artName: ART_NAME[b.art] || b.art, wert: b.wert, vorschlag: !!b.vorschlag, nurDatei: !!b.nurDatei, satz: b.satz || "", anzahl: 0, dateien: 0, stellen: [] }; karte.set(k, x); }
     x.anzahl++;
     x.stellen.push({ pfad: b.pfad, zeile: b.zeile, stelle: b.stelle });
   }
   const reihe = { hart: 0, meta: 1, auffaellig: 2 };
   return Array.from(karte.values()).map((x) => { x.dateien = new Set(x.stellen.map((s) => s.pfad)).size; return x; })
     .sort((a, b) => reihe[a.schicht] - reihe[b.schicht] || b.anzahl - a.anzahl || (a.art < b.art ? -1 : a.art > b.art ? 1 : 0));
+}
+
+/* ══ Stufe 2 · Entscheiden, Reinigen, Stellenplan, Nachprüfung ══════════════════
+ *
+ * Entschieden wird je WERT, einmal für alle Stellen (ein Wert, der als Verfasser,
+ * Copyright und Git-Name auftaucht, ist EINE Entscheidung):
+ *   entfernen  Marke ⟦ART-n⟧ in Texten und Doku; in Code, Konfiguration und
+ *              Dateinamen ein Musterwert, damit das Programm weiterläuft
+ *   muster     überall ein Musterwert
+ *   eigen      überall ein eigener Wert
+ *   behalten   bleibt stehen (bewusst)
+ * Und je DATEI: reinigen (Text), übernehmen (unverändert) oder weglassen.
+ * .git kommt nie mit; übersprungene Ordner (node_modules …) auch nicht.
+ *
+ * Der Stellenplan nennt Datei, Zeile, Marke/Ersatz und Art — NIE den alten Wert.
+ * Die Zuordnung (Marke → alter Wert) bleibt im Speicher; abgelegt wird sie erst
+ * im Tresor (Stufe 5).
+ */
+
+export const WIE_NAME = { entfernen: "Entfernen", muster: "Musterwert", eigen: "Eigener Wert", behalten: "Behalten" };
+export const DATEI_WIE_NAME = { reinigen: "Reinigen", uebernehmen: "Unverändert übernehmen", weglassen: "Weglassen" };
+export const MARKE_ART_NAME = { NAME: "Name", MAIL: "E-Mail", TELEFON: "Telefon", IBAN: "IBAN", DATUM: "Datum", SCHLUESSEL: "Schlüssel / Passwort",
+  BENUTZER: "Benutzername", ADRESSE: "Adresse (Server)", WERT: "Wert" };
+
+/* Dateien, in denen eine Marke das Programm brechen könnte: hier steht ein Musterwert. */
+const CODE_ENDUNG = new Set(("js mjs cjs ts tsx jsx mts cts vue svelte astro py pyi rb php java kt kts scala go rs c h cc cpp hpp " +
+  "cs fs swift m mm dart lua pl r jl ex exs erl hs clj sh bash zsh fish ps1 psm1 bat cmd css scss sass less styl sql gradle " +
+  "json jsonc json5 yml yaml toml ini cfg conf env properties lock npmrc").split(" "));
+/* Dateimarken, die standardmäßig nicht mitkommen (Klaus entscheidet anders, wenn er will). */
+const WEG_MARKEN = new Set(["ENV", "SICHERUNG", "DATENBANK", "EXPORT", "SCHLUESSELDATEI"]);
+const MARKE_REIHE = ["SCHLUESSEL", "MAIL", "IBAN", "TELEFON", "DATUM", "ADRESSE", "NAME", "BENUTZER", "WERT"];
+
+export function wertSchluessel(wert) { return String(wert).trim().toLowerCase(); }
+export function istCode(pfad) { return CODE_ENDUNG.has(endungVon(pfad)); }
+
+function markeArtVon(art, wert) {
+  if (art === "NAME" || art === "VERFASSER" || art === "COPYRIGHT" || art === "GIT-NAME") return "NAME";
+  if (art === "BENUTZERPFAD") return "BENUTZER";
+  if (art === "GIT-ADRESSE") return /@/.test(wert) && !/:\/\//.test(wert) ? "MAIL" : "ADRESSE";
+  if (MARKE_REIHE.includes(art)) return art;
+  return "WERT";
+}
+
+/** Musterwerte: unverfänglich, gleiche Form wie das Original, wo es geht. */
+export function musterwert(marke, n, alt) {
+  alt = String(alt || "");
+  switch (marke) {
+    case "NAME": return ["Max Mustermann", "Erika Musterfrau", "Jonas Beispiel", "Lea Muster"][n - 1] || "Person Muster " + n;
+    case "MAIL": return "muster" + n + "@beispiel.example";
+    case "TELEFON": return "+49 000 " + String(1000000 + n);
+    case "IBAN": { const roh = "DE00" + String(n).padStart(18, "0"); return /\s/.test(alt) ? roh.replace(/(.{4})(?=.)/g, "$1 ") : roh; }
+    case "DATUM":
+      if (/^\d{4}-\d{2}-\d{2}/.test(alt)) return "2000-01-01";
+      if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(alt)) return "01/01/2000";
+      if (/^\d{1,2}\.\d{1,2}\.\d{2,4}$/.test(alt)) return "01.01.2000";
+      return "1. Januar 2000";
+    case "SCHLUESSEL": return "MUSTER-SCHLUESSEL-" + n;
+    case "BENUTZER": return n === 1 ? "benutzer" : "benutzer" + n;
+    case "ADRESSE": return "https://git.beispiel.example/muster/projekt" + (n > 1 ? n : "") + ".git";
+    default: return "Musterwert " + n;
+  }
+}
+
+/**
+ * Vorschlag für die Entscheidungen aus dem Prüfergebnis. Werte: entfernen;
+ * Dateien: Text reinigen, Riskantes weglassen, Unbedenkliches übernehmen.
+ * Die Oberfläche ändert nur `wie` (und `eigen`).
+ */
+export function vorschlag(ergebnis) {
+  const werte = [], karte = new Map();
+  for (const b of ergebnis.buendel) {
+    if (b.nurDatei || !b.wert || String(b.wert).trim().length < 2) continue;
+    const k = wertSchluessel(b.wert);
+    let w = karte.get(k);
+    if (!w) { w = { schluessel: k, wert: String(b.wert).trim(), arten: [], marke: "WERT", vorschlag: true, anzahl: 0, wie: "entfernen", eigen: "" }; karte.set(k, w); werte.push(w); }
+    if (!w.arten.includes(b.art)) w.arten.push(b.art);
+    if (!b.vorschlag) w.vorschlag = false;
+    w.anzahl += b.anzahl;
+    const m = markeArtVon(b.art, b.wert);
+    if (MARKE_REIHE.indexOf(m) < MARKE_REIHE.indexOf(w.marke)) w.marke = m;
+  }
+  const dateien = {};
+  for (const e of ergebnis.inventur) {
+    if (e.art === "ordner") continue;
+    const kennungen = e.marken.map((m) => m.kennung);
+    if (kennungen.includes("GIT") || /(^|\/)\.git\//.test(e.pfad)) { dateien[e.pfad] = { wie: "weglassen", moeglich: ["weglassen"], grund: "Git-Geschichte — die saubere Kopie beginnt ohne .git." }; continue; }
+    const riskant = kennungen.filter((k) => WEG_MARKEN.has(k));
+    const grundRiskant = riskant.length ? riskant.map((k) => MARKE_NAME[k]).join(", ") + " — kommt standardmäßig nicht mit." : "";
+    if (e.textlich) {
+      dateien[e.pfad] = { wie: riskant.length ? "weglassen" : "reinigen", moeglich: ["reinigen", "weglassen"], grund: grundRiskant || (e.befunde ? "Text — die Stellen werden ersetzt." : "Text ohne Funde.") };
+    } else {
+      const unbedenklich = e.gelesen && !e.befunde && !e.ungeprueft && !riskant.length;
+      dateien[e.pfad] = { wie: unbedenklich ? "uebernehmen" : "weglassen", moeglich: ["uebernehmen", "weglassen"],
+        grund: unbedenklich ? "ohne Funde gelesen — kommt unverändert mit." : grundRiskant || (e.befunde ? "trägt Funde und lässt sich hier nicht Stelle für Stelle reinigen (neu bauen: Stufe 4)." : "ungeprüft — kommt standardmäßig nicht mit.") };
+    }
+  }
+  return { fassung: 1, werte, dateien };
+}
+
+function regexQuelle(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+const WORT = /[\p{L}\p{N}_]/u;
+
+/** Baut aus den Entscheidungen die Ersatz-Tabelle (gleicher Wert → gleiche Nummer). */
+function ersatzTabelle(entscheidungen, hinweise) {
+  const zaehler = {}, musterZaehler = {}, tabelle = new Map();
+  for (const w of entscheidungen.werte) {
+    let wie = w.wie;
+    if (wie === "behalten") continue;
+    if (wie === "eigen" && !String(w.eigen || "").trim()) { hinweise.push("Ein „eigener Wert“ war leer — dort steht jetzt die Marke bzw. ein Musterwert."); wie = "entfernen"; }
+    const m = w.marke || "WERT";
+    const muster = () => { musterZaehler[m] = (musterZaehler[m] || 0) + 1; return musterwert(m, musterZaehler[m], w.wert); };
+    let text, code;
+    if (wie === "entfernen") { zaehler[m] = (zaehler[m] || 0) + 1; text = "⟦" + m + "-" + zaehler[m] + "⟧"; code = muster(); }
+    else if (wie === "muster") text = code = muster();
+    else text = code = String(w.eigen).trim();
+    tabelle.set(w.schluessel, { wert: w.wert, marke: m, wie, text, code });
+  }
+  return tabelle;
+}
+
+function ersetzer(tabelle) {
+  const werte = Array.from(tabelle.values()).sort((a, b) => b.wert.length - a.wert.length);
+  if (!werte.length) return null;
+  const teile = werte.map((t) => (WORT.test(t.wert[0]) ? "(?<![\\p{L}\\p{N}_])" : "") + regexQuelle(t.wert) + (WORT.test(t.wert[t.wert.length - 1]) ? "(?![\\p{L}\\p{N}_])" : ""));
+  return new RegExp(teile.join("|"), "giu");
+}
+
+/**
+ * Reinigt: baut die saubere Kopie (ohne .git, ohne Übersprungenes), den
+ * Stellenplan und die Zuordnung. Ändert die Eingabe nicht.
+ * @returns {Promise<{sauber, stellenplan, zuordnung, weg, hinweise, zahlen}>}
+ */
+export async function reinige(dateien, entscheidungen) {
+  const hinweise = [], stellenplan = [], weg = [], sauber = [];
+  const tabelle = ersatzTabelle(entscheidungen, hinweise);
+  const re = ersetzer(tabelle);
+  const ersetze = (text, alsCode, pfadNeu, art) => {
+    if (!re) return text;
+    let zeile = 1, letzte = 0;
+    return text.replace(re, (treffer, ...rest) => {
+      const pos = rest[rest.length - 2];
+      if (art !== "pfad") { for (let i = text.indexOf("\n", letzte); i !== -1 && i < pos; i = text.indexOf("\n", i + 1)) zeile++; letzte = pos; }
+      const t = tabelle.get(wertSchluessel(treffer));
+      if (!t) return treffer;
+      const ersatz = alsCode ? t.code : t.text;
+      stellenplan.push({ pfad: pfadNeu, zeile: art === "pfad" ? undefined : zeile, ort: art === "pfad" ? "Datei- oder Ordnername" : undefined,
+        ersatz, art: t.marke, wie: ersatz.startsWith("⟦") ? "marke" : t.wie === "eigen" ? "eigen" : "muster" });
+      return ersatz;
+    });
+  };
+  const sauberPfad = (pfad) => normPfad(pfad).split("/").map((teil) => ersetze(teil, true, null, "pfad")).join("/");
+  const liste = dateien.map((d) => Object.assign({}, d, { pfad: normPfad(d.pfad) })).sort((a, b) => a.pfad < b.pfad ? -1 : a.pfad > b.pfad ? 1 : 0);
+  let ersetzt = 0, gitWeg = 0, uebersprungenWeg = 0;
+  for (const d of liste) {
+    if (uebersprungen(d.pfad) || d.nichtGeoeffnet) { uebersprungenWeg++; continue; }
+    if (/(^|\/)\.git(\/|$)/.test(d.pfad)) { gitWeg++; continue; }
+    const plan = entscheidungen.dateien[d.pfad];
+    const wie = plan ? plan.wie : "weglassen";
+    const vorher = stellenplan.length;
+    const neu = sauberPfad(d.pfad);
+    if (wie === "weglassen") { stellenplan.length = vorher; weg.push({ pfad: neu, grund: plan ? plan.grund : "nicht geprüft — kommt nicht mit." }); continue; }
+    for (let i = vorher; i < stellenplan.length; i++) stellenplan[i].pfad = neu;
+    let bytes;
+    try { bytes = d.bytes || (d.lesen ? await d.lesen() : null); } catch { bytes = null; }
+    if (!bytes) { stellenplan.length = vorher; weg.push({ pfad: neu, grund: "nicht lesbar — kommt nicht mit." }); continue; }
+    bytes = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    if (wie === "reinigen") {
+      let text;
+      try { text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes); }
+      catch { stellenplan.length = vorher; weg.push({ pfad: neu, grund: "nicht als UTF-8 lesbar — kommt nicht mit." }); continue; }
+      const vorText = stellenplan.length;
+      const rein = ersetze(text, istCode(d.pfad), neu, "text");
+      ersetzt += stellenplan.length - vorText;
+      sauber.push({ pfad: neu, bytes: rein === text ? bytes : new TextEncoder().encode(rein), gereinigt: true });
+    } else sauber.push({ pfad: neu, bytes, gereinigt: false });
+  }
+  if (gitWeg) hinweise.push(gitWeg + " Datei(en) aus .git kommen nicht mit — die eigene Geschichte beginnt bei null (git init).");
+  if (uebersprungenWeg) hinweise.push(uebersprungenWeg + " nicht gelesene Datei(en) (node_modules, Build-Ordner) kommen nicht mit — nach dem Auspacken neu installieren bzw. neu bauen.");
+  const zuordnung = Array.from(tabelle.values()).map((t) => ({ marke: t.text, code: t.code, art: t.marke, wie: t.wie, wert: t.wert }));
+  return { sauber, stellenplan, zuordnung, weg, hinweise,
+    zahlen: { dateien: sauber.length, gereinigt: sauber.filter((s) => s.gereinigt && s.bytes).length, weg: weg.length, git: gitWeg, uebersprungen: uebersprungenWeg, stellen: ersetzt, umbenannt: stellenplan.filter((s) => s.ort).length } };
+}
+
+function bytesFinden(heu, nadel) {
+  if (!nadel.length || nadel.length > heu.length) return -1;
+  const erst = nadel[0];
+  outer: for (let i = heu.indexOf(erst); i !== -1 && i <= heu.length - nadel.length; i = heu.indexOf(erst, i + 1)) {
+    for (let j = 1; j < nadel.length; j++) if (heu[i + j] !== nadel[j]) continue outer;
+    return i;
+  }
+  return -1;
+}
+function kleinAscii(b) { const k = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) { const c = b[i]; k[i] = c >= 65 && c <= 90 ? c + 32 : c; } return k; }
+function utf16le(s) { const b = new Uint8Array(s.length * 2); for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); b[2 * i] = c & 255; b[2 * i + 1] = c >> 8; } return b; }
+
+/**
+ * Nachprüfung: die saubere Kopie wird noch einmal ganz durchsucht. Laut genannt
+ * wird (1) jeder alte Wert, der noch in den Bytes einer Datei steckt, (2) jeder
+ * neue Fund, der weder Marke noch Ersatz noch bewusst behalten ist, (3) jede
+ * Datei der Kopie, die ungeprüft blieb. Leer heißt NICHT „garantiert sauber“.
+ */
+export async function nachpruefe(rein, entscheidungen, optionen = {}) {
+  const r = await pruefe(rein.sauber, optionen);
+  const bekannt = new Set();
+  for (const z of rein.zuordnung) { bekannt.add(wertSchluessel(z.marke)); bekannt.add(wertSchluessel(z.code)); }
+  for (const w of entscheidungen.werte) if (w.wie === "behalten") bekannt.add(w.schluessel);
+  const istMarke = (v) => /^(?:⟦[A-Z][A-Z0-9_]*-\d+⟧\s*)+$/.test(String(v).trim());
+  const offen = [];
+  /* 1 · alte Werte in den Bytes (UTF-8 und UTF-16, Groß/klein bei ASCII egal) */
+  const alte = rein.zuordnung.filter((z) => z.wert.length >= 2);
+  for (const s of rein.sauber) {
+    const klein = kleinAscii(s.bytes);
+    for (const z of alte) {
+      const w = z.wert.toLowerCase();
+      if (bytesFinden(klein, new TextEncoder().encode(w)) !== -1 || bytesFinden(klein, utf16le(w)) !== -1)
+        offen.push({ grund: "rest", pfad: s.pfad, art: z.art, satz: "Ein entfernter Wert (" + (MARKE_ART_NAME[z.art] || z.art) + ") steckt noch in dieser Datei." + (s.gereinigt ? "" : " Sie wurde unverändert übernommen.") });
+    }
+  }
+  /* 2 · neue Funde */
+  for (const b of r.buendel) {
+    if (!b.nurDatei && (bekannt.has(wertSchluessel(b.wert)) || istMarke(b.wert))) continue;
+    if (b.art === "NAME" && b.vorschlag && istMarke(b.wert)) continue;
+    offen.push({ grund: "fund", art: b.art, artName: b.artName, wert: b.wert, nurDatei: b.nurDatei, anzahl: b.anzahl, stellen: b.stellen,
+      satz: b.nurDatei ? b.satz : "Noch gefunden: " + b.artName + ", " + b.anzahl + "×." });
+  }
+  /* 3 · ungeprüft in der Kopie */
+  for (const e of r.inventur) if (e.ungeprueft && e.art !== "ordner") offen.push({ grund: "ungeprueft", pfad: e.pfad, satz: "Ungeprüft in der Kopie: " + e.ungeprueft });
+  return { offen, ergebnis: r, hinweise: r.hinweise };
+}
+
+/** Der Stellenplan als Text (wie im Brief) und als JSON. Er enthält keinen alten Wert. */
+export function stellenplanText(rein, jetzt = new Date()) {
+  const zeilen = rein.stellenplan.map((s) => {
+    const wo = s.ort ? s.ort : "Zeile " + s.zeile;
+    const was = s.wie === "marke" ? s.ersatz + "   Art: " + (MARKE_ART_NAME[s.art] || s.art)
+      : s.wie === "eigen" ? "eigener Wert (war: " + (MARKE_ART_NAME[s.art] || s.art) + ")"
+      : s.ersatz + " (war: " + (MARKE_ART_NAME[s.art] || s.art) + ")";
+    return [s.pfad, wo, was];
+  });
+  const b0 = Math.max(4, ...zeilen.map((z) => z[0].length)), b1 = Math.max(5, ...zeilen.map((z) => z[1].length));
+  return "Stellenplan — Projekt-Reiniger Pro, " + jetzt.toISOString().slice(0, 10) + "\n" +
+    "Er nennt nur, WO eine Angabe stand und WAS jetzt dort steht. Die entfernten Werte stehen nicht darin.\n" +
+    "Marken ⟦ART-n⟧: gleicher Wert = gleiche Nummer. Musterwerte stehen in Code und Konfiguration, damit das Programm weiterläuft.\n\n" +
+    (zeilen.length ? zeilen.map((z) => z[0].padEnd(b0) + "   " + z[1].padEnd(b1) + "   " + z[2]).join("\n") : "(keine Stelle ersetzt)") + "\n";
+}
+export function stellenplanJson(rein) {
+  return JSON.stringify({ art: "projekt-reiniger-stellenplan", fassung: 1,
+    stellen: rein.stellenplan.map((s) => ({ pfad: s.pfad, zeile: s.zeile, ort: s.ort, ersatz: s.wie === "eigen" ? undefined : s.ersatz, wie: s.wie, art: s.art })) }, null, 2) + "\n";
+}
+
+/** Der Bericht: WAS entfernt wurde und was offen bleibt — ohne Werte. */
+export function bericht(rein, nach, jetzt = new Date()) {
+  const proArt = {};
+  for (const s of rein.stellenplan) { const k = (MARKE_ART_NAME[s.art] || s.art) + " → " + (s.wie === "marke" ? "Marke" : s.wie === "eigen" ? "eigener Wert" : "Musterwert"); proArt[k] = (proArt[k] || 0) + 1; }
+  const z = rein.zahlen, aus = [];
+  aus.push("Bericht — Projekt-Reiniger Pro, " + jetzt.toISOString().slice(0, 10), "Er nennt keine entfernten Werte.", "");
+  aus.push("In der Kopie: " + z.dateien + " Datei(en), davon " + z.gereinigt + " gereinigt. Weggelassen: " + z.weg + ". Aus .git: " + z.git + " (nie dabei). Nicht gelesen: " + z.uebersprungen + ".");
+  aus.push("Ersetzt: " + z.stellen + " Stelle(n) im Text" + (z.umbenannt ? ", " + z.umbenannt + " Datei- oder Ordnername(n)" : "") + ".", "");
+  if (Object.keys(proArt).length) { aus.push("Was ersetzt wurde:"); for (const [k, n] of Object.entries(proArt)) aus.push("  " + k + ": " + n + "×"); aus.push(""); }
+  if (rein.weg.length) { aus.push("Weggelassen:"); for (const w of rein.weg) aus.push("  " + w.pfad + " — " + w.grund); aus.push(""); }
+  for (const h of rein.hinweise) aus.push("Hinweis: " + h);
+  aus.push("", "Nachprüfung (die Kopie wurde noch einmal ganz durchsucht):");
+  if (!nach.offen.length) aus.push("  Nichts offen gefunden. Die Suche arbeitet mit Mustern und Listen und findet nicht garantiert alles.");
+  else for (const o of nach.offen) aus.push("  OFFEN: " + (o.pfad ? o.pfad + " — " : "") + (o.grund === "fund" && !o.nurDatei ? (o.artName || o.art) + ", " + o.anzahl + "× (" + Array.from(new Set(o.stellen.map((s) => s.pfad))).join(", ") + ")" : o.satz));
+  return aus.join("\n") + "\n";
+}
+
+/* ── ZIP schreiben (gespeichert oder deflate), UTF-8-Namen ─────────────── */
+let CRC_TAFEL = null;
+export function crc32(b) {
+  if (!CRC_TAFEL) { CRC_TAFEL = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; CRC_TAFEL[n] = c >>> 0; } }
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < b.length; i++) c = CRC_TAFEL[(c ^ b[i]) & 255] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+async function packe(b) {
+  if (typeof CompressionStream !== "function" || b.length < 64) return null;
+  const cs = new CompressionStream("deflate-raw"), w = cs.writable.getWriter();
+  w.write(b).catch(() => {}); w.close().catch(() => {});
+  const r = cs.readable.getReader(), teile = []; let n = 0;
+  for (;;) { const { done, value } = await r.read(); if (done) break; teile.push(value); n += value.length; }
+  return n < b.length ? zusammen(teile, n) : null;
+}
+/** Baut ein ZIP aus `{ pfad, bytes }`. Zeitstempel fest (1.1.1980), damit nichts über den Zeitpunkt verrät. */
+export async function zipBauen(dateien) {
+  const T = new TextEncoder(), teile = [], zentral = []; let off = 0;
+  for (const d of dateien) {
+    const name = T.encode(normPfad(d.pfad)), roh = d.bytes, crc = crc32(roh);
+    const gepackt = await packe(roh), methode = gepackt ? 8 : 0, daten = gepackt || roh;
+    const lh = new Uint8Array(30 + name.length), v = new DataView(lh.buffer);
+    v.setUint32(0, 0x04034b50, true); v.setUint16(4, 20, true); v.setUint16(6, 0x800, true); v.setUint16(8, methode, true);
+    v.setUint16(10, 0, true); v.setUint16(12, 0x21, true); v.setUint32(14, crc, true);
+    v.setUint32(18, daten.length, true); v.setUint32(22, roh.length, true); v.setUint16(26, name.length, true); lh.set(name, 30);
+    const ch = new Uint8Array(46 + name.length), c = new DataView(ch.buffer);
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x800, true); c.setUint16(10, methode, true);
+    c.setUint16(12, 0, true); c.setUint16(14, 0x21, true); c.setUint32(16, crc, true);
+    c.setUint32(20, daten.length, true); c.setUint32(24, roh.length, true); c.setUint16(28, name.length, true); c.setUint32(42, off, true); ch.set(name, 46);
+    teile.push(lh, daten); zentral.push(ch); off += lh.length + daten.length;
+  }
+  const zl = zentral.reduce((n, x) => n + x.length, 0), ende = new Uint8Array(22), e = new DataView(ende.buffer);
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, dateien.length, true); e.setUint16(10, dateien.length, true); e.setUint32(12, zl, true); e.setUint32(16, off, true);
+  return zusammen([...teile, ...zentral, ende], off + zl + 22);
+}
+
+/** Alles zusammen für den Download: die Kopie, dazu _reiniger/ mit Stellenplan und Bericht (ohne Werte). */
+export async function ausgabe(rein, nach, jetzt = new Date()) {
+  const T = new TextEncoder();
+  const beilagen = [
+    { pfad: "_reiniger/STELLENPLAN.txt", bytes: T.encode(stellenplanText(rein, jetzt)) },
+    { pfad: "_reiniger/stellenplan.json", bytes: T.encode(stellenplanJson(rein)) },
+    { pfad: "_reiniger/BERICHT.txt", bytes: T.encode(bericht(rein, nach, jetzt)) },
+  ];
+  const wurzeln = new Set(rein.sauber.map((s) => s.pfad.split("/")[0]));
+  const ein = wurzeln.size === 1 && rein.sauber.every((s) => s.pfad.includes("/")) ? Array.from(wurzeln)[0] : "";
+  const beilagenPfad = beilagen.map((b) => ({ pfad: (ein ? ein + "/" : "") + b.pfad, bytes: b.bytes }));
+  return { zip: await zipBauen([...rein.sauber, ...beilagenPfad]), name: (ein || "projekt") + "-sauber.zip", beilagen };
 }

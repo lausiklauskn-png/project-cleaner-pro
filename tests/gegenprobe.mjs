@@ -20,6 +20,20 @@ const FAELLE = [
   ["ICON", "icons/quelle.sha256", "", "0", /Icons sind aus der aktuellen Quelle/],
   ["CLEANER", "assets/app.css", "margin: 14px 0 0; color: #fff;", "margin: 14px 0 0; color: #888;", /„CLEANER“ stehen da/],
   ["UNGEPRUEFT", "assets/reiniger-kern.js", "    hinweise.push(\"Modul 25 (harte Angaben) fehlt", "    if (0) hinweise.push(\"Modul 25 (harte Angaben) fehlt", /ohne Modul 25/],
+  /* Stufe 2 */
+  ["ERSETZEN", "assets/reiniger-kern.js", "const ersatz = alsCode ? t.code : t.text;", "const ersatz = treffer;", /kein entfernter Wert steckt noch/],
+  ["GITMIT", "assets/reiniger-kern.js", "if (/(^|\\/)\\.git(\\/|$)/.test(d.pfad)) { gitWeg++; continue; }", "if (false) { gitWeg++; continue; }", /\.git auf „reinigen“ setzt/],
+  ["GITWAHL", "assets/reiniger-kern.js", "dateien[e.pfad] = { wie: \"weglassen\", moeglich: [\"weglassen\"]", "dateien[e.pfad] = { wie: \"weglassen\", moeglich: [\"weglassen\", \"reinigen\"]", /\.git fest weg/],
+  ["PLANWERT", "assets/reiniger-kern.js", "ersatz, art: t.marke,", "ersatz: ersatz + \" \" + t.wert, art: t.marke,", /nennen keinen alten Wert/],
+  ["NUMMER", "assets/reiniger-kern.js", "text = \"⟦\" + m + \"-\" + zaehler[m] + \"⟧\";", "text = \"⟦\" + m + \"-1⟧\";", /anderer Wert = andere Nummer/],
+  ["GRENZE", "assets/reiniger-kern.js", "(WORT.test(t.wert[0]) ? \"(?<![\\\\p{L}\\\\p{N}_])\" : \"\")", "\"\"", /Wortgrenzen/],
+  ["CODE", "assets/reiniger-kern.js", "const rein = ersetze(text, istCode(d.pfad), neu, \"text\");", "const rein = ersetze(text, false, neu, \"text\");", /Musterwert statt Marke|gültiges JSON/],
+  ["NACHREST", "assets/reiniger-kern.js", "      if (bytesFinden(klein, new TextEncoder().encode(w)) !== -1 ||", "      if (0 && bytesFinden(klein, new TextEncoder().encode(w)) !== -1 ||", /alter Wert steckt noch in einer unverändert/],
+  ["BEHALTEN", "assets/reiniger-kern.js", "    if (wie === \"behalten\") continue;", "    if (wie === \"behalten\") wie = \"entfernen\";", /behalten: der Wert bleibt/],
+  ["ENVWEG", "assets/reiniger-kern.js", "const WEG_MARKEN = new Set([\"ENV\", ", "const WEG_MARKEN = new Set([", /\.env, Sicherung, Export/],
+  ["BAUEN", "assets/app.js", "knopf.addEventListener(\"click\", bauen);", "", /Bauen: der Knopf baut/],
+  ["ZIPCRC", "assets/reiniger-kern.js", "for (let i = 0; i < b.length; i++) c = CRC_TAFEL[(c ^ b[i]) & 255] ^ (c >>> 8);", "for (let i = 1; i < b.length; i++) c = CRC_TAFEL[(c ^ b[i]) & 255] ^ (c >>> 8);", /crc32|fremder Leser/],
+  ["LEISTE", "assets/app.css", ".reinigen .knopf { min-height: 40px; padding: 6px 14px; }", ".reinigen .knopf { min-height: 40px; padding: 6px 14px; }\n.reinigen { flex-wrap: nowrap; }", /Ergebnis .*(läuft quer|ragt über|abgeschnitten|passt nicht)/],
   ["NETZ", "assets/app.js", "/* nur für die Proben */", "fetch(\"https://beispiel.example/\").catch(() => {});\n/* nur für die Proben */", /Kein Netz|Konsole/],
 ];
 const nur = process.env.NUR_FALL;

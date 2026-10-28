@@ -1,4 +1,4 @@
-/* Typen zu reiniger-kern.js (Projekt-Reiniger Pro, Stufe 1). Für die Familienakte (TypeScript). */
+/* Typen zu reiniger-kern.js (Projekt-Reiniger Pro, Stufe 1 + 2). Für die Familienakte (TypeScript). */
 
 export interface Datei {
   /** Pfad mit „/“, relativ zum Projekt. */
@@ -26,10 +26,12 @@ export interface Befund {
   satz?: string;
   /** Nur ein Vorschlag (Namen aus Anrede/Gruß) — nie sicher. */
   vorschlag?: boolean;
+  /** Befund über die ganze Datei (Bild, PDF, Office): kein ersetzbarer Wert. */
+  nurDatei?: boolean;
 }
 
 export interface Buendel {
-  schicht: Schicht; art: string; artName: string; wert: string; vorschlag: boolean; satz: string;
+  schicht: Schicht; art: string; artName: string; wert: string; vorschlag: boolean; nurDatei: boolean; satz: string;
   anzahl: number; dateien: number;
   stellen: Array<{ pfad: string; zeile?: number; stelle?: string }>;
 }
@@ -45,6 +47,8 @@ export interface InventurEintrag {
   ungeprueft: string;
   befunde: number;
   uebersprungen?: number; nichtGeoeffnet?: boolean; hinweise?: string[];
+  /** als UTF-8-Text gelesen — lässt sich Stelle für Stelle reinigen */
+  textlich?: boolean;
 }
 
 export interface Ergebnis {
@@ -75,3 +79,54 @@ export function uebersprungen(pfad: string): string | null;
 export function zeichenketten(bytes: Uint8Array, min?: number, max?: number): string;
 export function entpacke(daten: Uint8Array, format: "deflate" | "deflate-raw" | "gzip", max: number): Promise<Uint8Array>;
 export function buendeln(befunde: Befund[]): Buendel[];
+
+/* ── Stufe 2 ── */
+export type Wie = "entfernen" | "muster" | "eigen" | "behalten";
+export type DateiWie = "reinigen" | "uebernehmen" | "weglassen";
+export type MarkeArt = "NAME" | "MAIL" | "TELEFON" | "IBAN" | "DATUM" | "SCHLUESSEL" | "BENUTZER" | "ADRESSE" | "WERT";
+
+export interface WertEntscheidung {
+  /** wertSchluessel(wert): klein geschrieben, ohne Rand */
+  schluessel: string; wert: string; arten: string[]; marke: MarkeArt; vorschlag: boolean; anzahl: number;
+  wie: Wie; eigen: string;
+}
+export interface Entscheidungen {
+  fassung: 1;
+  werte: WertEntscheidung[];
+  dateien: Record<string, { wie: DateiWie; moeglich: DateiWie[]; grund: string }>;
+}
+export interface Stelle {
+  /** Pfad in der sauberen Kopie */
+  pfad: string; zeile?: number; ort?: string;
+  /** Marke ⟦ART-n⟧, Musterwert oder eigener Wert — nie der alte Wert */
+  ersatz: string; art: MarkeArt; wie: "marke" | "muster" | "eigen";
+}
+export interface Gereinigt {
+  sauber: Array<{ pfad: string; bytes: Uint8Array; gereinigt: boolean }>;
+  stellenplan: Stelle[];
+  /** Marke → alter Wert. NUR im Speicher; abgelegt erst im Tresor (Stufe 5). */
+  zuordnung: Array<{ marke: string; code: string; art: MarkeArt; wie: Wie; wert: string }>;
+  weg: Array<{ pfad: string; grund: string }>;
+  hinweise: string[];
+  zahlen: { dateien: number; gereinigt: number; weg: number; git: number; uebersprungen: number; stellen: number; umbenannt: number };
+}
+export interface Offen {
+  grund: "rest" | "fund" | "ungeprueft"; pfad?: string; art?: string; artName?: string; wert?: string;
+  nurDatei?: boolean; anzahl?: number; stellen?: Buendel["stellen"]; satz: string;
+}
+
+export const WIE_NAME: Record<Wie, string>;
+export const DATEI_WIE_NAME: Record<DateiWie, string>;
+export const MARKE_ART_NAME: Record<MarkeArt, string>;
+export function wertSchluessel(wert: string): string;
+export function istCode(pfad: string): boolean;
+export function musterwert(marke: MarkeArt, n: number, alt?: string): string;
+export function vorschlag(ergebnis: Ergebnis): Entscheidungen;
+export function reinige(dateien: Datei[], entscheidungen: Entscheidungen): Promise<Gereinigt>;
+export function nachpruefe(rein: Gereinigt, entscheidungen: Entscheidungen, optionen?: { werkzeuge?: Werkzeuge }): Promise<{ offen: Offen[]; ergebnis: Ergebnis; hinweise: string[] }>;
+export function stellenplanText(rein: Gereinigt, jetzt?: Date): string;
+export function stellenplanJson(rein: Gereinigt): string;
+export function bericht(rein: Gereinigt, nach: { offen: Offen[] }, jetzt?: Date): string;
+export function crc32(bytes: Uint8Array): number;
+export function zipBauen(dateien: Array<{ pfad: string; bytes: Uint8Array }>): Promise<Uint8Array>;
+export function ausgabe(rein: Gereinigt, nach: { offen: Offen[] }, jetzt?: Date): Promise<{ zip: Uint8Array; name: string; beilagen: Array<{ pfad: string; bytes: Uint8Array }> }>;

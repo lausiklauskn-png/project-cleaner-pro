@@ -75,7 +75,9 @@ code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-si
 }
 
 /* Arbeit: Zahlen, Hinweise, zwei Flächen */
-.arbeit { min-height: 0; display: grid; grid-template-rows: auto auto auto auto minmax(0, 1fr); }
+.arbeit { min-height: 0; display: flex; flex-direction: column; }
+.arbeit > * { flex: none; }
+.arbeit > .spalten { flex: 1 1 0; }
 .fortschritt { display: grid; gap: 6px; padding: 10px var(--abstand); background: var(--papier); border-bottom: 1px solid var(--linie); }
 .fortschritt span { overflow-wrap: anywhere; font-size: .9rem; color: var(--leise); }
 .fortschritt progress { width: 100%; height: 8px; accent-color: var(--petrol); }
@@ -160,3 +162,45 @@ details.stellen li { overflow-wrap: anywhere; }
 
 .ziehen { position: fixed; inset: 10px; display: grid; place-items: center; border: 3px dashed var(--k3); border-radius: 18px;
   background: rgb(11 49 84 / .82); color: #fff; font-size: 1.4rem; font-weight: 700; pointer-events: none; z-index: 10; text-align: center; padding: 16px; }
+
+/* Stufe 2: entscheiden, bauen, Nachprüfung */
+select, input[type="text"] {
+  font: inherit; font-size: .92rem; min-height: 38px; max-width: 100%; min-width: 0;
+  padding: 6px 10px; border-radius: 8px; border: 1px solid var(--linie); background: var(--papier); color: var(--schrift);
+}
+select:focus-visible, input[type="text"]:focus-visible { outline: 3px solid var(--k3); outline-offset: 1px; }
+.reinigen { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px var(--abstand); background: #e8f4f3; border-bottom: 1px solid #b9dcd9; }
+.leiste-satz { margin: 0; flex: 1 1 100%; min-width: 0; font-size: .9rem; color: var(--schrift); overflow-wrap: anywhere; }
+.leiste-satz.rot { color: var(--rot); font-weight: 700; }
+.leiste-satz.gut { color: #1d6b43; font-weight: 600; }
+.wahl-legende { margin: 0 0 14px; font-size: .88rem; color: var(--leise); overflow-wrap: anywhere; }
+.wahl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 6px 0 4px; }
+.wahl label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .88rem; color: var(--leise); min-width: 0; }
+.wahl input[type="text"] { flex: 1 1 180px; }
+.wahl-auch, .wahl-datei { font-size: .82rem; color: var(--leise); overflow-wrap: anywhere; }
+.wahl-datei { margin: 4px 0; }
+.datei-wahl { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.zeile2 select { min-height: 30px; padding: 2px 6px; font-size: .8rem; }
+.chip.weg { border-color: #c9d3db; background: #eef1f4; color: var(--leise); }
+.nachpruefung { margin: 0 0 18px; padding: 12px 14px; border-radius: var(--rund); border: 1px solid #9fd3b8; background: #ecf8f1; }
+.nachpruefung.rot { border-color: #f2b8b8; background: var(--rot-grund); }
+.nachpruefung h2 { margin: 0 0 4px; font-size: 1.05rem; color: #1d6b43; }
+.nachpruefung.rot h2 { color: var(--rot); }
+.nachpruefung p, .nachpruefung li { margin: 0 0 6px; font-size: .9rem; overflow-wrap: anywhere; }
+.nachpruefung ul { margin: 6px 0; padding-left: 1.2em; }
+.nachpruefung .klein { font-size: .82rem; color: var(--leise); }
+.reinigen .knopf { min-height: 40px; padding: 6px 14px; }
+.b-kurz { display: none; }
+/* Handy hoch und quer: die Leiste bleibt schmal, damit Funde und Inventur Platz haben */
+@media (max-width: 600px), (max-height: 560px) {
+  .reinigen { gap: 6px 8px; padding-top: 8px; padding-bottom: 8px; }
+  .reinigen .knopf { min-height: 36px; padding: 4px 11px; font-size: .92rem; }
+  .leiste-satz { font-size: .82rem; }
+  .b-lang { display: none; }
+  .b-kurz { display: inline; }
+}
+@media (max-height: 560px) {
+  .zahlen { padding-top: 6px; padding-bottom: 6px; gap: 6px; }
+  .zahlen li { padding: 2px 8px; font-size: .84rem; }
+  .leiste-satz { flex-basis: auto; flex-grow: 0; }
+}

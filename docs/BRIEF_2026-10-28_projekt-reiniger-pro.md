@@ -1,6 +1,6 @@
 # Brief: Projekt-Reiniger Pro
 
-Stand 2026-10-28, **Stufe 1 gebaut** (Abschnitt „Stufe 1 · gebaut“ unten). Der Brief lebt seitdem **hier**
+Stand 2026-10-28, **Stufe 1 und 2 gebaut** (Abschnitte „Stufe 1 · gebaut“ und „Stufe 2 · gebaut“ unten). Der Brief lebt seitdem **hier**
 im Repo `project-cleaner-pro`; die Fassung im Sende-Prüfer ist eingefroren und zeigt hierher.
 
 ## Anlass
@@ -294,7 +294,7 @@ ungereinigte ZIP, gilt:
 | Stufe | Inhalt |
 |---|---|
 | 1 ✅ | Einwerfen, Inventur, harte Angaben und Metadaten, Anzeige (nur lesen) — gebaut 2026-10-28 |
-| 2 | Entscheiden, Marken und Musterwerte, saubere Kopie, Stellenplan, Nachprüfung |
+| 2 ✅ | Entscheiden, Marken und Musterwerte, saubere Kopie, Stellenplan, Nachprüfung — gebaut 2026-10-28 |
 | 3 | Gefühlte Metadaten (Wortlisten, Eigennamen, Pfade) |
 | 4 | Neu gezeichnete Blätter, Mustermappe |
 | 5 | Tresor und Gäste-Sperre |
@@ -342,6 +342,49 @@ Am Ende: Brief nachziehen und wieder so einen Kurzauftrag ausgeben.
   `file://` geht nicht (der Kern ist ein ES-Modul) — die App braucht eine Adresse (GitHub Pages).
 - ⚠ **GitHub Pages ist noch nicht eingeschaltet** (Einstellungen → Pages → Branch `main`, Ordner `/`).
 
+## Stufe 2 · gebaut (2026-10-28)
+
+- **Kern** (`reiniger-kern.js`, `KERN_FASSUNG` 2, Typen in `.d.ts`):
+  `vorschlag(ergebnis) → entscheidungen` · `reinige(dateien, entscheidungen) → { sauber, stellenplan, zuordnung, weg, hinweise, zahlen }` ·
+  `nachpruefe(rein, entscheidungen) → { offen, ergebnis }` · `stellenplanText`, `stellenplanJson`, `bericht` · `zipBauen`, `ausgabe`.
+  Abweichung von der Schnittstelle oben: `reinige` bekommt die Entscheidungen aus `vorschlag` (sie tragen die Werte
+  und die Dateipläne); `pruefe` ist dafür nicht noch einmal nötig. Weiter kein DOM, keine IndexedDB, kein Netz.
+- **Entscheiden einmal je Wert:** ein Wert, der als Verfasser, Copyright und Git-Name vorkommt, ist **eine**
+  Entscheidung („gilt auch für: …“). Vorgabe: **Entfernen**. Zur Wahl: Entfernen · Musterwert · Eigener Wert · Behalten.
+- **Entfernen sieht je nach Datei anders aus** (Tabelle „Wie eine entfernte Stelle aussieht“): in Texten, Doku,
+  HTML eine Marke `⟦NAME-1⟧` (gleicher Wert = gleiche Nummer); in Code **und Konfiguration (JSON, YAML, TOML, .env)**
+  ein Musterwert („Max Mustermann“, `muster1@beispiel.example`, `DE00…`, `01.01.2000` in der Form des Originals),
+  damit das Programm weiterläuft; in **Datei- und Ordnernamen** ebenfalls ein Musterwert.
+- **Ersetzt wird an Wortgrenzen, ohne Rücksicht auf Groß/klein**, der längste Wert zuerst und in einem Durchgang —
+  „Anna“ trifft „ANNA“, aber nicht „Annabell“ oder „Hanna“. Dabei werden auch Stellen ersetzt, die die Suche
+  nicht einzeln gemeldet hat, wenn dort derselbe Wert steht.
+- **Je Datei:** Reinigen (Text) · Unverändert übernehmen · Weglassen. **`.git` kommt nie mit**, auch nicht, wenn
+  eine Entscheidung es anders sagt (zweite Sicherung in `reinige`). `node_modules` und Build-Ordner kommen nicht
+  mit (nie gelesen; der Bericht sagt: neu installieren). `.env`, Sicherung, Datenbank, Export und Schlüsseldatei
+  sind standardmäßig weg. Bilder, PDF, Office und Unbekanntes kommen nur unverändert mit, wenn sie **ohne Funde
+  und ohne „ungeprüft“** gelesen wurden — neu gezeichnet werden sie erst in Stufe 4.
+- **Ausgabe:** ein ZIP `<projekt>-sauber.zip` (fester Zeitstempel, damit es nichts über den Zeitpunkt verrät), darin
+  `_reiniger/STELLENPLAN.txt`, `_reiniger/stellenplan.json` und `_reiniger/BERICHT.txt`. Stellenplan und Bericht
+  gibt es auch einzeln. **Keiner von beiden nennt einen alten Wert** (die Probe sucht jeden darin). Ein eigener Wert
+  steht im Stellenplan nur als „eigener Wert (war: Name)“.
+- **Die Zuordnung** (welche Marke für welchen Wert steht) bleibt nur im Speicher, bis „↺ Neu“. Es gibt bewusst keinen
+  Download dafür — sie gehört in den Tresor (Stufe 5).
+- **Nachprüfung:** die Kopie wird noch einmal ganz geprüft, dazu wird **jeder alte Wert in den Bytes jeder Datei**
+  gesucht (UTF-8 und UTF-16, Groß/klein egal) — so fällt auch ein Wert in einer unverändert übernommenen Binärdatei
+  auf. Offen heißt: Rest eines alten Werts, ein neuer Fund, oder eine ungeprüfte Datei in der Kopie. Leer heißt
+  „nichts offen gefunden (nicht garantiert alles)“, nie „sauber“.
+- **Oberfläche:** an jedem Fund eine Auswahl „In der Kopie“, in der Inventur je Datei „Kopie: …“, darüber die
+  Leiste „🧽 Saubere Kopie bauen“ mit ⬇ ZIP · Stellenplan · Bericht. Wer nach dem Bauen etwas ändert, liest
+  „seit dem Bauen geändert — bitte neu bauen“. Am Handy (hoch und quer) kurze Beschriftungen.
+- **Proben:** `npm test` **133 grün · 0 ROT** (u. a. kein alter Wert in Kopie/Stellenplan/Bericht, Zeilen im
+  Stellenplan stimmen, package.json bleibt gültiges JSON, ZIP öffnet Python `zipfile` mit stimmenden Prüfsummen,
+  Download im Browser, Vollbild bei 7 Größen auch im Zustand „Ergebnis“). `npm run gegenprobe` **25 gefangen ·
+  0 blind** (13 neue Fälle für Stufe 2, erster voller Lauf).
+- ⚠ **Nicht gemessen:** ob ein echtes gereinigtes Projekt danach noch baut und läuft (Musterwerte können z. B.
+  eine Prüfung im Code stören); Download und Speicher am Tablet; große Projekte (das ZIP entsteht ganz im Speicher).
+- ⚠ **Bekannte Lücke bis Stufe 3:** Straße, PLZ, Ort, Firma werden noch nicht gefunden — im Beispiel bleibt
+  „Musterweg 1“ im Impressum stehen. Deshalb bleibt der eigene Blick Pflicht.
+
 ## Grenzen (vorab benannt)
 
 - Die Suche arbeitet mit Mustern und Listen. Sie findet viel, aber **nicht garantiert alles**.
@@ -351,6 +394,8 @@ Am Ende: Brief nachziehen und wieder so einen Kurzauftrag ausgeben.
 
 ## Offen
 
+- Musterwert oder Marke als Vorgabe für JSON/YAML? Jetzt: Musterwert (Konfiguration zählt wie Code).
+- Sollen `_reiniger/`-Dateien im ZIP liegen (jetzt ja) oder nur einzeln heruntergeladen werden?
 - Eigene Adresse (Unterdomain) oder fürs Erste github.io?
 - ✅ Das Repo gibt es: `project-cleaner-pro` (Klaus 2026-10-28). Stufe 1 liegt darin.
 - GitHub Pages einschalten (Klaus, Einstellungen des Repos).
