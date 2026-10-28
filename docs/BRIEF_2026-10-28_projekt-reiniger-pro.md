@@ -514,6 +514,9 @@ zur Zeit … mit Ladebalken … damit ich nicht denke, die ist abgestürzt“* �
   drehendes Zeichen. Wer währenddessen etwas startet, liest: „Es läuft gerade: … Eine Arbeit zur Zeit.“
 - **Teilansicht:** Die Vollbild-Probe misst jetzt zusätzlich halben Desktop (960×1080), Tablet geteilt (600×960)
   und halbes Handy (412×420). Die Kopfleiste lief bei 600 px über; die Knöpfe zeigen bis 700 px nur das Icon.
+  Bei wenig Höhe (Handy quer, halber Bildschirm) scrollt der ganze Arbeitsbereich in einem Stück, statt Funde und
+  Inventur in einen schmalen Streifen zu pressen. „Neu“ hat ein eigenes Zeichen (neues Blatt), damit es nicht wie
+  „Aktualisieren“ aussieht.
 - Proben: `npm test` **212 grün · 0 ROT**; `npm run gegenprobe` **55 gefangen · 0 blind** (14 neue Fälle; zwei waren
   zuerst blind, beide in der Probe, geschärft). ⚠ Nicht gemessen: der echte Installations-Dialog (in der Probe
   nachgestellt), das Speichern in einen echten Ordner (Ordner-Dialog nachgestellt), das Tablet.

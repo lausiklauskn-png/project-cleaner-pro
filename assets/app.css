@@ -234,7 +234,12 @@ select:focus-visible, input[type="text"]:focus-visible { outline: 3px solid var(
   .b-lang { display: none; }
   .b-kurz { display: inline; }
 }
+/* Wenig Höhe (Handy quer, halber Bildschirm): der ganze Arbeitsbereich scrollt in einem Stück,
+   statt Funde und Inventur in einen schmalen Streifen zu pressen. */
 @media (max-height: 560px) {
+  .arbeit { overflow-y: auto; }
+  .arbeit > .spalten { flex: none; }
+  .arbeit .flaeche { overflow: visible; }
   .zahlen { padding-top: 6px; padding-bottom: 6px; gap: 6px; }
   .zahlen li { padding: 2px 8px; font-size: .84rem; }
   .leiste-satz { flex-basis: auto; flex-grow: 0; }
