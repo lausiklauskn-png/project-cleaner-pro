@@ -205,6 +205,59 @@ export async function einwerfen(liste) {
   return { dateien: aus, hinweise };
 }
 
+/* ── Archive im Projekt öffnen (ZIP, APK, JAR, IPA, TAR, TGZ, GZ — bis 3 Ebenen) ─────────────
+ * Klaus 2026-10-28: „… auch Apps … APK-App zum Beispiel.“ Eine APK ist innen ein ZIP. Geöffnet wird nur
+ * gelesen, nie ausgeführt. RAR und 7z kann die App nicht öffnen (kein freier Entpacker ohne Netz):
+ * dort nur Zeichenketten, laut „ungeprüft“. */
+export const ARCHIV_TIEFE_MAX = 3;
+export const ARCHIV_DATEIEN_MAX = 20000;
+export const ARCHIV_SUMME_MAX = 1024 * 1024 * 1024;
+const ARCHIV_NAME = { zip: "ZIP-Archiv", apk: "Android-App (APK)", aab: "Android-App-Bündel", aar: "Android-Bibliothek", jar: "Java-Archiv",
+  war: "Java-Webarchiv", ipa: "iOS-App", xpi: "Browser-Erweiterung", crx: "Chrome-Erweiterung", epub: "E-Book (EPUB)", cdr: "Corel-Datei (innen ZIP)",
+  nupkg: "NuGet-Paket", whl: "Python-Paket", vsix: "VS-Code-Erweiterung", appx: "Windows-App", msix: "Windows-App", tar: "TAR-Archiv", tgz: "TAR-Archiv (gepackt)", gz: "gepackte Datei" };
+const OFFICE_ZIP = new Set("docx docm xlsx xlsm pptx pptm odt ods odp dotx xltx potx".split(" "));
+
+/** Liest ein TAR-Archiv (ustar, GNU-Langnamen). Jede Datei erst auf Abruf. */
+export function tarDateien(b, vorsilbe = "") {
+  const dateien = [], hinweise = [], D = new TextDecoder("utf-8");
+  const kette = (o, n) => { let e = o; while (e < o + n && b[e]) e++; return D.decode(b.subarray(o, e)); };
+  let p = 0, langName = null;
+  while (p + 512 <= b.length) {
+    if (b[p] === 0 && b[p + 1] === 0) break;                     // Ende (Nullblock)
+    const groesse = parseInt(kette(p + 124, 12).trim() || "0", 8) || 0, typ = String.fromCharCode(b[p + 156] || 48);
+    const vorne = kette(p + 257, 6) === "ustar" ? kette(p + 345, 155) : "";
+    let name = langName || ((vorne ? vorne + "/" : "") + kette(p, 100));
+    langName = null;
+    const start = p + 512;
+    if (start + groesse > b.length) { hinweise.push("Das TAR-Archiv bricht mitten in „" + name + "“ ab — der Rest ist ungeprüft."); break; }
+    if (typ === "L") langName = kette(start, groesse);
+    else if ((typ === "0" || typ === "7") && !name.endsWith("/")) {
+      const von = start, bis = start + groesse;
+      dateien.push({ pfad: normPfad(vorsilbe + name), groesse, lesen: () => b.subarray(von, bis) });
+    }
+    p = start + Math.ceil(groesse / 512) * 512;
+  }
+  return { dateien, hinweise };
+}
+
+async function archivOeffnen(pfad, b) {
+  const end = endungVon(pfad), vor = pfad + "/";
+  if (b[0] === 0x50 && b[1] === 0x4B && (b[2] === 3 || b[2] === 5) && !OFFICE_ZIP.has(end)) {
+    const z = zipDateien(b, vor);
+    if (z.kaputt) return null;
+    return { name: ARCHIV_NAME[end] || "ZIP-Archiv", dateien: z.dateien, hinweise: z.hinweise };
+  }
+  const istTar = (x) => x.length > 262 && String.fromCharCode(...x.subarray(257, 262)) === "ustar";
+  if (b[0] === 0x1f && b[1] === 0x8b) {
+    const roh = await entpacke(b, "gzip", GROESSE_MAX);
+    if (istTar(roh)) { const t = tarDateien(roh, vor); return { name: ARCHIV_NAME[end] || "TAR-Archiv (gepackt)", dateien: t.dateien, hinweise: t.hinweise }; }
+    const innen = dateiName(pfad).replace(/\.t?gz$/i, (m) => m.toLowerCase() === ".tgz" ? ".tar" : "") || "inhalt";
+    return { name: "gepackte Datei", dateien: [{ pfad: normPfad(vor + innen), groesse: roh.length, bytes: roh }], hinweise: [] };
+  }
+  if (istTar(b)) { const t = tarDateien(b, vor); return { name: "TAR-Archiv", dateien: t.dateien, hinweise: t.hinweise }; }
+  return null;
+}
+
 /* ── Inventur: was ist das für eine Datei? ─────────────────────────────── */
 
 /** Ordnet eine Datei ein: Art, Reinigungsstufe (1/2/3) und Marken. `art` = Dateikopf, wenn gelesen. */
@@ -233,7 +286,7 @@ export function einordnen(pfad, art) {
   if (/impressum|imprint|legal[-_]?notice|datenschutz|privacy/.test(name))
     marke("IMPRESSUM", "Impressum oder Datenschutz — hier stehen Name und Anschrift.");
   if (ARCHIV_ENDUNG.has(end) || art === "zip" && !OFFICE_ENDUNG.has(end))
-    marke("ARCHIV", "Archiv im Projekt — sein Inhalt wird in Stufe 1 nicht einzeln ausgepackt.");
+    marke("ARCHIV", "Archiv im Projekt — ZIP, APK, JAR, TAR und GZ werden geöffnet und mitgeprüft; RAR und 7z nicht.");
   if (PROGRAMM_ENDUNG.has(end) || art === "programm") marke("PROGRAMM", "Programm — wird nie ausgeführt, nur benannt.");
 
   let stufe = 3;
@@ -569,6 +622,21 @@ function gefuehltImPfad(pfad, gesehen, melde, begriffe) {
   }
 }
 
+/* Anweisungen an eine KI in Text und Code (Klaus 2026-10-28: „mindestens so eine Prüfung wie bei Workflow PDF“).
+ * Dieselbe Liste wie im Anhang-Prüfer (pruefer-mail.js, DATEI_KI_ARTEN dort) — aber direkt, mit echter Zeile:
+ * der ganze Anhang-Prüfer hielte jede .js-Datei für „getarnt“ (innen Text, Endung .js). */
+const KI_ARTEN = ["KI-ANWEISUNG", "KI-BEGRIFF", "UNSICHTBARE-ZEICHEN", "VERSTECKTER-TEXT"];
+const KI_TEXT_MAX = 2 * 1024 * 1024;
+function kiInText(PM, pfad, text, melde, quelle) {
+  const t = text.length > KI_TEXT_MAX ? text.slice(0, KI_TEXT_MAX) : text;
+  for (const st of PM.pruefeMail("\n" + t).stellen) {
+    if (!KI_ARTEN.includes(st.kennung)) continue;
+    const zeile = Math.max(1, st.zeile - 1);
+    melde({ schicht: "auffaellig", art: st.kennung, wert: st.satz, pfad, zeile: quelle ? undefined : zeile, stelle: quelle, satz: st.satz });
+  }
+  return text.length > KI_TEXT_MAX;
+}
+
 const SCHICHT_VON_KENNUNG = (k) => /METADATEN(?!-KI)|HERKUNFT|ALTFASSUNG/.test(k) ? "meta" : "auffaellig";
 
 /**
@@ -577,13 +645,15 @@ const SCHICHT_VON_KENNUNG = (k) => /METADATEN(?!-KI)|HERKUNFT|ALTFASSUNG/.test(k
  */
 export async function pruefe(dateien, optionen = {}) {
   const w = optionen.werkzeuge || globalThis;
-  const M25 = w.SbkimPseudonym, PA = w.PrueferAnhang;
+  const M25 = w.SbkimPseudonym, PA = w.PrueferAnhang, PM = w.PrueferMail;
   const fortschritt = optionen.fortschritt || (() => {});
   const begriffe = (optionen.begriffe || []).map(String).filter((b) => b.trim().length >= 2);
   const gefuehltInText = (pfad, text, melde, quelle) => gefuehltInTextMit(pfad, text, melde, quelle, begriffe);
   const inventur = [], befunde = [], hinweise = [];
   if (!M25 || typeof M25.find !== "function")
     hinweise.push("Modul 25 (harte Angaben) fehlt — Namen, Mail, Telefon, IBAN, Datum und Schlüssel sind UNGEPRÜFT, nicht sauber.");
+  if (!PM || typeof PM.pruefeMail !== "function")
+    hinweise.push("Die Liste der KI-Anweisungen (pruefer-mail.js) fehlt — Texte und Code sind auf Anweisungen an eine KI UNGEPRÜFT, nicht sauber.");
   if (!PA || typeof PA.pruefe !== "function")
     hinweise.push("Der Anhang-Prüfer (pruefer-anhang.js) fehlt — Bilder, PDF und Office-Dateien sind UNGEPRÜFT, nicht sauber.");
 
@@ -591,6 +661,7 @@ export async function pruefe(dateien, optionen = {}) {
   const sprung = new Map();          // übersprungener Ordner → { anzahl, groesse }
   let gitPakete = 0, gitObjekte = 0, gitObjekteZuviel = 0;
   const pfadeGesehen = new Set();   // Ordnernamen werden nur einmal geprüft
+  let archivZahl = 0, archivSumme = 0, archivZuviel = 0;
   let nr = 0;
   for (const d of liste) {
     nr++;
@@ -605,6 +676,7 @@ export async function pruefe(dateien, optionen = {}) {
     if (nr % 25 === 0) await new Promise((ok) => setTimeout(ok, 0));
     const eintrag = { pfad: d.pfad, groesse: d.groesse || 0, art: "", artName: "", stufe: 3, stufeName: STUFE_NAME[3], marken: [], gelesen: false, ungeprueft: "", befunde: 0 };
     inventur.push(eintrag);
+    if (d.imArchiv) eintrag.imArchiv = d.imArchiv;
     const melde = (b) => { befunde.push(b); eintrag.befunde++; };
     const imGit = /(^|\/)\.git\//.test(d.pfad);
     if (!imGit) gefuehltImPfad(d.pfad, pfadeGesehen, melde, begriffe);
@@ -641,11 +713,29 @@ export async function pruefe(dateien, optionen = {}) {
         gitInText(d.pfad, t.text, melde);
         metaInText(d.pfad, t.text, melde);
         gefuehltInText(d.pfad, t.text, melde, "alter Stand in .git");
+        if (PM) kiInText(PM, d.pfad, t.text, melde, "alter Stand in .git");
       } else if (/^tree /.test(kopf)) { /* Dateinamen, keine Personen */ }
       else eintrag.ungeprueft = "Binärinhalt in .git — nur Zeichenketten geprüft";
       continue;
     }
 
+    /* Archiv im Projekt: öffnen und seinen Inhalt mitprüfen. Nichts wird ausgeführt. */
+    if ((d.tiefe || 0) < ARCHIV_TIEFE_MAX && (art === "zip" || bytes[0] === 0x1f && bytes[1] === 0x8b || bytes.length > 262 && bytes[257] === 0x75 && bytes[258] === 0x73)) {
+      let auf = null;
+      try { auf = await archivOeffnen(d.pfad, bytes); } catch (e) { eintrag.ungeprueft = "Archiv nicht zu öffnen (" + (e && e.message || e) + ") — ungeprüft"; }
+      if (auf) {
+        Object.assign(eintrag, einordnen(d.pfad, ""), { art: "archiv", artName: auf.name + " · geöffnet, " + auf.dateien.length + " Dateien", archiv: auf.dateien.length });
+        eintrag.stufe = 3; eintrag.stufeName = STUFE_NAME[3];
+        if (!eintrag.marken.some((m) => m.kennung === "ARCHIV")) eintrag.marken.push({ kennung: "ARCHIV", satz: "Archiv — sein Inhalt wurde geöffnet und mitgeprüft." });
+        for (const h of auf.hinweise) hinweise.push(d.pfad + ": " + h);
+        for (const x of auf.dateien) {
+          if (archivZahl >= ARCHIV_DATEIEN_MAX || archivSumme + (x.groesse || 0) > ARCHIV_SUMME_MAX) { archivZuviel++; continue; }
+          archivZahl++; archivSumme += x.groesse || 0;
+          liste.push(Object.assign(x, { tiefe: (d.tiefe || 0) + 1, imArchiv: d.pfad }));
+        }
+        continue;
+      }
+    }
     const ord = einordnen(d.pfad, art);
     Object.assign(eintrag, ord, { art });
     const end = endungVon(d.pfad);
@@ -659,6 +749,15 @@ export async function pruefe(dateien, optionen = {}) {
       metaInText(d.pfad, t.text, melde);
       gefuehltInText(d.pfad, t.text, melde);
       packageJson(d.pfad, t.text, melde);
+      if (PM) { if (kiInText(PM, d.pfad, t.text, melde)) eintrag.ungeprueft = (eintrag.ungeprueft ? eintrag.ungeprueft + " · " : "") + "auf KI-Anweisungen nur die ersten 2 MB geprüft"; }
+      else eintrag.ungeprueft = (eintrag.ungeprueft ? eintrag.ungeprueft + " · " : "") + "auf KI-Anweisungen ungeprüft (pruefer-mail.js fehlt)";
+      /* HTML zusätzlich durch den HTML-Prüfer des Auslieferungsprüfers (versteckter Text per CSS, fremde Adressen …). */
+      if (art === "html" && PA && /\.(html?|xhtml)$/i.test(d.pfad)) {
+        try {
+          const r = await PA.pruefe(d.pfad, bytes);
+          for (const x of r.befunde) if (!KI_ARTEN.includes(x.kennung)) melde({ schicht: SCHICHT_VON_KENNUNG(x.kennung), art: x.kennung, wert: x.satz, pfad: d.pfad, satz: x.satz });
+        } catch { /* der Text ist oben schon geprüft */ }
+      }
       if (imGit || /(^|\/)\.git(config)?$/.test(d.pfad)) gitInText(d.pfad, t.text, melde);
       if (eintrag.stufe === 3) { eintrag.stufe = 1; eintrag.stufeName = STUFE_NAME[1]; }
       continue;
@@ -676,9 +775,19 @@ export async function pruefe(dateien, optionen = {}) {
       if (r.text && M25) hartInText(M25, d.pfad, r.text, melde, r.textQuelle === "bild" ? "Text im Bild" : r.seiten ? "Seitentext" : "Dokumenttext");
       if (r.text) metaInText(d.pfad, r.text, melde);
       if (r.text) gefuehltInText(d.pfad, r.text, melde, r.textQuelle === "bild" ? "Text im Bild" : r.seiten ? "Seitentext" : "Dokumenttext");
+      /* Bildpunkte: versteckter Text in den untersten Bits (PNG, verlustfreies WebP). Nur im Browser. */
+      let pixelOffen = "";
+      if (/^(png|webp)$/.test(r.art) && typeof PA.verdachtPruefen === "function") {
+        try {
+          const v = await PA.verdachtPruefen(d.pfad, bytes);
+          for (const x of v.befunde) melde({ schicht: "auffaellig", art: x.kennung, wert: x.satz, pfad: d.pfad, satz: x.satz });
+          if (!v.geprueft && /^(png|webp)$/.test(v.art)) pixelOffen = v.grund;
+        } catch (e) { pixelOffen = "Bildpunkte nicht geprüft (" + (e && e.message || e) + ")"; }
+      }
       const offen = [];
       if (r.textUngeprueft || r.ungeprueftSatz) offen.push(r.ungeprueftSatz || "Text ungeprüft");
-      if (r.bildUngeprueft) offen.push("Text im Bild ungeprüft (Texterkennung kommt auf Knopfdruck, Stufe 4)");
+      if (r.bildUngeprueft) offen.push(optionen.texterkennung ? "Text im Bild ungeprüft (" + (r.ungeprueftSatz || "Texterkennung lief nicht") + ")" : "Text im Bild ungeprüft — Knopf „Text in Bildern lesen“");
+      if (pixelOffen) offen.push(pixelOffen);
       eintrag.ungeprueft = Array.from(new Set(offen)).join(" · ");
       eintrag.hinweise = r.hinweise || [];
       continue;
@@ -690,8 +799,10 @@ export async function pruefe(dateien, optionen = {}) {
     if (M25 && s) hartInText(M25, d.pfad, s, melde, "Zeichenkette in der Datei");
     if (s) metaInText(d.pfad, s, melde);
     if (s) gefuehltInText(d.pfad, s, melde, "Zeichenkette in der Datei");
+    if (s && PM) kiInText(PM, d.pfad, s, melde, "Zeichenkette in der Datei");
     if (imGit) gitInText(d.pfad, s, melde);
-    eintrag.ungeprueft = "nur lesbare Zeichenketten geprüft" + (end ? " (." + end + ")" : "") + " — der Rest ist ungeprüft";
+    eintrag.ungeprueft = "nur lesbare Zeichenketten geprüft" + (end ? " (." + end + ")" : "") + " — der Rest ist ungeprüft" +
+      (/^(rar|7z)$/.test(end) || bytes[0] === 0x52 && bytes[1] === 0x61 && bytes[2] === 0x72 || bytes[0] === 0x37 && bytes[1] === 0x7A ? ". RAR und 7z kann die App nicht öffnen: bitte als ZIP packen und neu einwerfen" : "");
   }
 
   for (const [ordner, s] of sprung) {
@@ -710,6 +821,7 @@ export async function pruefe(dateien, optionen = {}) {
     }
   }
   if (gitPakete) hinweise.push(gitPakete + " Git-Paket-Datei(en) nicht ausgepackt — die Geschichte darin ist ungeprüft. Die saubere Kopie bekommt ohnehin kein .git.");
+  if (archivZuviel) hinweise.push(archivZuviel + " Datei(en) in Archiven über dem Deckel (" + ARCHIV_DATEIEN_MAX + " Dateien / " + (ARCHIV_SUMME_MAX >> 20) + " MB) nicht geöffnet — ungeprüft.");
   if (gitObjekteZuviel) hinweise.push(gitObjekteZuviel + " Git-Objekte über dem Deckel (" + GIT_OBJEKTE_MAX + ") nicht geöffnet — ungeprüft.");
 
   const zahlen = {
@@ -743,7 +855,11 @@ export function buendeln(befunde) {
  * NIE in die saubere Kopie — sie gehört später in den Tresor (Stufe 5). */
 
 export const WEGE = ["auto", "marke", "muster", "eigen", "behalten"];
-export const WEG_NAME = { auto: "Automatisch", marke: "Marke", muster: "Musterwert", eigen: "Eigener Wert", behalten: "Behalten" };
+/* Auffälliges in Textdateien (Anweisung an eine KI, unsichtbare Zeichen …): nur melden oder die Zeile entfernen. */
+export const WEGE_ZEILE = ["behalten", "zeile"];
+/** Lässt sich ein auffälliger Fund durch Entfernen seiner Zeile(n) loswerden? (Nur Textdateien mit Zeilennummer.) */
+export function zeileEntfernbar(b) { return b.schicht === "auffaellig" && b.stellen.length > 0 && b.stellen.every((s) => s.zeile && !s.stelle); }
+export const WEG_NAME = { auto: "Automatisch", marke: "Marke", muster: "Musterwert", eigen: "Eigener Wert", behalten: "Behalten", zeile: "Zeile entfernen" };
 export const STELLENPLAN_DATEI = "REINIGER-STELLENPLAN.txt";
 export const STELLENPLAN_JSON = "REINIGER-STELLENPLAN.json";
 export const BERICHT_DATEI = "REINIGER-BERICHT.txt";
@@ -812,10 +928,11 @@ export function reinigbar(e) {
 export function dateiPlan(ergebnis) {
   const aus = [];
   for (const e of ergebnis.inventur) {
-    if (e.art === "ordner" || reinigbar(e)) continue;
+    if (e.art === "ordner" || e.imArchiv || reinigbar(e)) continue;
     let grund;
     if (/(^|\/)\.git(\/|$)/.test(e.pfad)) continue;                     // .git geht nie mit
     if (e.ungeprueft) grund = e.ungeprueft;
+    else if (e.art === "archiv") grund = (e.artName || "Archiv") + " — Inhalt geprüft; zum Reinigen auspacken und den Ordner einwerfen";
     else if (e.stufe === 2) grund = (e.artName || "Datei") + " — wird in Stufe 4 neu gezeichnet; bis dahin weggelassen";
     else grund = (e.artName || "Datei") + " — lässt sich nur entfernen oder unverändert übernehmen";
     aus.push({ pfad: e.pfad, grund, befunde: e.befunde, marken: e.marken.map((m) => m.kennung) });
@@ -905,17 +1022,25 @@ function ersetzeAlles(text, posten, pfad, imPfad) {
 export async function reinige(dateien, entscheidungen) {
   const { ergebnis, wahl = {}, uebernehmen = [] } = entscheidungen;
   const posten = ersetzungen(ergebnis, wahl);
+  /* Zeilen, die ganz weg sollen (auffällige Funde mit Wahl „zeile“): Pfad → Map(Zeile → Art) */
+  const zeilenWeg = new Map();
+  for (const b of ergebnis.buendel) {
+    if (!zeileEntfernbar(b) || !wahl[buendelSchluessel(b)] || wahl[buendelSchluessel(b)].weg !== "zeile") continue;
+    for (const s of b.stellen) { if (!zeilenWeg.has(s.pfad)) zeilenWeg.set(s.pfad, new Map()); zeilenWeg.get(s.pfad).set(s.zeile, b); }
+  }
   const inv = new Map(ergebnis.inventur.map((e) => [e.pfad, e]));
   const mitnehmen = new Set(uebernehmen.map(normPfad));
   const sauber = [], stellenplan = [], weggelassen = [], unveraendert = [];
   const T = new TextEncoder();
   let gitDateien = 0;
+  const imArchiv = ergebnis.inventur.filter((x) => x.imArchiv).length;
   const neuerPfad = (pfad) => pfad.split("/").map((seg) => ersetzeAlles(seg, posten, pfad, true).text).join("/");
   for (const d of dateien) {
     const pfad = normPfad(d.pfad);
     if (uebersprungen(pfad)) continue;
     if (/(^|\/)\.git(\/|$)/.test(pfad)) { gitDateien++; continue; }
     const e = inv.get(pfad);
+    if (e && e.imArchiv) continue;       // Inhalt eines Archivs: geprüft, geht aber nicht einzeln mit
     const ziel = neuerPfad(pfad);
     const pfadStellen = ziel !== pfad ? ersetzeAlles(pfad, posten, pfad, true).stellen : [];
     for (const s of pfadStellen) stellenplan.push({ pfad: ziel, stelle: "Datei- oder Ordnername", art: s.art, artName: s.artName, weg: s.weg, ersatz: s.ersatz });
@@ -925,6 +1050,14 @@ export async function reinige(dateien, entscheidungen) {
       if (!t) { weggelassen.push({ pfad, grund: "nicht als Text lesbar" }); continue; }
       const r = ersetzeAlles(t.text, posten, pfad, false);
       if (e.marken.some((m) => m.kennung === "ENV")) { const x = envLeeren(r.text); r.text = x.text; r.stellen.push(...x.stellen); }
+      if (zeilenWeg.has(pfad)) {
+        const weg = zeilenWeg.get(pfad), zeilen = r.text.split("\n");
+        for (const [nr, b] of weg) if (nr >= 1 && nr <= zeilen.length) {
+          zeilen[nr - 1] = istDoku(pfad) ? "⟦ENTFERNT: " + b.artName + "⟧" : "";        // Zeilenzahl bleibt gleich, Stellenplan stimmt
+          r.stellen.push({ zeile: nr, art: b.art, artName: b.artName, weg: "zeile", ersatz: zeilen[nr - 1] || "(leere Zeile)" });
+        }
+        r.text = zeilen.join("\n");
+      }
       for (const s of r.stellen) stellenplan.push({ pfad: ziel, zeile: s.zeile, art: s.art, artName: s.artName, weg: s.weg, ersatz: s.ersatz });
       sauber.push({ pfad: ziel, von: pfad, bytes: T.encode(r.text), gereinigt: r.stellen.length });
       continue;
@@ -940,9 +1073,13 @@ export async function reinige(dateien, entscheidungen) {
   const zuordnung = {};                                  // NUR im Speicher, nie in der Kopie
   for (const p of posten) if (p.weg !== "behalten") zuordnung[p.marke] = { art: p.art, werte: p.werte.slice(), muster: p.muster, eigen: p.weg === "eigen" ? p.eigen : undefined };
   const uebersprungenOrdner = ergebnis.inventur.filter((e) => e.art === "ordner").map((e) => e.pfad);
-  const bericht = { posten: posten.map((p) => ({ art: p.art, artName: p.artName, weg: p.weg, marke: p.marke })), weggelassen, unveraendert, gitDateien, uebersprungenOrdner,
+  for (const d of dateien) { const e = inv.get(normPfad(d.pfad)); if (e && e.art === "archiv") { const w = weggelassen.find((x) => x.pfad === neuerPfad(e.pfad)); if (w) w.grund = "Archiv — sein Inhalt wurde geprüft; um ihn zu reinigen, das Archiv auspacken und den Ordner einwerfen"; } }
+  const bericht = { posten: posten.map((p) => ({ art: p.art, artName: p.artName, weg: p.weg, marke: p.marke })), weggelassen, unveraendert, gitDateien, uebersprungenOrdner, imArchiv,
     stellen: stellenplan.length, dateien: sauber.length };
-  return { sauber, stellenplan, zuordnung, bericht, posten };
+  /* Auffälliges, das bewusst stehen bleiben soll (Wahl „behalten“ ausdrücklich gesetzt): zählt bei der Nachprüfung als behalten. */
+  const behaltenAuffaellig = new Set(ergebnis.buendel.filter((b) => b.schicht === "auffaellig" && wahl[buendelSchluessel(b)] && wahl[buendelSchluessel(b)].weg === "behalten").map((b) => b.art + "|" + b.wert));
+  bericht.zeilenEntfernt = stellenplan.filter((s) => s.weg === "zeile").length;
+  return { sauber, stellenplan, zuordnung, bericht, posten, behaltenAuffaellig };
 }
 
 /* Stellenplan als Text: Theater-Sitzplan — wo ein Platz belegt war, nicht von wem. */
@@ -966,6 +1103,8 @@ export function berichtText(bericht, nach) {
   z.push("Ersetzt: " + bericht.stellen + " Stellen in " + bericht.dateien + " Dateien.");
   for (const [art, x] of proArt) z.push("  · " + art + ": " + (x.gesamt - x.behalten) + " Wert(e) ersetzt" + (x.behalten ? ", " + x.behalten + " bewusst behalten" : ""));
   if (bericht.gitDateien) z.push("", ".git entfernt (" + bericht.gitDateien + " Dateien) — die eigene Geschichte beginnt bei null.");
+  if (bericht.zeilenEntfernt) z.push("Zeilen entfernt (Anweisungen an eine KI, unsichtbare Zeichen …): " + bericht.zeilenEntfernt + ".");
+  if (bericht.imArchiv) z.push("Inhalt von Archiven im Projekt: " + bericht.imArchiv + " Dateien geprüft, gehen aber nicht einzeln mit (das Archiv selbst steht unten bei „Weggelassen“).");
   if (bericht.uebersprungenOrdner.length) z.push("Nicht mitgenommen (nie gelesen): " + bericht.uebersprungenOrdner.join(", ") + " — nach dem Auspacken neu installieren (z. B. npm install).");
   if (bericht.weggelassen.length) { z.push("", "Weggelassen (" + bericht.weggelassen.length + "):"); for (const w of bericht.weggelassen) z.push("  · " + w.pfad + " — " + w.grund); }
   if (bericht.unveraendert.length) { z.push("", "Unverändert übernommen, NICHT gereinigt (" + bericht.unveraendert.length + "):"); for (const p of bericht.unveraendert) z.push("  · " + p); }
@@ -998,7 +1137,7 @@ export async function nachpruefe(gereinigt, optionen = {}) {
   let behalten = 0;
   const offen = [];
   for (const b of r.buendel) {
-    if (b.schicht === "auffaellig") { offen.push(b); continue; }
+    if (b.schicht === "auffaellig") { if (gereinigt.behaltenAuffaellig && gereinigt.behaltenAuffaellig.has(b.art + "|" + b.wert)) { behalten++; continue; } offen.push(b); continue; }
     if (behaltenWerte.has(String(b.wert).toLowerCase())) { behalten++; continue; }
     if (eigen(b.wert)) continue;
     offen.push(b);

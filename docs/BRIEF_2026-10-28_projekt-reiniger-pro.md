@@ -2,7 +2,7 @@
 
 Stand 2026-10-28, **Stufen 1, 2 und 3 gebaut** (Abschnitte „Stufe 1/2/3 · gebaut“ unten). Die App reinigt jetzt:
 einwerfen → Funde ansehen (antippen = Datei an der Stelle) → je Fund entscheiden → saubere Kopie als ZIP
-mit Stellenplan und Bericht → Nachprüfung. Nächster Schritt: Stufe 4 (neu gezeichnete Blätter, Mustermappe). Der Brief lebt seitdem **hier**
+mit Stellenplan und Bericht → Nachprüfung. Nächster Schritt: Stufe 4 (neu gezeichnete Blätter mit `reinigung.js` aus Workflow PDF, Mustermappe). Der Brief lebt seitdem **hier**
 im Repo `project-cleaner-pro`; die Fassung im Sende-Prüfer ist eingefroren und zeigt hierher.
 
 ## Anlass
@@ -324,7 +324,7 @@ Am Ende: Brief nachziehen und wieder so einen Kurzauftrag ausgeben.
   Die übrigen Funktionen der Schnittstelle (`reinige`, `verschliesse`, `oeffne`, `fuelle`) kommen mit ihren Stufen.
   Kein DOM, keine IndexedDB, kein Netz — eine Probe liest den Quelltext darauf.
 - **Einwerfen:** ZIP (eigener Leser, ZIP64, jede Datei erst auf Abruf entpackt, Deckel gegen Zip-Bomben),
-  Ordner (Auswahl oder Ziehen), einzelne Dateien, Beispielprojekt. Ein ZIP im Projekt bleibt eine Datei.
+  Ordner (Auswahl oder Ziehen), einzelne Dateien, Beispielprojekt. Ein ZIP im Projekt blieb in Stufe 1 eine Datei (seit 2026-10-28 geöffnet, siehe unten).
 - **Inventur:** jede Datei mit Größe, Art (am Dateikopf), Reinigungsstufe 1/2/3 und Marken: Git, Umgebung,
   Sicherung, Datenbank, Export, Foto, PDF, Office, Schlüsseldatei, Impressum, Archiv, Programm.
   `node_modules`, `dist`, `build`, `.next` … stehen als „nicht gelesen“ da und werden nie entpackt.
@@ -419,6 +419,42 @@ seiner eigenen Seite und wurde **nicht** kopiert; übernommen ist die Idee.
   bekannte Werte suchen. Datum-Funde sind in Doku sehr häufig (Klaus' Test: 59 harte Angaben, fast alles Datum) —
   dort ggf. „Behalten“ wählen.
 
+## Prüfungen aus Workflow PDF / Auslieferungsprüfer, Archive, Apps (2026-10-28)
+
+Klaus: *„… mindestens so eine Prüfung wie bei Workflow PDF … schädliche Anweisungen … Bilderkennung … PDF-Befehlerkennung
+… Virenscanner … alles, was nützlich ist, aus dem Auslieferungsprüfer … ZIP, HTML, RAR, auch Apps … APK … ohne weitere
+Gegenfragen.“*
+
+- **Befund Workflow PDF Pro:** dessen Prüfkerne sind **dieselben Dateien** wie hier (`pruefer-anhang.js`, `-formate.js`,
+  `-mail.js`, `vendor/pdfjs`, SHA gleich). Einen **Virenscanner gibt es dort nicht** (im Code: „KEIN VIRENSCANNER“) — hier
+  auch nicht; die App sagt das in der Gruppe „Auffälliges“.
+- **Neu angeschlossen:**
+  - **Anweisungen an eine KI in Text und Code** (`.md`, `.txt`, `.js` … — vorher nur in PDF/Bild/Office): dieselbe Liste
+    (`PrueferMail.pruefeMail`, Arten KI-ANWEISUNG, KI-BEGRIFF, UNSICHTBARE-ZEICHEN, VERSTECKTER-TEXT), mit **echter Zeile**,
+    auch im alten Stand in `.git` und in Zeichenketten unbekannter Dateien. Direkt, nicht über `PrueferAnhang.pruefe` — der
+    hielte jede `.js` für „getarnt“. Erste 2 MB je Datei.
+  - **HTML** zusätzlich durch den HTML-Prüfer des Auslieferungsprüfers (`pruefer.js` über `PrueferAnhang`): fremde Adressen.
+  - **Pixelprüfung** (`verdachtPruefen`): Text in den untersten Bits von PNG/verlustfreiem WebP, auch als KI-Anweisung. Nur im Browser.
+  - **Texterkennung** (Tesseract.js 7.0.0 + deu/eng/rus, `vendor/tesseract/`, 21 MB, **byte-1:1 aus Workflow PDF Pro**,
+    SHA-gepinnt): **nur auf Knopfdruck** „Text in Bildern lesen (n)“. Liest Text in Bildern und gescannten PDF-Seiten und
+    liest den PDF-Text gegen das Seitenbild (findet weiße/unsichtbare Schrift: PDF-VERSTECKTER-TEXT). **CSP bleibt
+    `connect-src 'none'`**: der Worker startet aus seiner Datei (`workerBlobURL: false`, Hülle um `Tesseract.createWorker`
+    in `app.js`) und holt seine Sprachdaten selbst vom eigenen Server. Nicht im Offline-Vorrat (zu groß).
+  - **„Zeile entfernen“** für auffällige Funde in Textdateien (Vorgabe: nur melden). Zeilenzahl bleibt; Doku bekommt
+    `⟦ENTFERNT: …⟧`, Code eine leere Zeile.
+- **Archive im Projekt** werden geöffnet und mitgeprüft, bis 3 Ebenen, Deckel 20 000 Dateien / 1 GB: ZIP, **APK**, AAB, AAR,
+  JAR, WAR, IPA, XPI, CRX, EPUB, CDR (Corel, innen ZIP), NUPKG, WHL, VSIX, APPX/MSIX, **TAR, TGZ, GZ**. `node_modules` darin
+  wird nicht gelesen. Ihr Inhalt geht nicht einzeln in die saubere Kopie; das Archiv selbst bleibt weg (Grund im Bericht:
+  auspacken und den Ordner einwerfen). **RAR und 7z: nicht machbar** (kein freier Entpacker ohne Netz; unrar hat eine
+  eigene Lizenz) — nur Zeichenketten, laut „ungeprüft … bitte als ZIP packen“.
+- **Internetseite:** eine Adresse abrufen geht nicht (kein Netz, mit Absicht). Im Browser „Seite speichern unter …“ und die
+  HTML-Datei samt Ordner einwerfen.
+- **`reinigung.js`** aus Workflow PDF (versteckten PDF-Text finden und zudecken, JPEG ohne Metadaten) gehört zu **Stufe 4**
+  (neu gezeichnete Blätter) und wird dort byte-1:1 übernommen.
+- **Gemessen:** das Repo selbst als ZIP (48 Dateien, 21 MB) — prüfen 8,6 s, reinigen 13 s (Node), 0 Originalwerte in der
+  Kopie. Texterkennung eines Bildes im Browser < 1 s nach dem Laden. Proben: `npm test` 175 grün, `npm run gegenprobe` 34
+  gefangen · 0 blind. ⚠ Nicht gemessen: echte APK, große Fotos am Handy.
+
 ## Installieren und Aktualisieren (2026-10-28)
 
 Klaus: *„… einen Installieren-Button … und einen Aktualisierungs-Button, weil installieren funktioniert so nicht. Wir
@@ -432,7 +468,7 @@ müssen den Browser anstoßen … für Handys, damit ich nicht eine Kompi machen
   `reiniger-…`, nie Daten anderer Apps unter github.io) und lädt neu. Läuft eine Prüfung, wird vorher gefragt. Liegt
   eine neue Fassung bereit, wird der Knopf petrol. Beim Start fragt die App ohnehin einmal nach (`reg.update()`).
 - **Fassung**: `APP_FASSUNG` in `app.js` muss gleich der Nummer in `CACHE_VERSION` (`sw.js`) sein — die Probe prüft das.
-  Beide bei jeder Änderung an einer Datei aus `CORE` erhöhen. Heute: 4. Proben: `npm test` 154 grün, `npm run gegenprobe` 29 gefangen · 0 blind.
+  Beide bei jeder Änderung an einer Datei aus `CORE` erhöhen. Heute: 5. Proben: `npm test` 154 grün, `npm run gegenprobe` 29 gefangen · 0 blind.
 - Am Handy (< 640 px) nur Symbole; „Neu“ hat ein eigenes Symbol (Blatt mit Plus), damit es nicht wie „Aktualisieren“ aussieht.
 
 ## Grenzen (vorab benannt)
