@@ -1,7 +1,8 @@
 # Brief: Projekt-Reiniger Pro
 
-Stand 2026-10-28, **Stufe 1 und Stufe 3 gebaut** (Abschnitte „Stufe 1 · gebaut“ und „Stufe 3 · gebaut“ unten).
-Stufe 2 (Entscheiden, Reinigen) ist noch offen — Stufe 3 wurde vorgezogen, weil sie nur liest. Der Brief lebt seitdem **hier**
+Stand 2026-10-28, **Stufen 1, 2 und 3 gebaut** (Abschnitte „Stufe 1/2/3 · gebaut“ unten). Die App reinigt jetzt:
+einwerfen → Funde ansehen (antippen = Datei an der Stelle) → je Fund entscheiden → saubere Kopie als ZIP
+mit Stellenplan und Bericht → Nachprüfung. Nächster Schritt: Stufe 4 (neu gezeichnete Blätter, Mustermappe). Der Brief lebt seitdem **hier**
 im Repo `project-cleaner-pro`; die Fassung im Sende-Prüfer ist eingefroren und zeigt hierher.
 
 ## Anlass
@@ -295,7 +296,7 @@ ungereinigte ZIP, gilt:
 | Stufe | Inhalt |
 |---|---|
 | 1 ✅ | Einwerfen, Inventur, harte Angaben und Metadaten, Anzeige (nur lesen) — gebaut 2026-10-28 |
-| 2 | Entscheiden, Marken und Musterwerte, saubere Kopie, Stellenplan, Nachprüfung |
+| 2 ✅ | Entscheiden, Marken und Musterwerte, saubere Kopie, Stellenplan, Nachprüfung — gebaut 2026-10-28 |
 | 3 ✅ | Gefühlte Metadaten (Wortlisten, Eigennamen, Pfade) — gebaut 2026-10-28 (vor Stufe 2, nur lesen) |
 | 4 | Neu gezeichnete Blätter, Mustermappe |
 | 5 | Tresor und Gäste-Sperre |
@@ -373,6 +374,51 @@ Am Ende: Brief nachziehen und wieder so einen Kurzauftrag ausgeben.
   kleine Orte, seltene Vornamen, Nachnamen ohne Vornamen, Firmen ohne Rechtsform, Kennzeichen kleiner Kreise, Österreich-
   und Schweiz-Kennzeichen werden nicht gefunden. Klaus' Blick bleibt Pflicht.
 
+## Stufe 2 · gebaut (2026-10-28)
+
+Klaus (2026-10-28, nach dem ersten Test mit der Stufe-1-Fassung): *„Ich kann noch nichts anklicken … nirgendwo hinspringen
+… nichts ändern … alles ausklappen und wieder einklappen … Originaldatei anzeigen und an die Stelle springen … Namen separat
+benennen, wenn welche nicht erkannt werden … so klein wie möglich: klicken, auslesen, Ergebnisse melden, ersetzen oder
+löschen, und wieder zurück.“* Vorbild: der Auslieferungsprüfer (Zeile unter jeder Stelle). Dessen `pruefer-ui.js` hängt an
+seiner eigenen Seite und wurde **nicht** kopiert; übernommen ist die Idee.
+
+- **Kern** (neu): `reinige(dateien, { ergebnis, wahl, uebernehmen })`, `nachpruefe(gereinigt)`, `saubereKopie(…)` (alles in
+  einem: reinigen, nachprüfen, Stellenplan + Bericht beilegen, ZIP bauen), `zipBauen`, `stellenplanText`, `berichtText`,
+  `dateiPlan`, `reinigbar`, `ersetzbar`, `buendelSchluessel`, `istDoku`, `WEGE`. `pruefe(…, { begriffe })` für selbst
+  eingetragene Namen (Art `BEGRIFF`, Schicht hart, ohne Groß/klein, auch in Datei- und Ordnernamen).
+- **Entscheiden** je Bündel, einmal für alle Stellen: Automatisch (Vorgabe) · Entfernen (Marke) · Musterwert · Eigener
+  Wert · Behalten. *Automatisch* = Marke `⟦ORT-1⟧` in Doku (`.md`, `.txt`, README …), Musterwert im Code (damit das
+  Programm weiterläuft). Gleicher Wert = gleiche Nummer. Ersetzt wird **jede** Stelle mit dem Wert in allen Textdateien,
+  nicht nur die gefundenen; Wortgrenzen beachtet; `\\` in Code-Zeichenketten mitbedacht. Datei- und Ordnernamen werden
+  mit umbenannt (dort Musterwert bzw. `ORT-1` ohne Klammern).
+- **`.env`**: dort wird **jeder** Wert ersetzt (`MUSTER-WERT`), auch der, den die Suche nicht erkannt hat (Fund bei der
+  Probe: `DB_PASSWORD=…` blieb sonst stehen).
+- **Saubere Kopie**: ZIP ohne `.git`, ohne `node_modules`/Build-Ordner (Bericht sagt „neu installieren“), fester
+  Zeitstempel 01.01.2000 (verrät nichts). Bilder, PDF, Office, Datenbanken, Ungeprüftes bleiben **weg** (Stufe 4 zeichnet
+  sie neu); einzeln oder alle anhakbar „unverändert übernehmen“ — dann steht im Bericht „NICHT gereinigt“.
+- **Stellenplan** (`REINIGER-STELLENPLAN.txt` + `.json`) und **Bericht** (`REINIGER-BERICHT.txt`) liegen im ZIP und
+  nennen keine Werte. Die **Zuordnung** (Marke → Original) bleibt nur im Speicher und verschwindet mit „↺ Neu“ (Tresor: Stufe 5).
+- **Nachprüfung**: die Kopie wird noch einmal ganz mit `pruefe` durchsucht (eigene Ersatzwerte zählen nicht), und
+  **jeder entfernte Originalwert wird in jeder Datei gesucht**, auch in Stellenplan und Bericht. Ergebnis steht laut da:
+  „Originalwerte in der Kopie: 0 · neue Funde: 0“ oder gelb mit Dateien.
+- **Oberfläche**: oben „Geprüft: 📦 name.zip“; Gruppen auf-/zuklappbar, „▾ Alle auf / ▸ Alle zu“; unter jeder Stelle die
+  Zeile mit dem Fund gelb; **Stelle oder Datei antippen** → Datei im ganzen Fenster, an der Zeile, umschaltbar
+  **Original / Saubere Kopie**, „← Zurück“ (auch Esc); Feld „Fehlender Name … ＋ Suchen“; nach dem Reinigen
+  „⬇ Saubere Kopie (ZIP)“, „↗ Teilen“ (wo das Gerät Dateien teilen kann, z. B. Android), „⬇ Stellenplan“, „⬇ Bericht“.
+  Kopf-Plakette jetzt „Lokal“ statt „Nur lesen“.
+- **Benennung (Klaus 2026-10-28):** die Gruppe „Harte Angaben“ heißt in der Oberfläche **„Personenbezogene Angaben“**
+  (intern weiter `hart`). Knöpfe flach wie in Private Brain Pro: sichtbar ~28 px, normale Schrift, Tippfläche unsichtbar
+  7 px größer.
+- **Symbole (Klaus 2026-10-28):** keine Emoji mehr in der Oberfläche, nur Strich-Symbole (eigene SVG-Pfade im 24er-Raster,
+  Farbe = Schrift). Eine Probe sucht Emoji im sichtbaren Text (fremde Werte und Dateiinhalte ausgenommen).
+- **Proben:** `npm test` 149 grün · 0 ROT, darunter: kein Originalwert des Beispielprojekts in ZIP/Plan/Bericht, Download im
+  Browser öffnet sich wieder, Ansicht springt auf Zeile 5 und zeigt nach dem Umschalten `⟦KFZ-1⟧`, Vollbild auch für
+  „Kopie“ und „Ansicht“ in allen 7 Größen. `npm run gegenprobe` 27 gefangen · 0 blind (8 neue Fälle: Ersetzen, .git, .env-Rest, Behalten, Wert im Stellenplan, Nachprüfung, Sprung, eigener Name).
+- ⚠ **Nicht gemessen:** große Repos beim Reinigen (alles liegt im Speicher, das ZIP auch), echtes Handy beim Teilen,
+  ein echtes fremdes ZIP. Ersetzt wird nur, was gefunden **oder selbst eingetragen** wurde — die Nachprüfung kann nur
+  bekannte Werte suchen. Datum-Funde sind in Doku sehr häufig (Klaus' Test: 59 harte Angaben, fast alles Datum) —
+  dort ggf. „Behalten“ wählen.
+
 ## Grenzen (vorab benannt)
 
 - Die Suche arbeitet mit Mustern und Listen. Sie findet viel, aber **nicht garantiert alles**.
@@ -384,6 +430,7 @@ Am Ende: Brief nachziehen und wieder so einen Kurzauftrag ausgeben.
 
 - Eigene Adresse (Unterdomain) oder fürs Erste github.io?
 - ✅ Das Repo gibt es: `project-cleaner-pro` (Klaus 2026-10-28). Stufe 1 liegt darin.
-- GitHub Pages einschalten (Klaus, Einstellungen des Repos).
+- ✅ GitHub Pages ist an (Klaus testete am 2026-10-28 auf lausiklauskn-png.github.io).
+- Soll „Datum“ in Doku-Dateien standardmäßig „Behalten“ sein (sehr viele Funde, selten persönlich)?
 - Soll die Anzeige die gefundenen Werte im Klartext zeigen (so jetzt, nur auf dem Gerät) oder erst auf Tipp?
 - Was geschieht mit dem Original-Branch in Meine-Familienakte (Fund oben)?

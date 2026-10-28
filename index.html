@@ -28,9 +28,9 @@
       <img src="icons/logo-96.png" width="40" height="40" alt="">
       <span class="name-lang">Projekt-Reiniger Pro</span><span class="name-kurz">Reiniger Pro</span>
     </a>
-    <span class="nurlesen" title="Es wird nur gelesen, nichts geändert">Nur lesen</span>
+    <span class="nurlesen" title="Alles bleibt auf diesem Gerät. Das Original wird nie verändert; die saubere Kopie geht nur als Download hinaus.">Lokal</span>
     <span class="luecke"></span>
-    <button type="button" class="knopf hell" id="neu" hidden>↺ Neu</button>
+    <button type="button" class="knopf hell" id="neu" hidden><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7 M4 4v4h4"/></svg>Neu</button>
   </header>
 
   <main class="haupt" id="haupt">
@@ -43,9 +43,9 @@
         <h1 id="einwurf-titel">Projekt einwerfen</h1>
         <p>ZIP, Ordner oder einzelne Dateien. Alles wird <strong>auf diesem Gerät</strong> gelesen: nichts geht ins Netz, nichts wird ausgeführt, nichts gespeichert.</p>
         <div class="knoepfe">
-          <label class="knopf haupt-knopf" for="wahl-dateien">📦 ZIP oder Dateien</label>
-          <label class="knopf" for="wahl-ordner">📁 Ordner</label>
-          <button type="button" class="knopf" id="beispiel">🧪 Beispielprojekt</button>
+          <label class="knopf haupt-knopf" for="wahl-dateien"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v13H3z M3 7l2-4h14l2 4 M10 11h4"/></svg>ZIP oder Dateien</label>
+          <label class="knopf" for="wahl-ordner"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/></svg>Ordner</label>
+          <button type="button" class="knopf" id="beispiel"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6 M10 3v6l-5 9a1 1 0 0 0 1 2h12a1 1 0 0 0 1-2l-5-9V3 M7.5 14h9"/></svg>Beispielprojekt</button>
         </div>
         <input type="file" id="wahl-dateien" multiple hidden>
         <input type="file" id="wahl-ordner" webkitdirectory multiple hidden>
@@ -68,6 +68,7 @@
       </div>
     </section>
   </main>
+  <section class="ansicht" id="ansicht" hidden aria-label="Datei ansehen"></section>
   <div class="ziehen" id="ziehen" hidden>Loslassen zum Prüfen</div>
 </div>
 </body>

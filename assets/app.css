@@ -17,7 +17,7 @@ body {
 code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .92em; }
 [hidden] { display: none !important; }
 
-.app { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100vh; height: 100dvh; width: 100%; }
+.app { position: relative; display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100vh; height: 100dvh; width: 100%; }
 
 /* Kopf: Verlauf Navy → #124e7f → #0d7775 */
 .kopf {
@@ -161,3 +161,87 @@ details.stellen li { overflow-wrap: anywhere; }
 
 .ziehen { position: fixed; inset: 10px; display: grid; place-items: center; border: 3px dashed var(--k3); border-radius: 18px;
   background: rgb(11 49 84 / .82); color: #fff; font-size: 1.4rem; font-weight: 700; pointer-events: none; z-index: 10; text-align: center; padding: 16px; }
+
+/* Entscheiden und Reinigen (Stufe 2) */
+.weg-zeile { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 2px; min-width: 0; }
+.weg, .eigen { font: inherit; font-size: .9rem; min-height: 38px; max-width: 100%; min-width: 0; padding: 6px 8px; border: 1px solid var(--linie); border-radius: 8px; background: var(--papier); color: var(--schrift, #15283a); }
+.weg { flex: 1 1 16em; }
+.eigen { flex: 1 1 10em; }
+.eigen[hidden] { display: none; }
+.reinigen { display: grid; gap: 10px; justify-items: start; margin: 0 0 18px; padding: 12px; border-radius: var(--rund); background: #e7f4f3; border: 1px solid #b9dedb; }
+.reinigen > p { margin: 0; font-size: .92rem; overflow-wrap: anywhere; }
+#kopie-ergebnis { width: 100%; min-width: 0; }
+#kopie-ergebnis:empty { display: none; }
+.kopie { display: grid; gap: 8px; padding: 10px 12px; border-radius: var(--rund); background: var(--papier); border: 1px solid var(--linie); border-left: 4px solid var(--petrol); min-width: 0; }
+.kopie.warn { border-left-color: #d08a1a; background: var(--warn-grund); }
+.kopie h3 { margin: 0; font-size: 1rem; color: var(--navy); }
+.kopie ul, .kopie ol { margin: 0; padding-left: 1.2em; font-size: .92rem; }
+.kopie li { overflow-wrap: anywhere; }
+.kopie .knoepfe { justify-content: flex-start; }
+.kopie .klein { margin: 0; font-size: .82rem; color: var(--leise); }
+.wahl { display: flex; align-items: flex-start; gap: 8px; min-width: 0; cursor: pointer; }
+.wahl input { margin-top: 3px; flex: none; }
+.wahl .pfad, .wahl span { min-width: 0; overflow-wrap: anywhere; }
+.datei-plan { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.datei-plan li { display: grid; gap: 2px; padding: 8px 10px; background: var(--papier); border: 1px solid var(--linie); border-radius: 8px; min-width: 0; }
+.datei-plan .satz { font-size: .85rem; color: var(--leise); overflow-wrap: anywhere; }
+
+/* Auf- und zuklappen, eigene Namen */
+details.gruppe > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+details.gruppe > summary::-webkit-details-marker { display: none; }
+details.gruppe > summary::before, details.stellen > summary::before { content: ""; flex: none; width: 7px; height: 7px; border: solid var(--navy); border-width: 0 2px 2px 0; transform: rotate(-45deg); transition: transform .12s; }
+details.gruppe[open] > summary::before, details.stellen[open] > summary::before { transform: rotate(45deg); }
+details.stellen > summary { list-style: none; display: flex; align-items: center; gap: 8px; }
+details.stellen > summary::-webkit-details-marker { display: none; }
+details.gruppe > summary h2 { margin: 0; min-width: 0; }
+details.gruppe > p { margin-top: 4px; }
+.werkzeuge { display: grid; gap: 8px; margin: 0 0 16px; min-width: 0; }
+.werkzeuge .knoepfe { justify-content: flex-start; }
+.klein-knopf { min-height: 38px; padding: 6px 12px; font-size: .9rem; }
+.begriff-zeile { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+#begriff { flex: 1 1 14em; min-width: 0; max-width: 100%; font: inherit; font-size: .92rem; min-height: 38px; padding: 6px 10px; border: 1px solid var(--linie); border-radius: 8px; }
+.chip.begriff { cursor: pointer; font: inherit; font-size: .82rem; }
+.stelle-knopf { display: block; width: 100%; text-align: left; font: inherit; font-size: .88rem; color: var(--navy2); background: none; border: 0; padding: 2px 0; cursor: pointer; overflow-wrap: anywhere; white-space: normal; text-decoration: underline; text-underline-offset: 2px; }
+.stellen li { margin: 0 0 6px; min-width: 0; }
+.auszug { display: block; margin: 2px 0 0; padding: 4px 8px; background: var(--grund); border-radius: 6px; font-size: .82rem; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--schrift); }
+.auszug:empty { display: none; }
+mark { background: #ffe08a; color: inherit; border-radius: 3px; padding: 0 1px; }
+.pfad-knopf { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0; cursor: pointer; color: var(--navy); font-family: inherit; text-decoration: underline; text-decoration-color: var(--linie); text-underline-offset: 3px; white-space: normal; }
+
+/* Datei ansehen (ganzes Fenster) */
+.ansicht { position: absolute; inset: 0; z-index: 20; display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--papier); min-width: 0; }
+.ansicht[hidden] { display: none; }
+.ansicht-kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px var(--abstand); border-bottom: 1px solid var(--linie); background: var(--grund); min-width: 0; }
+.ansicht-kopf .pfad { flex: 1 1 12em; min-width: 0; overflow-wrap: anywhere; font-weight: 600; color: var(--navy); }
+.ansicht-reiter { display: flex; gap: 6px; flex: 1 1 100%; min-width: 0; }
+.ansicht-reiter .reiter-knopf { border-bottom: 1px solid var(--linie); border-radius: 10px; flex: 1 1 0; }
+.ansicht-reiter .reiter-knopf:disabled { opacity: .55; cursor: default; }
+.ansicht-koerper { overflow: auto; min-height: 0; padding: 8px var(--abstand) max(16px, env(safe-area-inset-bottom)); }
+.quelltext { margin: 0; padding-left: 4.2em; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .82rem; line-height: 1.5; }
+.quelltext li { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; padding: 0 4px; }
+.quelltext li::marker { color: var(--leise); font-size: .75rem; }
+.quelltext li.ziel { background: #fff4cc; outline: 2px solid #f0c060; border-radius: 4px; }
+.ansicht-leer { font-size: .92rem; }
+.zahlen li.quelle { background: #e7f4f3; border-color: #b9dedb; font-weight: 600; white-space: normal; overflow-wrap: anywhere; min-width: 0; max-width: 100%; }
+
+/* Flache, schmale Knöpfe wie in Private Brain Pro (Klaus 2026-10-28: „nicht höher als bei Private Brain Pro,
+   eher niedriger, eher flacher“). Sichtbar etwa 28 px; die Tippfläche reicht unsichtbar 7 px über und unter den Knopf. */
+.knopf, .klein-knopf, .knopf.hell {
+  position: relative; min-height: 28px; padding: 3px 10px; border-radius: 7px; box-shadow: none;
+  font-size: .86rem; font-weight: 500; line-height: 1.2; gap: 5px;
+}
+.knopf::after { content: ""; position: absolute; inset: -7px 0; }
+.haupt-knopf { font-weight: 600; }
+.reiter-knopf { min-height: 30px; font-size: .88rem; font-weight: 500; }
+.weg, .eigen, #begriff { min-height: 30px; padding: 3px 8px; font-size: .86rem; border-radius: 7px; }
+.zahlen li { padding: 2px 9px; font-size: .84rem; }
+.zahlen b { font-size: .95rem; }
+
+/* Strich-Symbole */
+.ikon { width: 1.05em; height: 1.05em; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.15em; }
+.zahlen li.quelle { align-items: center; gap: 5px; }
+.hinweise p, .offen { display: flex; gap: 6px; align-items: flex-start; }
+.hinweise p .ikon, .offen .ikon { margin-top: .15em; }
+.kopie h3 { display: flex; gap: 6px; align-items: center; }
+.chip.begriff { display: inline-flex; align-items: center; gap: 4px; }
+#vorher-nachher { display: inline-flex; align-items: center; gap: 4px; width: auto; }

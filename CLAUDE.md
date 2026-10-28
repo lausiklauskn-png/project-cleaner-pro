@@ -6,11 +6,11 @@ oder nach GitHub gehen. Kein Build-Schritt. Der Plan steht im Brief:
 er ist die Quelle, diese Datei ist nur der Anker. Am Ende jeder Sitzung: Brief nachziehen und einen
 Kurzauftrag zum Kopieren ausgeben.
 
-## Stand: Stufe 1 und 3 (2026-10-28) — nur lesen · Stufe 2 ist der nächste Schritt
+## Stand: Stufen 1–3 (2026-10-28) — prüfen, entscheiden, saubere Kopie · Stufe 4 ist der nächste Schritt
 
 | Datei | Rolle |
 |---|---|
-| `assets/reiniger-kern.js` + `.d.ts` | **Der Kern ohne Oberfläche** (ES-Modul). Kein DOM, keine IndexedDB, kein Netz — die Probe prüft das. Wandert später byte-1:1 in die Familienakte. Heute: `einwerfen`, `zipDateien`, `einordnen`, `pruefe`, `buendeln`, `gefuehlt`. |
+| `assets/reiniger-kern.js` + `.d.ts` | **Der Kern ohne Oberfläche** (ES-Modul). Kein DOM, keine IndexedDB, kein Netz — die Probe prüft das. Wandert später byte-1:1 in die Familienakte. Heute: `einwerfen`, `zipDateien`, `einordnen`, `pruefe`, `buendeln`, `gefuehlt`, `reinige`, `nachpruefe`, `saubereKopie`, `zipBauen`. |
 | `assets/reiniger-listen.js` | **Wortlisten** für die gefühlten Metadaten (Städte, Stadtteile, Hochschulen, Firmenformen, Straßenendungen, Kfz-Zeichen, Vornamen). Einziger Import des Kerns — wandert mit ihm. Neue Wörter: erst `npm test` (Fallen-Probe), mehrdeutige Wörter nach `STAEDTE_MEHRDEUTIG`. |
 | `assets/app.js`, `assets/app.css`, `index.html` | Oberfläche. Fremdes nur über `textContent`. |
 | `assets/beispiel.js` | Erfundenes Beispielprojekt (Knopf „🧪 Beispielprojekt“ und Proben). |
@@ -27,14 +27,16 @@ Kurzauftrag zum Kopieren ausgeben.
 - **Vollbild:** `100dvh`, keine Höchstbreite, `display: standalone`. Die Probe misst bei 320×640, 360×740,
   412×915, 768×1024, 1280×800, 740×360 (Handy quer) und 1920×1080 in drei Zuständen (Einwurf, Funde, Inventur):
   nichts quer, nichts ragt über seinen Kasten, keine Beschriftung abgeschnitten, kein Knopf bricht um, App füllt das Fenster.
-- **Speichert nichts.** Der Service-Worker legt nur den Code ab.
+- **Speichert nichts.** Der Service-Worker legt nur den Code ab. Die saubere Kopie geht nur als Download/Teilen hinaus;
+  die **Zuordnung** (Marke → Original) geht nie in die Kopie und bleibt nur im Speicher.
+- **Nachprüfung ist Pflicht:** jeder entfernte Originalwert wird in jeder Ausgabedatei gesucht (auch Stellenplan/Bericht).
 - **Gefühlte Metadaten** sind Hinweise, keine Beweise; Vornamen immer „Vorschlag“. Musterwerte (`Muster…`) zählen nie.
 
 ## Prüfen
 
 ```bash
-npm test             # 100 grün · 0 ROT (2026-10-28, Stufe 3)
-npm run gegenprobe   # 19 gefangen · 0 blind · 0 falsch · 0 tot (2026-10-28, Stufe 3)
+npm test             # 149 grün · 0 ROT (2026-10-28, Stufe 2)
+npm run gegenprobe   # 27 gefangen · 0 blind · 0 falsch · 0 tot (2026-10-28, Stufe 2)
 ```
 
 ## ⚠ Nicht gemessen
