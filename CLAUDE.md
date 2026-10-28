@@ -54,6 +54,9 @@ Kurzauftrag zum Kopieren ausgeben.
   `app.js`, beliebig tief, `node_modules` nie geöffnet, Größe vorher gelesen). Die Ablagefläche erscheint nur,
   wenn Dateien gezogen werden. Die Probe stellt das Loslassen mit echten Dateien und einen Ordnerbaum wie aus
   Chrome nach; ⚠ ein echtes Ziehen aus dem Explorer ist nicht gemessen. Strg+V gibt es noch nicht.
+- **Aussehen (Klaus 2026-10-28):** keine Emojis — Strich-Icons (`<symbol>`-Sammlung in `index.html`, `icon()` in
+  `app.js`); Knöpfe 36 px (Leiste und Kopf 32), flach mit ganz zartem erhabenem Schatten; **kein farbiger Streifen
+  links** an Karten (die Schicht zeigt ein Punkt).
 - **Testdateien** `tests/muster/` baut `python3 -I tools/muster-bauen.py` mit Python `zipfile`/`tarfile` und
   **Pillow** (fremde Werkzeuge, nicht der eigene Schreiber); `tests/muster-pruefen.py` liest die saubere Kopie
   fremd. Fehlen python3 oder Pillow, sagt die Probe „⊘ nicht gemessen“ statt grün.

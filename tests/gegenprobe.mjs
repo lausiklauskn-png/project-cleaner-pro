@@ -10,8 +10,8 @@ import { spawnSync } from "node:child_process";
 const WURZEL = join(dirname(fileURLToPath(import.meta.url)), "..");
 const FAELLE = [
   ["BREIT", "assets/app.css", ".zahlen { list-style: none;", ".zahlen { min-width: 600px; list-style: none;", /läuft quer/],
-  ["KNOPF", "assets/app.css", "  font: inherit; font-weight: 600; white-space: nowrap;", "  font: inherit; font-weight: 600; white-space: nowrap; max-width: 70px; overflow: hidden;", /Beschriftung passt nicht|abgeschnitten/],
-  ["UMBRUCH", "assets/app.css", "  font: inherit; font-weight: 600; white-space: nowrap;", "  font: inherit; font-weight: 600; white-space: normal; max-width: 90px;", /bricht um/],
+  ["KNOPF", "assets/app.css", "  font: inherit; font-size: .95rem; font-weight: 600; white-space: nowrap;", "  font: inherit; font-size: .95rem; font-weight: 600; white-space: nowrap; max-width: 70px; overflow: hidden;", /Beschriftung passt nicht|abgeschnitten/],
+  ["UMBRUCH", "assets/app.css", "  font: inherit; font-size: .95rem; font-weight: 600; white-space: nowrap;", "  font: inherit; font-size: .95rem; font-weight: 600; white-space: normal; max-width: 90px;", /bricht um/],
   ["HOEHE", "assets/app.css", "height: 100vh; height: 100dvh;", "height: 80vh;", /füllt das Fenster nicht/],
   ["PIN", "modules/25_pseudonym.js", "\"use strict\";", "\"use strict\"; ", /Pin modules\/25_pseudonym\.js/],
   ["NODEMOD", "assets/reiniger-kern.js", "    if (ue) {", "    if (false) {", /node_modules wird gar nicht/],
@@ -33,7 +33,7 @@ const FAELLE = [
   ["ENVWEG", "assets/reiniger-kern.js", "const WEG_MARKEN = new Set([\"ENV\", ", "const WEG_MARKEN = new Set([", /\.env, Sicherung, Export/],
   ["BAUEN", "assets/app.js", "knopf.addEventListener(\"click\", bauen);", "", /Bauen: der Knopf baut/],
   ["ZIPCRC", "assets/reiniger-kern.js", "for (let i = 0; i < b.length; i++) c = CRC_TAFEL[(c ^ b[i]) & 255] ^ (c >>> 8);", "for (let i = 1; i < b.length; i++) c = CRC_TAFEL[(c ^ b[i]) & 255] ^ (c >>> 8);", /crc32|fremder Leser/],
-  ["LEISTE", "assets/app.css", ".reinigen .knopf { min-height: 40px; padding: 6px 14px; }", ".reinigen .knopf { min-height: 40px; padding: 6px 14px; }\n.reinigen { flex-wrap: nowrap; }", /Ergebnis .*(läuft quer|ragt über|abgeschnitten|passt nicht)/],
+  ["LEISTE", "assets/app.css", ".reinigen .knopf { min-height: 32px; padding: 3px 12px; font-size: .9rem; }", ".reinigen .knopf { min-height: 32px; padding: 3px 12px; font-size: .9rem; }\n.reinigen { flex-wrap: nowrap; }", /Ergebnis .*(läuft quer|ragt über|abgeschnitten|passt nicht)/],
   /* alle Dateiarten: Archive in jeder Tiefe, Bilder ohne Metadaten */
   ["INNENZIP", "assets/reiniger-kern.js", "      await auspacken(k, tiefe + 1, wurzel ? archiv : pfad);", "      aus.push(Object.assign({}, k, { archiv: wurzel ? archiv : pfad }));", /ZIP in ZIP, tar, tar\.gz und \.gz werden ausgepackt/],
   ["TAR", "assets/reiniger-kern.js", "  if (/\\.tar$/.test(n)) return \"tar\";", "  if (/\\.tar$/.test(n)) return null;", /ausgepackt|tar/],

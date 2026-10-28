@@ -32,17 +32,25 @@ code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-si
 .nurlesen { flex: none; font-size: .78rem; font-weight: 600; padding: 3px 9px; border-radius: 99px; background: rgb(255 255 255 / .16); border: 1px solid rgb(255 255 255 / .35); white-space: nowrap; }
 .luecke { flex: 1 1 0; min-width: 0; }
 
+/* Knöpfe: flach, niedrig, ein ganz zarter erhabener Schatten (Klaus 2026-10-28: „ganz wenig, nur sehr zart“) */
 .knopf {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  min-height: 44px; padding: 8px 16px; border-radius: 10px; cursor: pointer;
-  font: inherit; font-weight: 600; white-space: nowrap;
-  color: var(--navy); background: var(--papier); border: 1px solid var(--linie);
-  box-shadow: 0 1px 2px rgb(11 49 84 / .08);
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 36px; padding: 5px 14px; border-radius: 8px; cursor: pointer;
+  font: inherit; font-size: .95rem; font-weight: 600; white-space: nowrap;
+  color: var(--navy); background: linear-gradient(#ffffff, #f6f9fb); border: 1px solid #cfdbe5;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .9), 0 1px 1px rgb(11 49 84 / .10), 0 2px 3px -2px rgb(11 49 84 / .18);
 }
-.knopf:hover { border-color: var(--k2); }
+.knopf:hover { border-color: #a9c3d8; }
+.knopf:active { box-shadow: inset 0 1px 2px rgb(11 49 84 / .18); transform: translateY(.5px); }
+.knopf:disabled { opacity: .7; cursor: default; }
+.ic { width: 1.1em; height: 1.1em; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
 .knopf:focus-visible, .reiter-knopf:focus-visible, summary:focus-visible { outline: 3px solid var(--k3); outline-offset: 2px; }
-.haupt-knopf { background: var(--petrol); color: #fff; border-color: var(--petrol); }
-.knopf.hell { min-height: 38px; background: rgb(255 255 255 / .14); color: #fff; border-color: rgb(255 255 255 / .4); }
+.haupt-knopf { background: linear-gradient(#0b938d, var(--petrol)); color: #fff; border-color: #06706b;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .22), 0 1px 1px rgb(4 60 57 / .25), 0 2px 3px -2px rgb(4 60 57 / .35); }
+.haupt-knopf:hover { border-color: #045c58; }
+.knopf.hell { min-height: 32px; padding: 3px 12px; background: rgb(255 255 255 / .12); color: #fff; border-color: rgb(255 255 255 / .38);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .18), 0 1px 2px rgb(0 0 0 / .18); }
 
 .haupt { min-height: 0; overflow: hidden; display: grid; }
 
@@ -87,10 +95,12 @@ code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-si
 .zahlen li.warn { background: var(--warn-grund); border-color: #f0c98a; }
 .hinweise:empty { display: none; }
 .hinweise { padding: 8px var(--abstand); display: grid; gap: 6px; background: var(--warn-grund); border-bottom: 1px solid #f0c98a; color: var(--warn); font-size: .92rem; }
-.hinweise p { margin: 0; overflow-wrap: anywhere; }
+.hinweise p { margin: 0; overflow-wrap: anywhere; display: flex; gap: 7px; align-items: flex-start; }
+.hinweise p .ic, .offen .ic { margin-top: .15em; }
+.hinweise p span, .offen span { min-width: 0; }
 
 .reiter { display: none; gap: 6px; padding: 8px var(--abstand) 0; background: var(--grund); }
-.reiter-knopf { flex: 1 1 0; min-width: 0; min-height: 42px; font: inherit; font-weight: 600; border: 1px solid var(--linie); border-bottom: 0; border-radius: 10px 10px 0 0; background: #e3edf4; color: var(--leise); cursor: pointer; }
+.reiter-knopf { flex: 1 1 0; min-width: 0; min-height: 36px; font: inherit; font-weight: 600; border: 1px solid var(--linie); border-bottom: 0; border-radius: 10px 10px 0 0; background: #e3edf4; color: var(--leise); cursor: pointer; }
 .reiter-knopf[aria-pressed="true"] { background: var(--papier); color: var(--navy); }
 
 .spalten { min-height: 0; display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
@@ -125,9 +135,12 @@ code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-si
 .gruppe { margin: 0 0 22px; }
 .gruppe h2 { font-size: 1.05rem; margin: 0 0 4px; color: var(--navy); }
 .gruppe > p { margin: 0 0 10px; color: var(--leise); font-size: .9rem; }
-.buendel { background: var(--papier); border: 1px solid var(--linie); border-left: 4px solid var(--k2); border-radius: var(--rund); padding: 10px 12px; margin: 0 0 8px; }
-.buendel[data-schicht="meta"] { border-left-color: var(--petrol); }
-.buendel[data-schicht="auffaellig"] { border-left-color: #d08a1a; }
+/* Karten: kein farbiger Streifen links, sondern ein zarter erhabener Schatten; die Schicht zeigt ein kleiner Punkt */
+.buendel { background: var(--papier); border: 1px solid #dbe5ed; border-radius: 10px; padding: 10px 12px; margin: 0 0 8px;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 1px rgb(11 49 84 / .06), 0 2px 4px -2px rgb(11 49 84 / .14); }
+.buendel .art::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin: 0 6px 1px 0; background: var(--k1); vertical-align: middle; }
+.buendel[data-schicht="meta"] .art::before { background: var(--petrol); }
+.buendel[data-schicht="auffaellig"] .art::before { background: #d08a1a; }
 .buendel-kopf { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
 .art { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--leise); }
 .vorschlag { font-size: .75rem; padding: 1px 7px; border-radius: 99px; background: #eef4ff; color: #2a5ca8; border: 1px solid #c9dafa; }
@@ -158,7 +171,7 @@ details.stellen li { overflow-wrap: anywhere; }
 .chip.stufe3 { border-color: #f0c98a; background: var(--warn-grund); color: var(--warn); }
 .chip.marke { border-color: #f2b8b8; background: var(--rot-grund); color: var(--rot); font-weight: 600; }
 .chip.funde { background: var(--navy); color: #fff; border-color: var(--navy); }
-.offen { display: block; margin-top: 3px; font-size: .8rem; color: var(--warn); overflow-wrap: anywhere; }
+.offen { display: flex; gap: 5px; align-items: flex-start; margin-top: 3px; font-size: .8rem; color: var(--warn); overflow-wrap: anywhere; }
 
 .ziehen { position: fixed; inset: 10px; display: grid; place-items: center; border: 3px dashed var(--k3); border-radius: 18px;
   background: rgb(11 49 84 / .82); color: #fff; font-size: 1.4rem; font-weight: 700; pointer-events: none; z-index: 10; text-align: center; padding: 16px; }
@@ -170,7 +183,7 @@ select, input[type="text"] {
 }
 select:focus-visible, input[type="text"]:focus-visible { outline: 3px solid var(--k3); outline-offset: 1px; }
 .reinigen { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px var(--abstand); background: #e8f4f3; border-bottom: 1px solid #b9dcd9; }
-.leiste-satz { margin: 0; flex: 1 1 100%; min-width: 0; font-size: .9rem; color: var(--schrift); overflow-wrap: anywhere; }
+.leiste-satz { display: flex; gap: 6px; align-items: flex-start; margin: 0; flex: 1 1 100%; min-width: 0; font-size: .9rem; color: var(--schrift); overflow-wrap: anywhere; }
 .leiste-satz.rot { color: var(--rot); font-weight: 700; }
 .leiste-satz.gut { color: #1d6b43; font-weight: 600; }
 .leiste-satz.warn { color: var(--warn); font-weight: 600; }
@@ -183,7 +196,8 @@ select:focus-visible, input[type="text"]:focus-visible { outline: 3px solid var(
 .datei-wahl { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .zeile2 select { min-height: 30px; padding: 2px 6px; font-size: .8rem; }
 .chip.weg { border-color: #c9d3db; background: #eef1f4; color: var(--leise); }
-.nachpruefung { margin: 0 0 18px; padding: 12px 14px; border-radius: var(--rund); border: 1px solid #9fd3b8; background: #ecf8f1; }
+.nachpruefung { margin: 0 0 18px; padding: 12px 14px; border-radius: 10px; border: 1px solid #9fd3b8; background: #ecf8f1;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .7), 0 1px 1px rgb(11 49 84 / .06), 0 2px 4px -2px rgb(11 49 84 / .12); }
 .nachpruefung.rot { border-color: #f2b8b8; background: var(--rot-grund); }
 .nachpruefung h2 { margin: 0 0 4px; font-size: 1.05rem; color: #1d6b43; }
 .nachpruefung.rot h2 { color: var(--rot); }
@@ -192,12 +206,12 @@ select:focus-visible, input[type="text"]:focus-visible { outline: 3px solid var(
 .nachpruefung p, .nachpruefung li { margin: 0 0 6px; font-size: .9rem; overflow-wrap: anywhere; }
 .nachpruefung ul { margin: 6px 0; padding-left: 1.2em; }
 .nachpruefung .klein { font-size: .82rem; color: var(--leise); }
-.reinigen .knopf { min-height: 40px; padding: 6px 14px; }
+.reinigen .knopf { min-height: 32px; padding: 3px 12px; font-size: .9rem; }
 .b-kurz { display: none; }
 /* Handy hoch und quer: die Leiste bleibt schmal, damit Funde und Inventur Platz haben */
 @media (max-width: 600px), (max-height: 560px) {
   .reinigen { gap: 6px 8px; padding-top: 8px; padding-bottom: 8px; }
-  .reinigen .knopf { min-height: 36px; padding: 4px 11px; font-size: .92rem; }
+  .reinigen .knopf { min-height: 32px; padding: 3px 10px; font-size: .88rem; }
   .leiste-satz { font-size: .82rem; }
   .b-lang { display: none; }
   .b-kurz { display: inline; }

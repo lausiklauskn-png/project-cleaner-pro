@@ -419,6 +419,63 @@ Klaus: *„Wichtig ist, dass man da auch ZIPs entpacken kann und PNGs laden, SVG
 - ⚠ **Nicht gemessen:** echte Kamerafotos (Samsung-Bewegungsfoto, HEIC — HEIC wird nur benannt), große Archive
   am Tablet, Archive mit Namen in anderen Zeichensätzen als UTF-8.
 
+## Aussehen: flach, ohne Emojis (Klaus 2026-10-28)
+
+Klaus: *„keine Emojis verwenden, Strichgrafiken und flache Button … nicht so hoch … So praktische
+Anwendungs-App … diese typischen Linksschatten … Mach lieber einen 3D-Schatten rein … ganz wenig, nur sehr zart.“*
+
+- **Keine Emojis** in der Oberfläche. Icons sind **Strichgrafiken** (eine kleine SVG-Sammlung in `index.html`,
+  `icon()` in `app.js`): Archiv, Ordner, Beispiel, Neu, Bauen, Herunterladen, Warnung, Haken.
+- **Knöpfe niedriger:** 36 px (vorher 44), in der Leiste 32 px, im Kopf 32 px; Reiter 36 px.
+- **Kein farbiger Streifen links** an den Fund-Karten. Die Schicht zeigt ein kleiner Punkt vor der Art.
+- **Ein zarter, erhabener Schatten** an Knöpfen, Karten und der Nachprüfung: oben ein heller Lichtrand, unten ein
+  weicher, sehr schwacher Schatten; beim Drücken sinkt der Knopf leicht ein.
+
+## Vorschläge: Text und Dokumente an eine KI und zurück (Klaus 2026-10-28, noch nicht gebaut)
+
+Klaus: *„Ich ziehe den Brief hinein, er wird gecleant und dann kann ich die clean Variante kopieren und direkt in
+eine KI einfügen … der Prompt soll gleich mitgeliefert werden … KI schreibt den Brief wieder zurück und dann wieder
+einfügen.“* Und: *„Es soll wirklich ein Projektcleaner bleiben … für das andere könnte man dann andere Programme
+nehmen. Es geht darum, versteckte Dinge zu cleanen.“* Und zu PDF: *„ein PDF ist noch kein Dokument, was man ändern
+kann … ausfüllen können oder notfalls unterschreiben und dann wieder weg … oder weiterleiten an ein anderes Programm.“*
+
+**Grundsatz:** Der Reiniger **reinigt und gibt zurück**. Bearbeiten, Formularfelder ausfüllen und Unterschreiben
+gehören in ein anderes Programm (Workflow PDF Pro). Der Reiniger ist die Schleuse davor und danach.
+
+**Vorschlag A · KI-Paket (klein, passt in den Reiniger):**
+1. **Hinein:** Text mit Strg+V einfügen, oder eine Datei hineinziehen: Text, Mail (`.eml`), Word, PDF mit Textebene
+   (pdf.js ist schon da). Ein **gescanntes PDF oder Foto** braucht Texterkennung (OCR); Tesseract liegt im
+   Auslieferungsprüfer und im Sende-Prüfer bereit und käme byte-gleich herüber, **nur auf Knopfdruck**.
+2. **Reinigen** wie bei Projekten: Marken `⟦NAME-1⟧`, je Wert einmal entscheiden.
+3. **„Mit Anweisung kopieren“:** ein einziger Block für ChatGPT & Co., bestehend aus:
+   - der Aufgabe, entweder zum Antippen (Brief an eine Behörde, Bewertung, Zusammenfassung, Antwort entwerfen,
+     Widerspruch) oder selbst geschrieben;
+   - den festen Regeln: Marken unverändert lassen, nichts erfinden, Fehlendes als `[bitte ergänzen: …]`;
+   - dem gereinigten Text.
+4. **Zurück:** die Antwort der KI einfügen. Sie wird erst geprüft: Steht eine Anweisung an eine KI darin, oder gibt
+   es eine Marke, die nicht von uns stammt? Danach werden die Marken mit den echten Werten gefüllt. Das ist
+   `fuelle` aus Stufe 6, für Text ist es einfach. Ergebnis: kopieren, als Datei speichern oder **an ein anderes
+   Programm teilen**.
+- Die Zuordnung bleibt dabei im Speicher (bis „Neu“). Soll sie einen Neustart überleben, braucht es den Tresor
+  (Stufe 5).
+- ⚠ **Überschneidung:** Der **Sende-Prüfer** kann genau das schon für Mail-Text: Aufgaben zum Antippen,
+  „Anweisung bauen“ und den Rückweg. Vorschlag: nicht doppelt bauen, sondern dieselben Teile nutzen (Modul 25
+  ist schon gemeinsam; dazu `anweisung` und die Aufgabenliste). Neu wären hier nur Dokumente, OCR und Archive.
+
+**Vorschlag B · Weiterreichen statt Bearbeiten:**
+- Der Reiniger reicht die gereinigte bzw. zurückgefüllte Fassung **weiter**: Teilen-Knopf (Android/Windows) und
+  Download. **Workflow PDF Pro** nimmt sie zum Ausfüllen, Unterschreiben und Versenden.
+- **PDF-Formulare:** Der Reiniger liest die Feldnamen und den Text, reinigt beides und gibt es der KI. Die KI liefert
+  die **Feldwerte mit Marken** (z. B. als Liste „Feld → Wert“). Der Reiniger füllt die Marken zurück, und Workflow
+  PDF trägt die Werte ins Formular ein. Ausgefüllt wird also nicht im Reiniger.
+
+**Sprechen statt Tippen:** Die eingebaute Spracherkennung von Chrome schickt den Ton an Google. Das widerspricht
+„nichts geht ins Netz“, deshalb wird sie nicht eingebaut. Stattdessen das **Mikrofon der Handy-Tastatur** benutzen.
+⚠ Auch die Tastatur kann den Ton ins Netz schicken; bei Gboard lässt sich die Offline-Spracheingabe einschalten.
+
+**Vorgeschlagene Reihenfolge** (Klaus entscheidet): erst Stufe 3 (gefühlte Metadaten), dann **A** als eigener
+Eingang „Text oder Dokument an eine KI“ (ohne OCR), dann OCR auf Knopfdruck, dann B zusammen mit Workflow PDF Pro.
+
 ## Grenzen (vorab benannt)
 
 - Die Suche arbeitet mit Mustern und Listen. Sie findet viel, aber **nicht garantiert alles**.
@@ -430,6 +487,7 @@ Klaus: *„Wichtig ist, dass man da auch ZIPs entpacken kann und PNGs laden, SVG
 
 - Musterwert oder Marke als Vorgabe für JSON/YAML? Jetzt: Musterwert (Konfiguration zählt wie Code).
 - Sollen `_reiniger/`-Dateien im ZIP liegen (jetzt ja) oder nur einzeln heruntergeladen werden?
+- KI-Paket (Vorschlag A): im Reiniger als eigener Eingang, oder Dokumente/OCR in den Sende-Prüfer? Und wann?
 - Eigene Adresse (Unterdomain) oder fürs Erste github.io?
 - ✅ Das Repo gibt es: `project-cleaner-pro` (Klaus 2026-10-28). Stufe 1 liegt darin.
 - GitHub Pages einschalten (Klaus, Einstellungen des Repos).

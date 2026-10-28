@@ -22,6 +22,16 @@
 <script type="module" src="assets/app.js"></script>
 </head>
 <body>
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-archiv" viewBox="0 0 24 24"><path d="M4 8h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z M3 4h18v4H3z M10 12h4"/></symbol>
+  <symbol id="i-ordner" viewBox="0 0 24 24"><path d="M3 7a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-beispiel" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z M14 3v4h4 M9 12h6 M9 16h6"/></symbol>
+  <symbol id="i-neu" viewBox="0 0 24 24"><path d="M4 4v5h5 M5 9a8 8 0 1 1-1.2 5"/></symbol>
+  <symbol id="i-bauen" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M18 16l.8 2.2L21 19l-2.2.8L18 22l-.8-2.2L15 19l2.2-.8z"/></symbol>
+  <symbol id="i-laden" viewBox="0 0 24 24"><path d="M12 4v11 M7 10l5 5 5-5 M5 20h14"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z M12 10v4.5 M12 17.2v.3"/></symbol>
+  <symbol id="i-haken" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+</svg>
 <div class="app" id="app">
   <header class="kopf">
     <a class="marke" href="./" aria-label="Projekt-Reiniger Pro, zum Anfang">
@@ -30,7 +40,7 @@
     </a>
     <span class="nurlesen" title="Alles bleibt auf diesem Gerät: nichts geht ins Netz, nichts wird gespeichert">Nur lokal</span>
     <span class="luecke"></span>
-    <button type="button" class="knopf hell" id="neu" hidden>↺ Neu</button>
+    <button type="button" class="knopf hell" id="neu" hidden><svg class="ic" aria-hidden="true"><use href="#i-neu"/></svg>Neu</button>
   </header>
 
   <main class="haupt" id="haupt">
@@ -43,9 +53,9 @@
         <h1 id="einwurf-titel">Projekt einwerfen</h1>
         <p>ZIP, Ordner oder einzelne Dateien jeder Art — Archive darin (ZIP, tar, tar.gz) werden ausgepackt. Alles wird <strong>auf diesem Gerät</strong> gelesen: nichts geht ins Netz, nichts wird ausgeführt, nichts gespeichert.</p>
         <div class="knoepfe">
-          <label class="knopf haupt-knopf" for="wahl-dateien">📦 ZIP oder Dateien</label>
-          <label class="knopf" for="wahl-ordner">📁 Ordner</label>
-          <button type="button" class="knopf" id="beispiel">🧪 Beispielprojekt</button>
+          <label class="knopf haupt-knopf" for="wahl-dateien"><svg class="ic" aria-hidden="true"><use href="#i-archiv"/></svg>ZIP oder Dateien</label>
+          <label class="knopf" for="wahl-ordner"><svg class="ic" aria-hidden="true"><use href="#i-ordner"/></svg>Ordner</label>
+          <button type="button" class="knopf" id="beispiel"><svg class="ic" aria-hidden="true"><use href="#i-beispiel"/></svg>Beispielprojekt</button>
         </div>
         <input type="file" id="wahl-dateien" multiple hidden>
         <input type="file" id="wahl-ordner" webkitdirectory multiple hidden>
