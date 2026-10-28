@@ -409,6 +409,13 @@ Klaus: *„Wichtig ist, dass man da auch ZIPs entpacken kann und PNGs laden, SVG
   zusammen, bauen, herunterladen, fremd prüfen. `npm test` **164 grün · 0 ROT**; `npm run gegenprobe`
   **37 gefangen · 0 blind** (12 neue Fälle; erster Lauf 2 blind — kein reines .tar in den Testdateien, und die Probe
   verlangte keinen Rest-Fund im Archiv; beide geschärft).
+- **Hineinziehen** (Klaus: *„per Reinziehen, das wäre bei Windows sinnvoll … oder die Dateiordner“*): Dateien,
+  ZIPs und ganze Ordner aufs Fenster ziehen, beliebig tief; `node_modules` wird nicht geöffnet. Nachgebessert:
+  die Größe wird jetzt vor dem Lesen bestimmt (vorher hätte eine riesige gezogene Datei den Deckel umgangen), und
+  die Ablagefläche erscheint nur bei Dateien, nicht beim Ziehen von Text. Geprüft mit einem Loslassen mit echten
+  Dateien und einem Ordnerbaum wie aus Chrome (4 Gegenprobe-Fälle). ⚠ Ein echtes Ziehen aus dem
+  Windows-Explorer ist nicht gemessen. Der Knopf „📁 Ordner“ geht am Windows-PC; am Android-Handy bieten die
+  meisten Browser keine Ordnerwahl — dort ein ZIP nehmen.
 - ⚠ **Nicht gemessen:** echte Kamerafotos (Samsung-Bewegungsfoto, HEIC — HEIC wird nur benannt), große Archive
   am Tablet, Archive mit Namen in anderen Zeichensätzen als UTF-8.
 

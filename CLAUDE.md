@@ -50,6 +50,10 @@ Kurzauftrag zum Kopieren ausgeben.
   ⚠ Sichtbarer Text im Bild und Botschaften in den untersten Bits bleiben (Neuzeichnen: Stufe 4) — die
   Nachprüfung nennt jedes Bild deshalb „ungeprüft“. SVG wird als Text gereinigt. GIF, PDF, Office: nur
   übernehmen oder weglassen (Stufe 4).
+- **Hineinziehen (Windows-Explorer u. a.):** Dateien, ZIPs und ganze Ordner aufs Fenster ziehen (`ausEintraegen` in
+  `app.js`, beliebig tief, `node_modules` nie geöffnet, Größe vorher gelesen). Die Ablagefläche erscheint nur,
+  wenn Dateien gezogen werden. Die Probe stellt das Loslassen mit echten Dateien und einen Ordnerbaum wie aus
+  Chrome nach; ⚠ ein echtes Ziehen aus dem Explorer ist nicht gemessen. Strg+V gibt es noch nicht.
 - **Testdateien** `tests/muster/` baut `python3 -I tools/muster-bauen.py` mit Python `zipfile`/`tarfile` und
   **Pillow** (fremde Werkzeuge, nicht der eigene Schreiber); `tests/muster-pruefen.py` liest die saubere Kopie
   fremd. Fehlen python3 oder Pillow, sagt die Probe „⊘ nicht gemessen“ statt grün.
@@ -57,8 +61,8 @@ Kurzauftrag zum Kopieren ausgeben.
 ## Prüfen
 
 ```bash
-npm test             # 164 grün · 0 ROT (2026-10-28, Stufe 2 + alle Dateiarten)
-npm run gegenprobe   # 37 gefangen · 0 blind · 0 falsch · 0 tot (2026-10-28; erster voller Lauf 35 · 2 blind, beide in der Probe, geschärft)
+npm test             # 170 grün · 0 ROT (2026-10-28, Stufe 2 + alle Dateiarten + Hineinziehen)
+npm run gegenprobe   # 41 gefangen · 0 blind · 0 falsch · 0 tot (2026-10-28)
 ```
 
 ## ⚠ Nicht gemessen

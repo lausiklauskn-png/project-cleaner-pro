@@ -47,6 +47,11 @@ const FAELLE = [
   ["ANHAENGSEL", "assets/reiniger-kern.js", "      if (typ === \"IEND\") { ende = true; break; }", "      if (typ === \"IEND\") { ende = true; teile.push(b.subarray(p)); break; }", /kein alter Wert|kein Rest/],
   ["NACHAUSPACKEN", "assets/reiniger-kern.js", "  const ein = await einwerfen(rein.sauber.map((x) => ({ pfad: x.pfad, bytes: x.bytes })), { wurzelZip: false });", "  const ein = { dateien: rein.sauber.map((x) => ({ pfad: x.pfad, bytes: x.bytes })), hinweise: [] };", /Nachprüfung packt die Kopie wieder aus/],
   ["BILDWAHL", "assets/reiniger-kern.js", "dateien[e.pfad] = { wie: hart ? \"weglassen\" : \"metadaten\",", "dateien[e.pfad] = { wie: \"weglassen\",", /PNG ohne Metadaten|Ohne Metadaten übernehmen/],
+  /* Hineinziehen: Dateien und Ordner */
+  ["ZIEHEN", "assets/app.js", "  if (liste.length) starte(liste);\n});", "});", /Hineinziehen von Dateien/],
+  ["ZIEHNM", "assets/app.js", "      if (Kern.UEBERSPRINGEN.includes(eintrag.name)) { liste.push(", "      if (false) { liste.push(", /node_modules wird nicht geöffnet/],
+  ["ZIEHTEXT", "assets/app.js", "const ziehtDateien = (e) => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes(\"Files\");", "const ziehtDateien = (e) => !!e.dataTransfer;", /Text ziehen/],
+  ["ZIEHGROESSE", "assets/app.js", "liste.push({ pfad, groesse: f.size, lesen:", "liste.push({ pfad, lesen:", /Größe vorher bekannt/],
   ["NETZ", "assets/app.js", "/* nur für die Proben */", "fetch(\"https://beispiel.example/\").catch(() => {});\n/* nur für die Proben */", /Kein Netz|Konsole/],
 ];
 const nur = process.env.NUR_FALL;

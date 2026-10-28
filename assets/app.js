@@ -40,29 +40,42 @@ $("#wahl-ordner").addEventListener("change", (e) => { const l = ausDateiListe(e.
 $("#beispiel").addEventListener("click", async () => starte(await beispielProjekt()));
 $("#neu").addEventListener("click", zuruecksetzen);
 
-/* Ziehen und Loslassen, auch ganze Ordner. Übersprungene Ordner werden nicht geöffnet. */
+/* Ziehen und Loslassen: einzelne Dateien, ZIPs und ganze Ordner (Windows-Explorer, Finder, Dateimanager).
+   Übersprungene Ordner (node_modules …) werden nicht geöffnet. */
 let ziehZaehler = 0;
-addEventListener("dragenter", (e) => { e.preventDefault(); if (!laeuft) { ziehZaehler++; $("#ziehen").hidden = false; } });
-addEventListener("dragleave", () => { if (--ziehZaehler <= 0) { ziehZaehler = 0; $("#ziehen").hidden = true; } });
-addEventListener("dragover", (e) => e.preventDefault());
+const ziehtDateien = (e) => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+addEventListener("dragenter", (e) => { if (!ziehtDateien(e)) return; e.preventDefault(); if (!laeuft) { ziehZaehler++; $("#ziehen").hidden = false; } });
+addEventListener("dragleave", (e) => { if (!ziehtDateien(e)) return; if (--ziehZaehler <= 0) { ziehZaehler = 0; $("#ziehen").hidden = true; } });
+addEventListener("dragover", (e) => { if (ziehtDateien(e)) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } });
 addEventListener("drop", async (e) => {
+  if (!ziehtDateien(e)) return;
   e.preventDefault(); ziehZaehler = 0; $("#ziehen").hidden = true;
   if (laeuft) return;
-  const items = Array.from(e.dataTransfer.items || []).map((i) => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
-  if (!items.length) { const l = ausDateiListe(e.dataTransfer.files || []); if (l.length) starte(l); return; }
+  /* Die Einträge müssen sofort geholt werden — nach dem ersten await ist die Ablage leer. */
+  const eintraege = Array.from(e.dataTransfer.items || []).filter((i) => i.kind === "file").map((i) => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  const dateien = Array.from(e.dataTransfer.files || []);
+  const liste = eintraege.length ? await ausEintraegen(eintraege) : ausDateiListe(dateien);
+  if (liste.length) starte(liste);
+});
+
+/** Geht gezogene Einträge durch (Dateien und Ordner, beliebig tief). Größe wird vorher gelesen, Inhalt erst bei Bedarf. */
+async function ausEintraegen(eintraege) {
   const liste = [];
   const lies = (ordner) => new Promise((ok) => { const r = ordner.createReader(), alle = []; const weiter = () => r.readEntries((t) => { if (!t.length) ok(alle); else { alle.push(...t); weiter(); } }, () => ok(alle)); weiter(); });
   async function gehe(eintrag, pfad) {
     if (eintrag.isFile) {
-      liste.push({ pfad, lesen: () => new Promise((ok, nein) => eintrag.file(async (f) => ok(new Uint8Array(await f.arrayBuffer())), nein)) });
+      let f = null;
+      try { f = await new Promise((ok, nein) => eintrag.file(ok, nein)); } catch { f = null; }
+      if (!f) { liste.push({ pfad, groesse: 0, unlesbar: "beim Hineinziehen nicht lesbar — ungeprüft" }); return; }
+      liste.push({ pfad, groesse: f.size, lesen: async () => new Uint8Array(await f.arrayBuffer()) });
     } else if (eintrag.isDirectory) {
       if (Kern.UEBERSPRINGEN.includes(eintrag.name)) { liste.push({ pfad: pfad + "/…", nichtGeoeffnet: true }); return; }
       for (const k of await lies(eintrag)) await gehe(k, pfad + "/" + k.name);
     }
   }
-  for (const i of items) await gehe(i, i.name);
-  if (liste.length) starte(liste);
-});
+  for (const i of eintraege) await gehe(i, i.name);
+  return liste;
+}
 
 /* ── Prüfen ──────────────────────────────────────────────── */
 async function starte(liste) {
@@ -306,4 +319,4 @@ if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol) && !new 
   navigator.serviceWorker.register("sw.js").catch(() => {});
 
 /* nur für die Proben */
-window.__reiniger = { starte, ergebnis: () => ergebnis, beispielProjekt, entscheidungen: () => entscheidungen, gebaut: () => gebaut, bauen };
+window.__reiniger = { starte, ausEintraegen, ergebnis: () => ergebnis, beispielProjekt, entscheidungen: () => entscheidungen, gebaut: () => gebaut, bauen };

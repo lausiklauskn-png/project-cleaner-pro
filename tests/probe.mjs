@@ -440,6 +440,65 @@ if (gemischt) {
     (!f.bilder || ["foto.jpg", "bild.webp", "mix.zip/app/bild.png"].every((k) => f.bilder[k] && f.bilder[k].exif === 0)), JSON.stringify(f).slice(0, 400));
   await alleGroessen("Gemischt");
 }
+/* Hineinziehen (Drag & Drop): Dateien und ganze Ordner */
+await seite.setViewportSize({ width: 1280, height: 800 });
+await seite.click("#neu");
+const mixBytes = Array.from(readFileSync(join(WURZEL, "tests/muster/mix.zip")));
+const zug = await seite.evaluate(async (mix) => {
+  const dt = new DataTransfer();
+  dt.items.add(new File([new Uint8Array(mix)], "mix.zip", { type: "application/zip" }));
+  dt.items.add(new File(["Mail: lena@beispiel.example\n"], "notiz.txt", { type: "text/plain" }));
+  const ev = (typ) => new DragEvent(typ, { dataTransfer: dt, bubbles: true, cancelable: true });
+  document.body.dispatchEvent(ev("dragenter"));
+  const sichtbar = !document.querySelector("#ziehen").hidden;
+  const d = ev("drop"); document.body.dispatchEvent(d);
+  const t = new DataTransfer(); t.setData("text/plain", "nur Text");
+  const nurText = new DragEvent("dragenter", { dataTransfer: t, bubbles: true, cancelable: true });
+  return { sichtbar, verhindert: d.defaultPrevented, wegNach: document.querySelector("#ziehen").hidden };
+}, mixBytes);
+let gezogen = true;
+try { await seite.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden && window.__reiniger.ergebnis().inventur.some((e) => e.pfad === "notiz.txt"), null, { timeout: 30000 }); } catch { gezogen = false; }
+ok("Hineinziehen: „Loslassen zum Prüfen“ erscheint und verschwindet beim Loslassen", zug.sichtbar && zug.verhindert && zug.wegNach, JSON.stringify(zug));
+ok("Hineinziehen von Dateien: ZIP (ausgepackt) und Textdatei zusammen geprüft", gezogen && await seite.evaluate(() => {
+  const r = window.__reiniger.ergebnis(), p = r.inventur.map((e) => e.pfad);
+  return p.includes("mix.zip/app/vorlagen.zip/notiz.txt") && r.buendel.some((b) => b.wert === "lena@beispiel.example");
+}));
+ok("Text ziehen (keine Datei) zeigt keine Ablagefläche", await seite.evaluate(() => {
+  const t = new DataTransfer(); t.setData("text/plain", "nur Text");
+  document.body.dispatchEvent(new DragEvent("dragenter", { dataTransfer: t, bubbles: true, cancelable: true }));
+  const h = document.querySelector("#ziehen").hidden;
+  document.body.dispatchEvent(new DragEvent("dragleave", { dataTransfer: t, bubbles: true, cancelable: true }));
+  return h;
+}));
+/* Ein ganzer Ordner: derselbe Baum, den Chrome beim Ziehen eines Ordners liefert (FileSystemEntry). */
+const ordner = await seite.evaluate(async () => {
+  let nmGeoeffnet = false;
+  const datei = (name, inhalt) => ({ isFile: true, isDirectory: false, name, file: (ok) => setTimeout(() => ok(new File([inhalt], name)), 0) });
+  const kaputt = (name) => ({ isFile: true, isDirectory: false, name, file: (ok, nein) => setTimeout(() => nein(new DOMException("NotReadableError")), 0) });
+  const verz = (name, kinder) => ({ isFile: false, isDirectory: true, name, createReader: () => {
+    if (name === "node_modules") nmGeoeffnet = true;
+    let rest = kinder.slice();   // wie Chrome: später, in Häppchen, am Ende eine leere Liste
+    return { readEntries: (ok) => setTimeout(() => ok(rest.splice(0, 1)), 0) };
+  } });
+  const baum = verz("meinprojekt", [
+    datei("README.md", "Gebaut von erika.mustermann@beispiel.example\n"),
+    verz("src", [datei("start.js", "export const konto = \"DE02120300000000202051\";\n"), verz("tief", [verz("tiefer", [datei("x.txt", "+49 30 1234567\n")])])]),
+    verz("node_modules", [datei("paket.js", "GEHEIM")]),
+    verz(".git", [datei("config", "[user]\n\tname = Erika Mustermann\n")]),
+    kaputt("gesperrt.docx"),
+  ]);
+  const liste = await window.__reiniger.ausEintraegen([baum, datei("einzeln.txt", "hallo")]);
+  window.__reiniger.starte(liste);
+  return { pfade: liste.map((d) => d.pfad), groessen: liste.filter((d) => d.groesse > 0).length, nmGeoeffnet };
+});
+try { await seite.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden && window.__reiniger.ergebnis().inventur.some((e) => e.pfad === "einzeln.txt"), null, { timeout: 30000 }); } catch { /* rot unten */ }
+ok("Ordner hineinziehen: alle Unterordner gelesen, Ordner und Datei zusammen", ["meinprojekt/README.md", "meinprojekt/src/start.js", "meinprojekt/src/tief/tiefer/x.txt", "meinprojekt/.git/config", "einzeln.txt"].every((p) => ordner.pfade.includes(p)), ordner.pfade.join(", "));
+ok("Ordner hineinziehen: node_modules wird nicht geöffnet", !ordner.nmGeoeffnet && ordner.pfade.includes("meinprojekt/node_modules/…") && !ordner.pfade.some((p) => /paket\.js/.test(p)));
+ok("Ordner hineinziehen: Größe vorher bekannt (Deckel greift), unlesbare Datei heißt ungeprüft", ordner.groessen >= 5 && await seite.evaluate(() => {
+  const r = window.__reiniger.ergebnis(), g = r.inventur.find((e) => e.pfad === "meinprojekt/gesperrt.docx");
+  return !!g && /ungeprüft/.test(g.ungeprueft) && r.buendel.some((b) => b.art === "IBAN") && r.buendel.some((b) => b.art === "TELEFON") && r.inventur.some((e) => e.pfad === "meinprojekt/.git/config" && e.marken.some((m) => m.kennung === "GIT"));
+}));
+
 
 
 await seite.setViewportSize({ width: 360, height: 740 });
