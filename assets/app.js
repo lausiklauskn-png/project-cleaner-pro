@@ -21,6 +21,7 @@ const IKONEN = {
   datei: "M6 3h8l4 4v14H6z M14 3v4h4",
   probe: "M9 3h6 M10 3v6l-5 9a1 1 0 0 0 1 2h12a1 1 0 0 0 1-2l-5-9V3 M7.5 14h9",
   neu: "M6 3h8l4 4v14H6z M14 3v4h4 M12 11v6 M9 14h6",
+  lesen: "M4 7V4h3 M17 4h3v3 M20 17v3h-3 M7 20H4v-3 M8 9h8 M8 12h8 M8 15h5",
   reinigen: "M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z",
   laden: "M12 4v11 M7 10l5 5 5-5 M5 20h14",
   teilen: "M12 15V4 M7 9l5-5 5 5 M5 14v6h14v-6",
@@ -44,7 +45,7 @@ function knopfMit(attr, name, wort) { return el("button", Object.assign({ type: 
 const warnZeile = (attr, satz) => el(attr.tag || "p", Object.assign({}, attr, { tag: null }), ikon("warn"), el("span", { text: satz }));
 const gross = (n) => n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(1).replace(".", ",") + " KB" : (n / 1048576).toFixed(1).replace(".", ",") + " MB";
 
-let ergebnis = null, laeuft = false, eingeworfen = [], gereinigt = null, quelle = "";
+let ergebnis = null, laeuft = false, eingeworfen = [], gereinigt = null, quelle = "", texterkennung = false;
 const wahl = {};                 // buendelSchluessel → { weg, wert }
 const uebernehmen = new Set();   // Pfade, die unverändert mitgehen sollen
 const begriffe = [];             // selbst eingetragene Namen, die die Suche nicht erkannt hat
@@ -112,7 +113,8 @@ async function starte(liste) {
     const ein = await Kern.einwerfen(liste);
     eingeworfen = ein.dateien; gereinigt = null;
     for (const k of Object.keys(wahl)) delete wahl[k];
-    uebernehmen.clear(); begriffe.length = 0; textCache.clear();
+    uebernehmen.clear(); begriffe.length = 0; textCache.clear(); texterkennung = false;
+    if (window.PrueferAnhang) window.PrueferAnhang.pfade({ tesseract: null });
     ergebnis = await Kern.pruefe(ein.dateien, {
       fortschritt: (nr, gesamt, pfad) => { $("#fortschritt-text").textContent = "Lese " + nr + " von " + gesamt + ": " + pfad; const b = $("#fortschritt-balken"); b.max = gesamt; b.value = nr; },
     });
@@ -130,7 +132,7 @@ async function nochmal() {
   if (laeuft) return;
   laeuft = true; gereinigt = null;
   const fs = $("#fortschritt"); fs.hidden = false;
-  try { ergebnis = await Kern.pruefe(eingeworfen, { begriffe, fortschritt: (nr, g, p) => { $("#fortschritt-text").textContent = "Lese " + nr + " von " + g + ": " + p; } }); }
+  try { ergebnis = await Kern.pruefe(eingeworfen, { begriffe, texterkennung, fortschritt: (nr, g, p) => { $("#fortschritt-text").textContent = "Lese " + nr + " von " + g + ": " + p; } }); }
   finally { fs.hidden = true; laeuft = false; }
   zeigen();
 }
@@ -146,7 +148,7 @@ const SCHICHTEN = [
   ["hart", "Personenbezogene Angaben", "Was direkt eine Person nennt oder Zugang gibt: Namen, Mail, Telefon, IBAN, Datum, Schlüssel und Passwörter, dazu selbst eingetragene Namen. Namen aus Anrede und Gruß sind nur Vorschläge. Tippe auf eine Stelle, um sie in der Datei zu sehen."],
   ["meta", "Metadaten", "Verfasser, Copyright, Benutzernamen in Pfaden, Git-Namen, Metadaten in Bildern, PDF und Office."],
   ["gefuehlt", "Gefühlte Metadaten", "Angaben, die erst zusammen verraten, wer es ist: Orte, Hochschulen und Schulen, Firmen, Straße und PLZ, Kfz-Kennzeichen, Vornamen (auch in Datei- und Ordnernamen), Rechnernamen und feste Ordnerpfade. Gefunden über Wortlisten — Hinweise, keine Beweise."],
-  ["auffaellig", "Auffälliges", "Programme, Makros, Verweise, versteckter Text und Anweisungen an eine KI."],
+  ["auffaellig", "Auffälliges", "Anweisungen an eine KI (auch in Text, Code, PDF und in den Bildpunkten eines Bildes), unsichtbare Zeichen, versteckter Text, Programme, Makros, PDF-Befehle und fremde Adressen in HTML. Geprüft mit denselben Kernen wie Sende-Prüfer, Auslieferungsprüfer und Workflow PDF. Kein Virenscanner. In Textdateien lässt sich die Zeile entfernen."],
 ];
 
 function leerBild(satz) {
@@ -206,7 +208,7 @@ function buendelKarte(b) {
       el("span", { class: "anzahl", text: b.anzahl + "× in " + b.dateien + (b.dateien === 1 ? " Datei" : " Dateien") })),
     wertZeigen ? el("span", { class: "wert", "data-wert": "", text: b.wert }) : null,
     b.satz ? el("p", { class: "satz", text: b.satz }) : null,
-    Kern.ersetzbar(b) ? wegWahl(b) : null,
+    Kern.ersetzbar(b) ? wegWahl(b) : Kern.zeileEntfernbar(b) ? zeileWahl(b) : null,
     det);
 }
 
@@ -227,10 +229,40 @@ function werkzeugLeiste() {
     x.addEventListener("click", () => { begriffe.splice(begriffe.indexOf(w), 1); nochmal(); });
     return x;
   });
+  /* Texterkennung (Tesseract, 21 MB im eigenen Ordner) nur auf Knopfdruck — sie dauert je Bild bis zu 90 s. */
+  const bilder = ergebnis.inventur.filter((e) => e.marken.some((m) => m.kennung === "FOTO" || m.kennung === "PDF")).length;
+  let ocr = null;
+  if (bilder && !texterkennung) {
+    ocr = knopfMit({ class: "knopf klein-knopf", id: "texterkennung", title: "Liest sichtbaren Text in Bildern und gescannten PDF-Seiten (auf dem Gerät, langsam)" }, "lesen", "Text in Bildern lesen (" + bilder + ")");
+    ocr.addEventListener("click", texterkennungAn);
+  }
   return el("div", { class: "werkzeuge" },
-    el("div", { class: "knoepfe" }, auf, zu),
+    el("div", { class: "knoepfe" }, auf, zu, ocr),
     el("div", { class: "begriff-zeile" }, feld, dazu),
     chips.length ? el("div", { class: "zeile2" }, el("span", { class: "satz", text: "Selbst eingetragen:" }), ...chips) : null);
+}
+
+/* Texterkennung anschalten: Tesseract aus vendor/tesseract/ (byte-1:1 aus Workflow PDF Pro). Der Worker wird
+   aus seiner Datei gestartet, nicht als blob: (die CSP erlaubt das nicht); er holt seine Sprachdaten selbst,
+   nur vom eigenen Server. */
+function skriptLaden(src) {
+  return new Promise((ok, nein) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => nein(new Error(src + " kam nicht an")); document.head.append(s); });
+}
+async function texterkennungAn() {
+  if (laeuft || !window.PrueferAnhang) return;
+  const k = $("#texterkennung"); if (k) { k.disabled = true; k.lastChild.textContent = "Lade Texterkennung …"; }
+  try {
+    if (!window.Tesseract) await skriptLaden("vendor/tesseract/tesseract.min.js");
+    const T = window.Tesseract;
+    if (!T.__ohneBlob) {
+      const roh = T.createWorker.bind(T);
+      T.createWorker = (sprachen, oem, opt, cfg) => roh(sprachen, oem, Object.assign({}, opt, { workerBlobURL: false }), cfg);
+      T.__ohneBlob = true;
+    }
+    window.PrueferAnhang.pfade({ tesseract: new URL("vendor/tesseract/", location.href).href });
+    texterkennung = true;
+  } catch (e) { melde("Die Texterkennung ließ sich nicht laden (" + (e && e.message || e) + "). Text in Bildern bleibt ungeprüft."); if (k) k.disabled = false; return; }
+  await nochmal();
 }
 
 /* ── Datei ansehen: Original oder saubere Kopie, zur Stelle springen ─────── */
@@ -319,6 +351,14 @@ function wegWahl(b) {
   return el("div", { class: "weg-zeile" }, sel, eigen);
 }
 
+function zeileWahl(b) {
+  const k = Kern.buendelSchluessel(b), jetzt = (wahl[k] || { weg: "behalten" }).weg;
+  const sel = el("select", { class: "weg", "data-schluessel": k, "data-zeile-wahl": "", "aria-label": "Was mit dieser Stelle geschieht" },
+    ...[["behalten", "Nur melden (bleibt stehen)"], ["zeile", "Zeile entfernen"]].map(([w, t]) => { const o = el("option", { value: w, text: t }); if (w === jetzt) o.selected = true; return o; }));
+  sel.addEventListener("change", () => { wahl[k] = { weg: sel.value }; gereinigt = null; const e = $("#kopie-ergebnis"); if (e) e.replaceChildren(); });
+  return el("div", { class: "weg-zeile" }, sel);
+}
+
 function dateiPlanKarte(plan) {
   const alle = el("input", { type: "checkbox", id: "alle-uebernehmen" });
   const boxen = plan.map((p) => {
@@ -348,7 +388,7 @@ async function reinigen() {
   const knopf = $("#reinigen"), aus = $("#kopie-ergebnis");
   knopf.disabled = true; aus.replaceChildren(el("p", { text: "Reinige und prüfe nach …" }));
   try {
-    gereinigt = await Kern.saubereKopie(eingeworfen, { ergebnis, wahl, uebernehmen: Array.from(uebernehmen) }, { begriffe });
+    gereinigt = await Kern.saubereKopie(eingeworfen, { ergebnis, wahl, uebernehmen: Array.from(uebernehmen) }, { begriffe, texterkennung });
   } catch (e) {
     aus.replaceChildren(warnZeile({ class: "offen" }, "Reinigen brach ab (" + (e && e.message || e) + "). Es gibt keine saubere Kopie."));
     knopf.disabled = false; return;
@@ -430,7 +470,7 @@ for (const k of document.querySelectorAll(".reiter-knopf")) k.addEventListener("
 /* ── Installieren und Aktualisieren (Klaus 2026-10-28) ─────────────────────
    Ablauf und Texte übernommen aus dem Auslieferungsprüfer (assets/installieren.js, dort seit 2026-09-30
    am Tablet getragen), hier mit Strich-Symbolen und ohne Inline-Stile (CSP). */
-export const APP_FASSUNG = "4";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
+export const APP_FASSUNG = "5";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
 let installEreignis = null;
 function alsApp() {
   try { return matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: window-controls-overlay)").matches || matchMedia("(display-mode: minimal-ui)").matches || navigator.standalone === true; }

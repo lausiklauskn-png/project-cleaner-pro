@@ -37,6 +37,11 @@ const FAELLE = [
   ["BEGRIFF", "assets/reiniger-kern.js", "  for (const f of begriffeIn(text, begriffe)) melde(", "  for (const f of []) melde(", /eigener Name/],
   ["FASSUNG", "sw.js", "const CACHE_VERSION = \"reiniger-v", "const CACHE_VERSION = \"reiniger-v9", /Fassung: APP_FASSUNG/],
   ["AKTUALISIEREN", "assets/app.js", "  location.reload();\n}", "}", /Aktualisieren: Seite lädt neu/],
+  ["KITEXT", "assets/reiniger-kern.js", "  for (const st of PM.pruefeMail(\"\\n\" + t).stellen) {", "  for (const st of []) {", /KI-Anweisung in Markdown/],
+  ["PIXEL", "assets/reiniger-kern.js", "if (/^(png|webp)$/.test(r.art) && typeof PA.verdachtPruefen === \"function\")", "if (false)", /Pixelprüfung/],
+  ["ARCHIV", "assets/reiniger-kern.js", "      try { auf = await archivOeffnen(d.pfad, bytes); }", "      try { auf = null; }", /APK: geöffnet/],
+  ["OCR", "assets/app.js", "T.createWorker = (sprachen, oem, opt, cfg) => roh(sprachen, oem, Object.assign({}, opt, { workerBlobURL: false }), cfg);", "T.createWorker = roh;", /Texterkennung: Mail im Bild/],
+  ["ZEILEWEG", "assets/reiniger-kern.js", "          zeilen[nr - 1] = istDoku(pfad)", "          if (0) zeilen[nr - 1] = istDoku(pfad)", /Zeile entfernen/],
   ["NETZ", "assets/app.js", "/* nur für die Proben */", "fetch(\"https://beispiel.example/\").catch(() => {});\n/* nur für die Proben */", /Kein Netz|Konsole/],
 ];
 const nur = process.env.NUR_FALL;
