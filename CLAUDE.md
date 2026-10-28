@@ -1,0 +1,47 @@
+# Projekt-Reiniger Pro — Sitzungs-Anker
+
+Findet persönliche Daten in fremden Projekten (ZIP, Ordner, einzelne Dateien), bevor sie an eine KI
+oder nach GitHub gehen. Kein Build-Schritt. Der Plan steht im Brief:
+**[`docs/BRIEF_2026-10-28_projekt-reiniger-pro.md`](docs/BRIEF_2026-10-28_projekt-reiniger-pro.md)** —
+er ist die Quelle, diese Datei ist nur der Anker. Am Ende jeder Sitzung: Brief nachziehen und einen
+Kurzauftrag zum Kopieren ausgeben.
+
+## Stand: Stufe 1 (2026-10-28) — nur lesen
+
+| Datei | Rolle |
+|---|---|
+| `assets/reiniger-kern.js` + `.d.ts` | **Der Kern ohne Oberfläche** (ES-Modul). Kein DOM, keine IndexedDB, kein Netz — die Probe prüft das. Wandert später byte-1:1 in die Familienakte. Heute: `einwerfen`, `zipDateien`, `einordnen`, `pruefe`, `buendeln`. |
+| `assets/app.js`, `assets/app.css`, `index.html` | Oberfläche. Fremdes nur über `textContent`. |
+| `assets/beispiel.js` | Erfundenes Beispielprojekt (Knopf „🧪 Beispielprojekt“ und Proben). |
+| `modules/25_pseudonym.js`, `assets/pruefer-anhang.js`, `pruefer-formate.js`, `pruefer-mail.js`, `pruefer.js`, `vendor/pdfjs/` | **byte-1:1** aus Sende-Prüfer (`d8a8c54`) bzw. Sage/Auslieferungsprüfer, per SHA-256 in `tests/probe.mjs` gepinnt (`PINS`). **Nie hier abwandeln** — dort pflegen, neu kopieren, Pin nachziehen, `CACHE_VERSION` in `sw.js` erhöhen. |
+
+- **`node_modules` und Build-Ordner** (`UEBERSPRINGEN` im Kern) werden nie gelesen, auch im ZIP nie entpackt
+  (jede Datei im ZIP wird erst auf Abruf entpackt). Ein gezogener Ordner wird gar nicht geöffnet.
+- **Was nicht gelesen werden konnte, heißt „ungeprüft“**, nie sauber (verschlüsselt im ZIP, Git-Pakete,
+  unbekannte Formate = nur Zeichenketten, Text im Bild = Stufe 4).
+- **CSP `connect-src 'none'`**. Eine Probe zählt die Anfragen nach außen (0).
+- **Bild (Klaus 2026-10-28):** der Kristall (`icons/kristall-quelle.png`) ist App-Icon, Favicon und Logo; auf
+  leeren Flächen steht er groß mit **„CLEANER“** in weißer Schrift darunter. Icon A (Kacheln im Kreispfeil) ist
+  damit abgelöst. Alle Größen baut `node tools/icons-bauen.mjs` — **nie von Hand**; sonst meldet die Probe „veraltet“.
+- **Vollbild:** `100dvh`, keine Höchstbreite, `display: standalone`. Die Probe misst bei 320×640, 360×740,
+  412×915, 768×1024, 1280×800, 740×360 (Handy quer) und 1920×1080 in drei Zuständen (Einwurf, Funde, Inventur):
+  nichts quer, nichts ragt über seinen Kasten, keine Beschriftung abgeschnitten, kein Knopf bricht um, App füllt das Fenster.
+- **Speichert nichts.** Der Service-Worker legt nur den Code ab.
+
+## Prüfen
+
+```bash
+npm test             # 84 grün · 0 ROT (2026-10-28)
+npm run gegenprobe   # 12 gefangen · 0 blind · 0 falsch · 0 tot (2026-10-28, erster Lauf)
+```
+
+## ⚠ Nicht gemessen
+
+Tablet und Handy (echtes Gerät), große Repos (Hunderte MB), echte Fotos/Office-Dateien, Ziehen eines Ordners
+mit der Maus (nur der Code-Weg ist gebaut; die Probe nutzt Knopf und `starte`). Als Datei geöffnet (`file://`)
+läuft die App nicht — der Kern ist ein ES-Modul.
+
+## Netzweit
+
+Freibrief zum Selbst-Mergen · frisch von `origin/main` · Ton · kein PII · Ehrlichkeit:
+[Sage-Protokol/docs/NETZWEIT.md](https://github.com/lausiklauskn-png/Sage-Protokol/blob/main/docs/NETZWEIT.md)

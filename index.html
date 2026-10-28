@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; worker-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0b3154">
+<title>Projekt-Reiniger Pro</title>
+<meta name="description" content="Prüft ein Projekt (ZIP, Ordner oder einzelne Dateien) auf persönliche Daten, bevor es an eine KI oder nach GitHub geht. Alles bleibt auf dem Gerät.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/app.css">
+<!-- Prüfkerne, byte-1:1 übernommen und in tests/probe.mjs per SHA-256 gepinnt. Nie hier abwandeln. -->
+<script src="modules/25_pseudonym.js" defer></script>
+<script src="assets/pruefer-formate.js" defer></script>
+<script src="assets/pruefer-mail.js" defer></script>
+<script src="assets/pruefer.js" defer></script>
+<script src="assets/pruefer-anhang.js" defer></script>
+<script type="module" src="assets/app.js"></script>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="kopf">
+    <a class="marke" href="./" aria-label="Projekt-Reiniger Pro, zum Anfang">
+      <img src="icons/logo-96.png" width="40" height="40" alt="">
+      <span class="name-lang">Projekt-Reiniger Pro</span><span class="name-kurz">Reiniger Pro</span>
+    </a>
+    <span class="nurlesen" title="Stufe 1: es wird nur gelesen, nichts geändert">Nur lesen</span>
+    <span class="luecke"></span>
+    <button type="button" class="knopf hell" id="neu" hidden>↺ Neu</button>
+  </header>
+
+  <main class="haupt" id="haupt">
+    <section class="einwurf" id="einwurf" aria-labelledby="einwurf-titel">
+      <div class="buehne">
+        <img class="kristall" src="icons/kristall.webp" srcset="icons/kristall.webp 640w, icons/kristall-gross.webp 1254w" sizes="(min-width: 1200px) 34vmin, 46vmin" width="640" height="640" alt="Ein Kristall, durch den Licht fällt: Splitter fliegen ab, heraus kommt ein klarer Strahl">
+        <p class="wort" aria-hidden="true">CLEANER</p>
+      </div>
+      <div class="einwurf-text">
+        <h1 id="einwurf-titel">Projekt einwerfen</h1>
+        <p>ZIP, Ordner oder einzelne Dateien. Alles wird <strong>auf diesem Gerät</strong> gelesen: nichts geht ins Netz, nichts wird ausgeführt, nichts gespeichert.</p>
+        <div class="knoepfe">
+          <label class="knopf haupt-knopf" for="wahl-dateien">📦 ZIP oder Dateien</label>
+          <label class="knopf" for="wahl-ordner">📁 Ordner</label>
+          <button type="button" class="knopf" id="beispiel">🧪 Beispielprojekt</button>
+        </div>
+        <input type="file" id="wahl-dateien" multiple hidden>
+        <input type="file" id="wahl-ordner" webkitdirectory multiple hidden>
+        <p class="klein">Oder hierher ziehen. <code>node_modules</code> und Build-Ordner werden nicht gelesen.</p>
+        <p class="klein" id="kern-fehlt" hidden></p>
+      </div>
+    </section>
+
+    <section class="arbeit" id="arbeit" hidden aria-live="polite">
+      <div class="fortschritt" id="fortschritt" hidden><span id="fortschritt-text">Lese …</span><progress id="fortschritt-balken" max="1" value="0"></progress></div>
+      <ul class="zahlen" id="zahlen"></ul>
+      <div class="hinweise" id="hinweise"></div>
+      <nav class="reiter" id="reiter" aria-label="Ansicht">
+        <button type="button" class="reiter-knopf" data-reiter="befunde" aria-pressed="true">Funde</button>
+        <button type="button" class="reiter-knopf" data-reiter="inventur" aria-pressed="false">Inventur</button>
+      </nav>
+      <div class="spalten" id="spalten" data-zeige="befunde">
+        <section class="flaeche" id="befunde" aria-label="Funde"></section>
+        <section class="flaeche" id="inventur" aria-label="Inventur"></section>
+      </div>
+    </section>
+  </main>
+  <div class="ziehen" id="ziehen" hidden>Loslassen zum Prüfen</div>
+</div>
+</body>
+</html>
