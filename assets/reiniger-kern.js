@@ -1,21 +1,26 @@
-/* Projekt-Reiniger Pro — der Kern ohne Oberfläche (Stufe 1: nur lesen).
+/* Projekt-Reiniger Pro — der Kern ohne Oberfläche (Stufen 1 und 3: nur lesen).
  *
  * Brief: docs/BRIEF_2026-10-28_projekt-reiniger-pro.md. Dieser Kern soll später
  * byte-1:1 in die Familienakte (Vite + React + TypeScript) wandern und dort per
  * SHA-256 gepinnt werden. Deshalb gilt hier:
  *   - reines JavaScript, ein ES-Modul, Typen in reiniger-kern.d.ts;
  *   - KEIN DOM, KEINE IndexedDB, KEIN Netz. Nichts wird ausgeführt;
+ *   - die Wortlisten stehen in reiniger-listen.js und wandern mit (beide pinnen);
  *   - die Prüfkerne (Sage-Modul 25, pruefer-anhang.js …) bringt der Aufrufer mit
  *     (`optionen.werkzeuge`), sonst liest der Kern sie von globalThis.
  *
- * Stufe 1 = Einwerfen, Inventur, harte Angaben und Metadaten. Entscheiden,
+ * Stufe 1 = Einwerfen, Inventur, harte Angaben und Metadaten. Stufe 3 = gefühlte
+ * Metadaten (Orte, Hochschulen, Firmen, Adressen, Kennzeichen, Vornamen, Rechner,
+ * Ordnerpfade) über Wortlisten. Entscheiden,
  * Reinigen, Stellenplan, Tresor kommen in späteren Stufen. `pruefe` ändert
  * keine Datei.
  *
  * Grundsatz: was nicht gelesen werden konnte, heißt „ungeprüft“, nie „sauber“.
  */
 
-export const KERN_FASSUNG = "1";
+import * as L from "./reiniger-listen.js";
+
+export const KERN_FASSUNG = "2";
 
 /* Ordner, die gar nicht erst gelesen werden (Abhängigkeiten, Build-Ergebnisse). */
 export const UEBERSPRINGEN = [
@@ -35,7 +40,12 @@ export const ART_NAME = {
   NAME: "Name (Vorschlag)", MAIL: "E-Mail", TELEFON: "Telefon", IBAN: "IBAN", DATUM: "Datum",
   SCHLUESSEL: "Schlüssel / Passwort", VERFASSER: "Verfasser", COPYRIGHT: "Copyright",
   BENUTZERPFAD: "Benutzername im Pfad", "GIT-NAME": "Git-Name", "GIT-ADRESSE": "Git-Adresse",
+  ORT: "Ort", HOCHSCHULE: "Hochschule / Schule", FIRMA: "Firma", ADRESSE: "Straße und Hausnummer", "PLZ-ORT": "PLZ und Ort",
+  KFZ: "Kfz-Kennzeichen", EIGENNAME: "Vorname (Vorschlag)", RECHNER: "Rechnername", ORDNERPFAD: "Ordnerpfad",
 };
+
+/* Gefühlte Metadaten (Stufe 3): verraten erst zusammen etwas. */
+export const SORTEN_GEFUEHLT = ["ORT", "HOCHSCHULE", "FIRMA", "ADRESSE", "PLZ-ORT", "KFZ", "EIGENNAME", "RECHNER", "ORDNERPFAD"];
 
 export const MARKE_NAME = {
   GIT: "Git-Geschichte", ENV: "Umgebung / Geheimnisse", SICHERUNG: "Sicherung", DATENBANK: "Datenbank",
@@ -341,6 +351,210 @@ function hartInText(M25, pfad, text, melde, quelle) {
   }
 }
 
+/* ── Gefühlte Metadaten (Stufe 3): Angaben, die erst zusammen etwas verraten ──
+ * Gefunden über Wortlisten (reiniger-listen.js) und wenige Muster. Jeder Fund ist
+ * ein Hinweis, kein Beweis — Klaus entscheidet. Musterwerte („Musterstadt“) zählen nicht. */
+
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const WZ = "A-Za-zÀ-ÖØ-öø-ÿĀ-ž0-9_";                     // Zeichen, die zu einem Wort gehören
+const VOR = "(?<![" + WZ + "])", NACH = "(?![" + WZ + "])";
+const oder = (liste) => Array.from(new Set(liste)).sort((a, b) => b.length - a.length).map(esc).join("|");
+const gross1 = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const istMuster = (s) => /(^|[\s\-/\\])muster/i.test(s);
+
+const RE_ORT = new RegExp(VOR + "(" + oder([...L.STAEDTE_SICHER, ...L.STADTTEILE]) + ")" + NACH, "g");
+const RE_ORT_MEHRDEUTIG = new RegExp(VOR + "(" + oder(L.STAEDTE_MEHRDEUTIG) + ")" + NACH, "g");
+const ORT_ZUSAMMENHANG = /(?:(?:^|[^A-Za-zäöüß])(?:in|aus|nach|bei|nahe|Raum|Großraum|Standort|Wohnort|Sitz|Stadt|Ort|Uni|Universität|Hochschule|FH|TU)\s+|\b\d{4,5}\s+)$/;
+const ZEITZONE_DAVOR = /(?:Europe|America|Asia|Africa|Atlantic|Pacific|Australia|Indian|Antarctica|Etc)\/$/;
+const ALLE_ORTE = new Set([...L.STAEDTE_SICHER, ...L.STADTTEILE, ...L.STAEDTE_MEHRDEUTIG]);
+
+const RE_HS_KUERZEL = new RegExp(VOR + "(" + oder(L.HOCHSCHUL_KUERZEL) + ")" + NACH, "g");
+const KURZ_HS = new Set(["FH", "TU", "TH", "HS", "PH", "Uni"]);
+const HS_NAME = "[A-ZÄÖÜ][A-Za-zÄÖÜäöüß.'-]+";
+const HS_VERBINDER = "(?:der |des |für |of |de |di |am |an der |in |im |auf der |zu |und )";
+const RE_HS_WORT = new RegExp(VOR + "(" + oder(L.HOCHSCHUL_WORT) + ")\\s+(" + HS_VERBINDER + "?" + HS_NAME + "(?:\\s+" + HS_VERBINDER + "?" + HS_NAME + "){0,3})", "g");
+const RE_HS_DOMAIN = /(?<![A-Za-z0-9.-])((?:[a-z0-9-]+\.)*(?:uni|tu|th|fh|hs|haw|htw|ph|hfg|hdm|hfm|udk|ethz|epfl|tum|lmu|rwth-aachen|kit)(?:-[a-z]+)*\.(?:de|at|ch|edu))(?![A-Za-z0-9-])/g;
+
+const FIRMA_WORT = "[A-ZÄÖÜ0-9][A-Za-zÄÖÜäöüß0-9&'+.-]*";
+const RE_FIRMA = new RegExp(VOR + "((?:" + FIRMA_WORT + "[ \\t]+){0,3}" + FIRMA_WORT + ")[ \\t]*,?[ \\t]+(" + oder(L.FIRMENFORMEN) + ")(?![A-Za-zÄÖÜäöüß0-9_])", "g");
+const STOPP_VORN = new Set("copyright © (c) by von bei für mit die der das the a an and und oder or at in im am zur zum für from".split(" "));
+
+const ENDUNG = oder([...L.STRASSEN_ENDUNG, ...L.STRASSEN_ENDUNG.map(gross1)]);
+const RE_STRASSE = new RegExp(VOR + "((?:[A-ZÄÖÜ][a-zäöüß.-]+\\s){0,2}[A-ZÄÖÜ][a-zäöüß-]*(?:" + ENDUNG + "))\\s+(\\d{1,4}(?:\\s?[a-zA-Z])?(?:\\s?[-–/]\\s?\\d{1,4}[a-z]?)?)(?![A-Za-z0-9_])", "g");
+const STRASSE_STOPP = new Set("Die Der Das In Im Bei Nach Aus Von Und Oder Wohnt Adresse Anschrift Wohnhaft An Auf Zur Zum".split(" "));
+const RE_PLZ = /(?<![A-Za-z0-9_.,-])(?:(D|DE|A|AT|CH)-)?(\d{4,5})\s+([A-ZÄÖÜ][a-zäöüß]+(?:[- ](?:an der |am |im |in |bei |ob der )?[A-ZÄÖÜ(][A-Za-zäöüß().]+)?)/g;
+
+const RE_KFZ = /(?<![A-Za-z0-9_\/.#-])([A-ZÄÖÜ]{1,3})([- ])([A-Z]{1,2})([- ]?)(\d{1,4})([EH]?)(?![\w-])/g;
+
+const RE_VORNAME = new RegExp(VOR + "(" + oder([...L.VORNAMEN]) + ")(?:\\s+((?:von der |van der |von |van |de |zu )?[A-ZÄÖÜ][a-zäöüß]+(?:-[A-ZÄÖÜ][a-zäöüß]+)?))?" + NACH, "g");
+
+const RE_RECHNER = [
+  [/(?<![A-Za-z0-9-])((?:DESKTOP|LAPTOP|PC|WIN|NB|WS)-[A-Z0-9]{5,15})(?![A-Za-z0-9-])/g, "Windows-Rechnername"],
+  [/(?<![A-Za-z0-9-])((?:[A-ZÄÖÜ][a-zäöü]+s-(?:MacBook|iMac|Mac|iPhone|iPad|PC|Laptop|Computer|Rechner)(?:-[A-Za-z0-9]+)*)|(?:(?:MacBook|iMac|Mac|iPhone|iPad|PC|Laptop)(?:-[A-Za-z0-9]+)*-(?:von|de|di|from)-[A-Za-zäöü0-9]+))(?:\.local|\.fritz\.box|\.lan|\.home)?(?![A-Za-z0-9-])/g, "Gerätename mit Besitzer"],
+  [/(?<![A-Za-z0-9.-])([A-Za-z0-9][A-Za-z0-9-]{1,62}\.(?:fritz\.box|speedport\.ip))(?![A-Za-z0-9.-])/g, "Name im Heimnetz"],
+  [/(?<![A-Za-z0-9.-])([A-Za-z0-9]*[-0-9][A-Za-z0-9-]*\.(?:local|lan|home|internal|intranet))(?![A-Za-z0-9.-])/g, "Name im Heim- oder Firmennetz"],
+  [/(?<![A-Za-z0-9_.-])([a-z_][a-z0-9_-]{1,31}@[A-Za-z0-9][A-Za-z0-9-]{1,62}):[~\/]/g, "Eingabezeile mit Benutzer und Rechner"],
+  [/(?:^|["'`\s(=])(?:\\{2}([A-Za-z0-9][A-Za-z0-9._-]{2,62})\\(?!\\)|\\{4}([A-Za-z0-9][A-Za-z0-9._-]{2,62})\\{2}(?!\\))[A-Za-z0-9$]/gm, "Netzlaufwerk"],
+  [/\b(?:COMPUTERNAME|HOSTNAME|HOST_NAME|MACHINE_NAME|RECHNERNAME)\s*[=:]\s*["']?([A-Za-z0-9][A-Za-z0-9._-]{1,62})/g, "Rechnername in einer Einstellung"],
+];
+const RECHNER_ALLGEMEIN = /^(localhost|win32|win64|https?|ssh|git|file|ftp|0\.0\.0\.0|127\.0\.0\.1|example|host|server|hostname|myhost|machine|computer|test|dev|my-?pc|your-?host|\$.*|%.*)(\..*)?$/i;
+
+const RE_WINPFAD = /(?<![A-Za-z0-9_])([A-Za-z]):(\\{1,2}|\/)(?![\\\/\s"'`])([^"'`<>|*?\r\n]{2,240})/g;
+const WINPFAD_ALLGEMEIN = /^(?:windows|program files|programme|programdata|program files \(x86\)|temp|tmp|users|benutzer|dokumente und einstellungen|documents and settings|path|pfad|foo|bar|baz|blah|any|some|my|your|dir|folder|parentfolder|x|y|example|beispiel|\.\.\.|…)(?:[\\\/]|$)/i;
+const RE_UNIXPFAD = /(?:^|["'`\s(=:])(\/(?:Volumes|media|run\/media)\/[^\/"'`<>|*?\r\n]{1,60}(?:\/[^\s"'`<>|*?]*)?|\/mnt\/[a-z]\/(?!Program|Windows)[^\s"'`<>|*?]{2,200})/gm;
+const RE_WOLKE = /(OneDrive - [^\\\/"'`\r\n<>|]{2,80}|Dropbox \([^)\r\n]{2,60}\)|Google Drive|Meine Ablage|My Drive|iCloud Drive|Nextcloud|ownCloud)(?=[\\\/])/g;
+
+/**
+ * Sucht gefühlte Metadaten in einem Text. Liefert Funde, ändert nichts.
+ * `modus: "pfad"` — der Text ist ein Datei- oder Ordnername (dort darf ein Vorname allein stehen).
+ * @returns {Array<{art: string, wert: string, index: number, satz: string, vorschlag?: boolean}>}
+ */
+export function gefuehlt(text, optionen = {}) {
+  const pfadModus = optionen.modus === "pfad";
+  const aus = [], belegt = new Map();
+  const neu = (art, wert, index, satz, mehr) => {
+    wert = String(wert).replace(/\s+/g, " ").trim();
+    if (!wert || istMuster(wert)) return;
+    const b = belegt.get(art) || []; belegt.set(art, b);
+    const ende = index + wert.length;
+    if (b.some(([a, e]) => index < e && ende > a)) return;      // dieselbe Stelle nur einmal je Art
+    b.push([index, ende]);
+    aus.push(Object.assign({ art, wert, index, satz }, mehr));
+  };
+  const davor = (i, n = 40) => text.slice(Math.max(0, i - n), i);
+  let m;
+
+  /* Orte */
+  RE_ORT.lastIndex = 0;
+  while ((m = RE_ORT.exec(text))) {
+    if (ZEITZONE_DAVOR.test(davor(m.index, 12))) continue;      // „Europe/Berlin“ ist eine Zeitzone
+    neu("ORT", m[1], m.index, L.STADTTEILE.includes(m[1]) ? "Stadtteil — verrät die Gegend." : "Ort — verrät zusammen mit anderem, wer es ist.");
+  }
+  RE_ORT_MEHRDEUTIG.lastIndex = 0;
+  while ((m = RE_ORT_MEHRDEUTIG.exec(text))) {
+    if (!ORT_ZUSAMMENHANG.test(davor(m.index, 30))) continue;   // „Essen“ allein ist Essen
+    neu("ORT", m[1], m.index, "Ort (mit „in/aus/nach …“ oder PLZ davor).");
+  }
+
+  /* Hochschulen und Schulen */
+  RE_HS_KUERZEL.lastIndex = 0;
+  while ((m = RE_HS_KUERZEL.exec(text))) neu("HOCHSCHULE", m[1], m.index, "Hochschule — verrät Studium oder Arbeit.");
+  RE_HS_WORT.lastIndex = 0;
+  while ((m = RE_HS_WORT.exec(text))) {
+    const name = m[2].trim().replace(/[.,;:]+$/, "");
+    const erstes = name.replace(/^(?:der |des |für |of |de |di |am |an der |in |im |auf der |zu |und )/, "").split(/\s+/)[0];
+    if (KURZ_HS.has(m[1]) && !ALLE_ORTE.has(erstes)) continue;   // „TU“, „FH“ … nur mit Ort danach
+    neu("HOCHSCHULE", m[1] + " " + name, m.index, /schule|Kita|Kindergarten|Gymnasium|Berufskolleg/i.test(m[1]) && !/Hochschule/.test(m[1])
+      ? "Schule oder Kita — verrät Wohnort und Kinder." : "Hochschule — verrät Studium oder Arbeit.");
+  }
+  RE_HS_DOMAIN.lastIndex = 0;
+  while ((m = RE_HS_DOMAIN.exec(text))) neu("HOCHSCHULE", m[1], m.index, "Adresse einer Hochschule.");
+
+  /* Firmen (Arbeitgeber, Kunden) */
+  RE_FIRMA.lastIndex = 0;
+  while ((m = RE_FIRMA.exec(text))) {
+    const teile = m[1].split(/[ \t]+/);
+    while (teile.length && (STOPP_VORN.has(teile[0].toLowerCase()) || /^[\d.,:–-]+$/.test(teile[0]))) teile.shift();
+    if (!teile.length) continue;
+    const name = teile.join(" "), form = m[2];
+    if (L.FIRMEN_BEKANNT.has(name.toLowerCase().replace(/[,.]+$/, "")) || L.FIRMEN_BEKANNT.has((name + " " + form).toLowerCase().replace(/[,.]+$/, ""))) continue;
+    if (/^[A-Z]$/.test(name)) continue;
+    neu("FIRMA", name + " " + form, m.index + m[0].indexOf(teile[0]), "Firma — oft der Arbeitgeber oder ein Kunde.");
+  }
+
+  /* Straße mit Hausnummer, PLZ mit Ort */
+  RE_STRASSE.lastIndex = 0;
+  const strassen = [];
+  while ((m = RE_STRASSE.exec(text))) {
+    const teile = m[1].split(/\s+/);
+    while (teile.length > 1 && STRASSE_STOPP.has(teile[0])) teile.shift();
+    const wert = teile.join(" ") + " " + m[2];
+    const i = m.index + m[0].indexOf(teile[0]);
+    strassen.push(i);
+    neu("ADRESSE", wert, i, "Straße und Hausnummer.");
+  }
+  RE_PLZ.lastIndex = 0;
+  while ((m = RE_PLZ.exec(text))) {
+    const vorsilbe = m[1], plz = m[2], ort = m[3];
+    if (plz.length === 4 && !vorsilbe && (/^(19|20)\d\d$/.test(plz) || !ALLE_ORTE.has(ort.split(/[- ]/)[0]))) continue;   // „2024 Berlin“ ist ein Jahr
+    if (plz.length === 5 && /^00/.test(plz)) continue;
+    const bekannt = ALLE_ORTE.has(ort) || ALLE_ORTE.has(ort.split(/[- ]/)[0]);
+    const strasseNah = strassen.some((s) => s < m.index && m.index - s < 160);
+    if (!bekannt && !strasseNah && !vorsilbe) continue;          // „20000 Zeilen“ ist keine Adresse
+    neu("PLZ-ORT", (vorsilbe ? vorsilbe + "-" : "") + plz + " " + ort, m.index, "Postleitzahl und Ort.");
+  }
+
+  /* Kfz-Kennzeichen */
+  RE_KFZ.lastIndex = 0;
+  while ((m = RE_KFZ.exec(text))) {
+    if (!L.KFZ_KENNUNG.has(m[1])) continue;
+    if (m[4] !== " " || (m[2] === " " && m[3].length !== 2)) continue;   // „F-T1“, „M AB12“, „KS X 1001“ sind keine Kennzeichen
+    neu("KFZ", m[0], m.index, "Kfz-Kennzeichen — verrät Wohnort und Fahrzeug.");
+  }
+
+  /* Vornamen: als Paar mit Nachnamen oder allein auf einem Knopf / in Testdaten */
+  RE_VORNAME.lastIndex = 0;
+  while ((m = RE_VORNAME.exec(text))) {
+    const vor = m[1], nach = m[2];
+    if (nach && !L.KEIN_NACHNAME.has(nach) && !ALLE_ORTE.has(nach) && !istMuster(nach)) {
+      neu("EIGENNAME", vor + " " + nach, m.index, "Vor- und Nachname aus der Namensliste.", { vorschlag: true });
+      continue;
+    }
+    if (L.VORNAMEN_NUR_PAAR.has(vor)) continue;
+    const a = text[m.index - 1], z = text[m.index + vor.length];
+    const imText = (a === '"' && z === '"') || (a === "'" && z === "'") || (a === "`" && z === "`") || (a === ">" && z === "<");
+    if (imText || pfadModus) neu("EIGENNAME", vor, m.index, pfadModus ? "Vorname im Datei- oder Ordnernamen." : "Vorname allein in einem Text (Knopf, Testdaten).", { vorschlag: true });
+  }
+
+  /* Rechnernamen */
+  for (const [re, satz] of RE_RECHNER) {
+    re.lastIndex = 0;
+    while ((m = re.exec(text))) {
+      const wert = m[1] || m[2];
+      if (RECHNER_ALLGEMEIN.test(wert.split("@").pop()) || /^(?:x[0-9a-f]{2}|u[0-9a-f]{4})/i.test(wert)) continue;   // „\\x00“ ist ein Escape
+      neu("RECHNER", wert, m.index + m[0].indexOf(wert), satz + " — verrät den Rechner.");
+    }
+  }
+
+  /* Ordnerpfade, die Rechner und Arbeitsweise verraten */
+  RE_WINPFAD.lastIndex = 0;
+  while ((m = RE_WINPFAD.exec(text))) {
+    if (m[2] === "\\" && /^(?:[ntr0](?:\\|$|[^A-Za-z])|x[0-9a-f]{2}|u[0-9a-f]{4})/i.test(m[3])) continue;   // „S:\n“ ist ein Escape
+    let rest = m[3].split(/\s(?![A-ZÄÖÜ0-9(])|\s{2,}|[,;=](?=\s)/)[0].replace(/\\\\/g, "\\").replace(/[\s.,;:)\]}]+$/, "");
+    if (WINPFAD_ALLGEMEIN.test(rest) || !/^[A-Za-z0-9ÄÖÜäöüß_][^\\\/]+/.test(rest) || /[\[\]%^$]|\\[ntr](?:\\|$)/.test(rest)) continue;
+    neu("ORDNERPFAD", m[1].toUpperCase() + ":\\" + rest.replace(/\//g, "\\"), m.index, "Fester Ordnerpfad — verrät Laufwerk, Ordner und Arbeitsweise.");
+  }
+  RE_UNIXPFAD.lastIndex = 0;
+  while ((m = RE_UNIXPFAD.exec(text))) neu("ORDNERPFAD", m[1].replace(/[.,;:)\]}]+$/, ""), m.index + m[0].indexOf(m[1]), "Fester Ordnerpfad (Laufwerk oder Speicherkarte).");
+  RE_WOLKE.lastIndex = 0;
+  while ((m = RE_WOLKE.exec(text))) neu("ORDNERPFAD", m[1], m.index, /OneDrive - |Dropbox \(/.test(m[1]) ? "Cloud-Ordner mit Firmenname." : "Cloud-Ordner im Pfad — verrät den Speicherdienst.");
+
+  return aus.sort((a, b) => a.index - b.index);
+}
+
+function gefuehltInText(pfad, text, melde, quelle) {
+  for (const f of gefuehlt(text)) {
+    melde({ schicht: "gefuehlt", art: f.art, wert: f.wert, pfad, zeile: quelle ? undefined : zeileVon(text, f.index), stelle: quelle, satz: f.satz, vorschlag: f.vorschlag });
+  }
+}
+
+/* Datei- und Ordnernamen: „fotos/Hamburg-2019/Lena.jpg“ verrät auch etwas. Jeder Ordner nur einmal. */
+function gefuehltImPfad(pfad, gesehen, melde) {
+  const teile = pfad.split("/");
+  for (let i = 0; i < teile.length; i++) {
+    const ordner = teile.slice(0, i + 1).join("/");
+    if (gesehen.has(ordner)) continue;
+    gesehen.add(ordner);
+    const ohneEndung = i === teile.length - 1 ? teile[i].replace(/\.[A-Za-z0-9]{1,10}$/, "") : teile[i];
+    const lesbar = ohneEndung.replace(/[_]+/g, " ");
+    for (const f of gefuehlt(lesbar, { modus: "pfad" })) {
+      if (f.art === "ORDNERPFAD") continue;
+      melde({ schicht: "gefuehlt", art: f.art, wert: f.wert, pfad, stelle: i === teile.length - 1 ? "im Dateinamen" : "im Ordnernamen „" + ordner + "/“",
+        satz: f.satz, vorschlag: f.vorschlag });
+    }
+  }
+}
+
 const SCHICHT_VON_KENNUNG = (k) => /METADATEN(?!-KI)|HERKUNFT|ALTFASSUNG/.test(k) ? "meta" : "auffaellig";
 
 /**
@@ -360,6 +574,7 @@ export async function pruefe(dateien, optionen = {}) {
   const liste = dateien.map((d) => Object.assign({}, d, { pfad: normPfad(d.pfad) })).sort((a, b) => a.pfad < b.pfad ? -1 : a.pfad > b.pfad ? 1 : 0);
   const sprung = new Map();          // übersprungener Ordner → { anzahl, groesse }
   let gitPakete = 0, gitObjekte = 0, gitObjekteZuviel = 0;
+  const pfadeGesehen = new Set();   // Ordnernamen werden nur einmal geprüft
   let nr = 0;
   for (const d of liste) {
     nr++;
@@ -376,6 +591,7 @@ export async function pruefe(dateien, optionen = {}) {
     inventur.push(eintrag);
     const melde = (b) => { befunde.push(b); eintrag.befunde++; };
     const imGit = /(^|\/)\.git\//.test(d.pfad);
+    if (!imGit) gefuehltImPfad(d.pfad, pfadeGesehen, melde);
     if (d.unlesbar) { eintrag.ungeprueft = d.unlesbar; Object.assign(eintrag, einordnen(d.pfad, "")); continue; }
     if ((d.groesse || 0) > GROESSE_MAX) { eintrag.ungeprueft = "zu groß zum Lesen — ungeprüft"; Object.assign(eintrag, einordnen(d.pfad, "")); continue; }
     let bytes;
@@ -408,6 +624,7 @@ export async function pruefe(dateien, optionen = {}) {
         if (M25) hartInText(M25, d.pfad, t.text, melde, "alter Stand in .git");
         gitInText(d.pfad, t.text, melde);
         metaInText(d.pfad, t.text, melde);
+        gefuehltInText(d.pfad, t.text, melde, "alter Stand in .git");
       } else if (/^tree /.test(kopf)) { /* Dateinamen, keine Personen */ }
       else eintrag.ungeprueft = "Binärinhalt in .git — nur Zeichenketten geprüft";
       continue;
@@ -424,6 +641,7 @@ export async function pruefe(dateien, optionen = {}) {
       if (bytes.length > TEXT_MAX) eintrag.ungeprueft = "nur die ersten " + (TEXT_MAX >> 20) + " MB durchsucht, der Rest ist ungeprüft";
       if (M25) hartInText(M25, d.pfad, t.text, melde); else eintrag.ungeprueft = "harte Angaben ungeprüft (Modul 25 fehlt)";
       metaInText(d.pfad, t.text, melde);
+      gefuehltInText(d.pfad, t.text, melde);
       packageJson(d.pfad, t.text, melde);
       if (imGit || /(^|\/)\.git(config)?$/.test(d.pfad)) gitInText(d.pfad, t.text, melde);
       if (eintrag.stufe === 3) { eintrag.stufe = 1; eintrag.stufeName = STUFE_NAME[1]; }
@@ -441,6 +659,7 @@ export async function pruefe(dateien, optionen = {}) {
       }
       if (r.text && M25) hartInText(M25, d.pfad, r.text, melde, r.textQuelle === "bild" ? "Text im Bild" : r.seiten ? "Seitentext" : "Dokumenttext");
       if (r.text) metaInText(d.pfad, r.text, melde);
+      if (r.text) gefuehltInText(d.pfad, r.text, melde, r.textQuelle === "bild" ? "Text im Bild" : r.seiten ? "Seitentext" : "Dokumenttext");
       const offen = [];
       if (r.textUngeprueft || r.ungeprueftSatz) offen.push(r.ungeprueftSatz || "Text ungeprüft");
       if (r.bildUngeprueft) offen.push("Text im Bild ungeprüft (Texterkennung kommt auf Knopfdruck, Stufe 4)");
@@ -454,6 +673,7 @@ export async function pruefe(dateien, optionen = {}) {
     const s = zeichenketten(bytes);
     if (M25 && s) hartInText(M25, d.pfad, s, melde, "Zeichenkette in der Datei");
     if (s) metaInText(d.pfad, s, melde);
+    if (s) gefuehltInText(d.pfad, s, melde, "Zeichenkette in der Datei");
     if (imGit) gitInText(d.pfad, s, melde);
     eintrag.ungeprueft = "nur lesbare Zeichenketten geprüft" + (end ? " (." + end + ")" : "") + " — der Rest ist ungeprüft";
   }
@@ -463,6 +683,16 @@ export async function pruefe(dateien, optionen = {}) {
       marken: [], gelesen: false, uebersprungen: s.anzahl, nichtGeoeffnet: s.nichtGeoeffnet, ungeprueft: "", befunde: 0 });
   }
   inventur.sort((a, b) => a.pfad < b.pfad ? -1 : a.pfad > b.pfad ? 1 : 0);
+
+  /* Ein Vorname, der schon als Name, Verfasser oder Git-Name dasteht, nicht doppelt zeigen. */
+  const namen = new Set(befunde.filter((b) => b.schicht !== "gefuehlt").map((b) => String(b.wert).toLowerCase()));
+  for (let i = befunde.length - 1; i >= 0; i--) {
+    const b = befunde[i];
+    if (b.art === "EIGENNAME" && namen.has(String(b.wert).toLowerCase())) {
+      befunde.splice(i, 1);
+      const e = inventur.find((x) => x.pfad === b.pfad); if (e) e.befunde--;
+    }
+  }
   if (gitPakete) hinweise.push(gitPakete + " Git-Paket-Datei(en) nicht ausgepackt — die Geschichte darin ist ungeprüft. Die saubere Kopie bekommt ohnehin kein .git.");
   if (gitObjekteZuviel) hinweise.push(gitObjekteZuviel + " Git-Objekte über dem Deckel (" + GIT_OBJEKTE_MAX + ") nicht geöffnet — ungeprüft.");
 
@@ -487,7 +717,7 @@ export function buendeln(befunde) {
     x.anzahl++;
     x.stellen.push({ pfad: b.pfad, zeile: b.zeile, stelle: b.stelle });
   }
-  const reihe = { hart: 0, meta: 1, auffaellig: 2 };
+  const reihe = { hart: 0, meta: 1, gefuehlt: 2, auffaellig: 3 };
   return Array.from(karte.values()).map((x) => { x.dateien = new Set(x.stellen.map((s) => s.pfad)).size; return x; })
     .sort((a, b) => reihe[a.schicht] - reihe[b.schicht] || b.anzahl - a.anzahl || (a.art < b.art ? -1 : a.art > b.art ? 1 : 0));
 }

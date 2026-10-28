@@ -1,4 +1,4 @@
-/* Projekt-Reiniger Pro — die Oberfläche (Stufe 1: einwerfen, Inventur, anzeigen; nur lesen).
+/* Projekt-Reiniger Pro — die Oberfläche (Stufen 1 und 3: einwerfen, Inventur, anzeigen; nur lesen).
    Alles Fremde wird nur als Text gesetzt (textContent), nie als HTML. Nichts wird gespeichert. */
 import * as Kern from "./reiniger-kern.js";
 import { beispielProjekt } from "./beispiel.js";
@@ -93,6 +93,7 @@ function zuruecksetzen() {
 const SCHICHTEN = [
   ["hart", "Harte Angaben", "Namen, Mail, Telefon, IBAN, Datum, Schlüssel und Passwörter (Sage-Modul 25). Namen sind nur Vorschläge aus Anrede und Gruß."],
   ["meta", "Metadaten", "Verfasser, Copyright, Benutzernamen in Pfaden, Git-Namen, Metadaten in Bildern, PDF und Office."],
+  ["gefuehlt", "Gefühlte Metadaten", "Angaben, die erst zusammen verraten, wer es ist: Orte, Hochschulen und Schulen, Firmen, Straße und PLZ, Kfz-Kennzeichen, Vornamen (auch in Datei- und Ordnernamen), Rechnernamen und feste Ordnerpfade. Gefunden über Wortlisten — Hinweise, keine Beweise."],
   ["auffaellig", "Auffälliges", "Programme, Makros, Verweise, versteckter Text und Anweisungen an eine KI."],
 ];
 

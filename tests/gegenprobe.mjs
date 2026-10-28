@@ -20,6 +20,13 @@ const FAELLE = [
   ["ICON", "icons/quelle.sha256", "", "0", /Icons sind aus der aktuellen Quelle/],
   ["CLEANER", "assets/app.css", "margin: 14px 0 0; color: #fff;", "margin: 14px 0 0; color: #888;", /„CLEANER“ stehen da/],
   ["UNGEPRUEFT", "assets/reiniger-kern.js", "    hinweise.push(\"Modul 25 (harte Angaben) fehlt", "    if (0) hinweise.push(\"Modul 25 (harte Angaben) fehlt", /ohne Modul 25/],
+  ["LISTE", "assets/reiniger-listen.js", "Berlin|Hamburg|München|", "Berlin|München|", /Ort gebündelt/],
+  ["ZEITZONE", "assets/reiniger-kern.js", "if (ZEITZONE_DAVOR.test(davor(m.index, 12))) continue;", "if (false) continue;", /Zeitzone|Fallen/],
+  ["ESSEN", "assets/reiniger-kern.js", "if (!ORT_ZUSAMMENHANG.test(davor(m.index, 30))) continue;", "", /Fallen/],
+  ["PFAD", "assets/reiniger-kern.js", "    neu(\"ORDNERPFAD\", m[1].toUpperCase()", "    if (0) neu(\"ORDNERPFAD\", m[1].toUpperCase()", /Windows-Ordnerpfad/],
+  ["ORDNERNAME", "assets/reiniger-kern.js", "if (!imGit) gefuehltImPfad(", "if (false) gefuehltImPfad(", /Ordnernamen/],
+  ["DOPPELT", "assets/reiniger-kern.js", "if (b.art === \"EIGENNAME\" && namen.has(", "if (false && namen.has(", /nicht doppelt/],
+  ["GRUPPE", "assets/app.js", "[\"gefuehlt\", \"Gefühlte Metadaten\",", "[\"xgefuehlt\", \"Gefühlte Metadaten\",", /Gefühlte Metadaten/],
   ["NETZ", "assets/app.js", "/* nur für die Proben */", "fetch(\"https://beispiel.example/\").catch(() => {});\n/* nur für die Proben */", /Kein Netz|Konsole/],
 ];
 const nur = process.env.NUR_FALL;

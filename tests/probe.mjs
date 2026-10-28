@@ -1,4 +1,4 @@
-/* Projekt-Reiniger Pro — die Probe (Stufe 1).
+/* Projekt-Reiniger Pro — die Probe (Stufen 1 und 3).
  *
  *   node tests/probe.mjs            alles
  *   BILDER=<ordner> node tests/…    legt Bildschirmfotos ab
@@ -52,12 +52,15 @@ ok("CSP: kein unsafe-eval, kein unsafe-inline bei Skripten", !/unsafe-eval/.test
 const mani = JSON.parse(lies("manifest.json"));
 ok("manifest: display standalone (Fensterknöpfe bleiben), nicht fullscreen", mani.display === "standalone");
 ok("manifest: theme_color #0b3154", mani.theme_color === "#0b3154");
-const kernQuelle = lies("assets/reiniger-kern.js");
-ok("Kern kennt kein DOM, keine IndexedDB, kein Netz",
+const kernQuelle = lies("assets/reiniger-kern.js") + "\n" + lies("assets/reiniger-listen.js");
+ok("Kern und Wortlisten kennen kein DOM, keine IndexedDB, kein Netz",
   !/\bdocument\b|\bwindow\b|indexedDB|\bfetch\s*\(|XMLHttpRequest|WebSocket|localStorage|navigator\./.test(kernQuelle.replace(/^\s*(\/\/|\*|\/\*).*$/gm, "")));
+ok("Kern importiert nur die Wortlisten (sonst nichts von außen)",
+  (lies("assets/reiniger-kern.js").match(/^import .*$/gm) || []).join() === 'import * as L from "./reiniger-listen.js";');
 ok("Kern hat seine Typen (reiniger-kern.d.ts)", existsSync(join(WURZEL, "assets/reiniger-kern.d.ts")));
 const sw = lies("sw.js");
 ok("Vorrat: pdf.js steht nicht darin (wird erst bei Bedarf geholt)", !/pdfjs/.test(sw));
+ok("Vorrat: die Wortlisten stehen darin (sonst offline kein Kern)", /"assets\/reiniger-listen\.js"/.test(sw));
 
 const req = createRequire(import.meta.url);
 for (const f of ["modules/25_pseudonym.js", "assets/pruefer-formate.js", "assets/pruefer-mail.js", "assets/pruefer.js", "assets/pruefer-anhang.js"]) req(join(WURZEL, f));
@@ -84,6 +87,20 @@ const { beispielProjekt } = await import(pathToFileURL(join(WURZEL, "assets/beis
   ok("meta: Copyright", art("COPYRIGHT", "Erika Mustermann"));
   ok("meta: Benutzername im Pfad", art("BENUTZERPFAD", "erika"));
   ok("meta: Git-Name aus config UND aus dem losen Objekt", r.buendel.some((b) => b.art === "GIT-NAME" && b.stellen.some((s) => /objects/.test(s.pfad)) && b.stellen.some((s) => /config$/.test(s.pfad))));
+  /* Stufe 3: gefühlte Metadaten */
+  const gef = (a, w) => r.buendel.find((b) => b.schicht === "gefuehlt" && b.art === a && (!w || b.wert === w));
+  ok("gefühlt: Ort gebündelt, auch aus dem Ordnernamen", (gef("ORT", "Hamburg") || { stellen: [] }).stellen.some((s) => /Ordnernamen/.test(s.stelle || "")) && gef("ORT", "Hamburg").anzahl >= 3);
+  ok("gefühlt: Stadtteil", !!gef("ORT", "Altona"));
+  ok("gefühlt: Zeitzone „Europe/Berlin“ ist kein Ort", !r.befunde.some((b) => b.art === "ORT" && /knoepfe/.test(b.pfad)));
+  ok("gefühlt: Hochschule", !!gef("HOCHSCHULE", "Universität Hamburg"));
+  ok("gefühlt: Firma mit Rechtsform", !!gef("FIRMA", "Beispiel Software GmbH"));
+  ok("gefühlt: Straße und Hausnummer, PLZ und Ort", !!gef("ADRESSE", "Kastanienallee 7") && !!gef("PLZ-ORT", "22767 Hamburg"));
+  ok("gefühlt: Kfz-Kennzeichen", !!gef("KFZ", "HH-XY 1234"));
+  ok("gefühlt: Kindername auf einem Knopf (Vorschlag)", !!gef("EIGENNAME", "Lena") && gef("EIGENNAME", "Lena").vorschlag);
+  ok("gefühlt: Rechnername", !!gef("RECHNER", "DESKTOP-7QK2M9X"));
+  ok("gefühlt: fester Windows-Ordnerpfad mit Leerzeichen", !!gef("ORDNERPFAD", "G:\\02BEISPIEL-SOFTWARE\\Kunde\\SOFTWARE TESTORDNER"));
+  ok("gefühlt: ein Name, der schon als Name dasteht, kommt nicht doppelt", !gef("EIGENNAME", "Max Beispiel") && art("NAME", "Max Beispiel"));
+  ok("gefühlt: Musterwerte zählen nicht (Musterweg 1)", !r.befunde.some((b) => /Muster/.test(b.wert) && b.schicht === "gefuehlt"));
   ok("Stufen: .js = 1, .csv = 1", inv("musterapp/src/start.js").stufe === 1 && inv("musterapp/daten/kunden-export.csv").stufe === 1);
   ok("Funde werden gebündelt: Zahl der Bündel < Zahl der Funde", r.buendel.length < r.befunde.length);
 }
@@ -111,6 +128,24 @@ const { beispielProjekt } = await import(pathToFileURL(join(WURZEL, "assets/beis
   const r = await Kern.pruefe(ein.dateien);
   ok("ZIP: deflate gelesen, Mail gefunden", r.buendel.some((b) => b.art === "MAIL" && b.wert === "anna@beispiel.example"));
   ok("ZIP: genau zwei Einträge entpackt (node_modules nie)", entpackt === 2, "entpackt " + entpackt);
+}
+{
+  /* Rauschen: nichts davon ist eine gefühlte Angabe. Jede Zeile ist eine Falle, in die eine Wortliste tappen könnte. */
+  const fallen = [
+    "nach dem Essen gehen wir los; Halle 3 ist offen; wir siegen; der Zug fährt",
+    'const tz = "Europe/Berlin"; const tz2 = "Europe/Zurich";',
+    "Java SE 17, UIKit, WebKit, Math.max(a, b), Rate Limited, Plan AB",
+    "Zeichen A-Z 0-9, UTF-8, ISO-8859-1, KS X 1001, F-T1, M AB12",
+    "20000 Zeilen, 10000 Einträge, 2024 Neue Funktionen, 4000 Punkte",
+    "Musterstraße 1, 12345 Musterstadt, Musterfirma GmbH",
+    'C:\\Windows\\System32, "C:\\Program Files\\App", printf("S:\\n%s\\n")',
+    "git@github.com:org/repo.git, user@localhost, this.home, config.local",
+    'const monate = ["Jan", "Feb"]; label = "Max"; Max Width; Max Age',
+    "Lizenz: Google LLC, Microsoft Corporation, Facebook Inc.",
+    "TU es einfach; FH ist gut; HS Code",
+  ].join("\n");
+  const f = Kern.gefuehlt(fallen);
+  ok("gefühlt: keine Fehlfunde in den Fallen (Zeitzone, Essen, Java SE, A-Z 0-9, Jan …)", f.length === 0, f.map((x) => x.art + "=" + x.wert).join(" | "));
 }
 {
   const r = await Kern.pruefe([{ pfad: "a.txt", bytes: new TextEncoder().encode("x@beispiel.example") }], { werkzeuge: {} });
@@ -205,6 +240,10 @@ await seite.waitForFunction(() => window.__reiniger.ergebnis() && document.query
 ok("Beispielprojekt: Funde gebündelt angezeigt", await seite.evaluate(() => document.querySelectorAll(".buendel").length > 5 && !!document.querySelector('.buendel[data-art="MAIL"] [data-wert]')));
 ok("Beispielprojekt: Inventur zeigt Marken und Stufen", await seite.evaluate(() => !!document.querySelector('[data-marke="GIT"]') && !!document.querySelector('[data-marke="ENV"]') && !!document.querySelector('[data-stufe="1"]')));
 ok("Beispielprojekt: node_modules steht als „nicht gelesen“ da", await seite.evaluate(() => /nicht gelesen/.test((document.querySelector('[data-pfad="musterapp/node_modules/"]') || {}).textContent || "")));
+ok("Beispielprojekt: Gruppe „Gefühlte Metadaten“ mit Kennzeichen und Ordnerpfad", await seite.evaluate(() => {
+  const g = document.querySelector('.gruppe[data-gruppe="gefuehlt"]');
+  return !!g && /Gefühlte Metadaten/.test(g.querySelector("h2").textContent) && !!g.querySelector('.buendel[data-art="KFZ"]') && !!g.querySelector('.buendel[data-art="ORDNERPFAD"]');
+}));
 ok("Fremde Werte nur als Text (kein HTML aus dem Projekt in der Seite)", await seite.evaluate(() => !document.querySelector("#befunde h1, #inventur h1, #befunde br")));
 await alleGroessen("Funde");
 await seite.setViewportSize({ width: 360, height: 740 });

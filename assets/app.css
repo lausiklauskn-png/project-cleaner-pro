@@ -125,6 +125,7 @@ code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-si
 .gruppe > p { margin: 0 0 10px; color: var(--leise); font-size: .9rem; }
 .buendel { background: var(--papier); border: 1px solid var(--linie); border-left: 4px solid var(--k2); border-radius: var(--rund); padding: 10px 12px; margin: 0 0 8px; }
 .buendel[data-schicht="meta"] { border-left-color: var(--petrol); }
+.buendel[data-schicht="gefuehlt"] { border-left-color: #2E9EFF; }
 .buendel[data-schicht="auffaellig"] { border-left-color: #d08a1a; }
 .buendel-kopf { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
 .art { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--leise); }
