@@ -1,4 +1,5 @@
-/* Typen zu reiniger-kern.js (Projekt-Reiniger Pro, Stufe 1). Für die Familienakte (TypeScript). */
+/* Typen zu reiniger-kern.js (Projekt-Reiniger Pro, Stufen 1 und 3). Für die Familienakte (TypeScript).
+   Der Kern importiert reiniger-listen.js (Wortlisten) — beide Dateien wandern zusammen. */
 
 export interface Datei {
   /** Pfad mit „/“, relativ zum Projekt. */
@@ -13,18 +14,21 @@ export interface Datei {
   nichtGeoeffnet?: boolean;
 }
 
-export type Schicht = "hart" | "meta" | "auffaellig";
+/** hart · meta · gefuehlt (Stufe 3: verrät erst zusammen etwas) · auffaellig */
+export type Schicht = "hart" | "meta" | "gefuehlt" | "auffaellig";
 
 export interface Befund {
   schicht: Schicht;
-  /** MAIL, TELEFON, IBAN, DATUM, SCHLUESSEL, NAME, VERFASSER, COPYRIGHT, BENUTZERPFAD, GIT-NAME, GIT-ADRESSE oder eine Kennung aus pruefer-anhang.js */
+  /** MAIL, TELEFON, IBAN, DATUM, SCHLUESSEL, NAME, VERFASSER, COPYRIGHT, BENUTZERPFAD, GIT-NAME, GIT-ADRESSE,
+   *  gefühlt: ORT, HOCHSCHULE, FIRMA, ADRESSE, PLZ-ORT, KFZ, EIGENNAME, RECHNER, ORDNERPFAD,
+   *  oder eine Kennung aus pruefer-anhang.js */
   art: string;
   wert: string;
   pfad: string;
   zeile?: number;
   stelle?: string;
   satz?: string;
-  /** Nur ein Vorschlag (Namen aus Anrede/Gruß) — nie sicher. */
+  /** Nur ein Vorschlag (Namen aus Anrede/Gruß, Vornamen aus der Liste) — nie sicher. */
   vorschlag?: boolean;
 }
 
@@ -63,6 +67,7 @@ export const GROESSE_MAX: number;
 export const TEXT_MAX: number;
 export const GIT_OBJEKTE_MAX: number;
 export const SORTEN_HART: string[];
+export const SORTEN_GEFUEHLT: string[];
 export const ART_NAME: Record<string, string>;
 export const MARKE_NAME: Record<string, string>;
 export const STUFE_NAME: Record<number, string>;
@@ -75,3 +80,7 @@ export function uebersprungen(pfad: string): string | null;
 export function zeichenketten(bytes: Uint8Array, min?: number, max?: number): string;
 export function entpacke(daten: Uint8Array, format: "deflate" | "deflate-raw" | "gzip", max: number): Promise<Uint8Array>;
 export function buendeln(befunde: Befund[]): Buendel[];
+
+export interface GefuehltFund { art: string; wert: string; index: number; satz: string; vorschlag?: boolean; }
+/** Gefühlte Metadaten in einem Text. `modus: "pfad"` für Datei- und Ordnernamen. Ändert nichts. */
+export function gefuehlt(text: string, optionen?: { modus?: "text" | "pfad" }): GefuehltFund[];

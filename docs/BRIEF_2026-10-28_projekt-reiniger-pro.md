@@ -1,6 +1,7 @@
 # Brief: Projekt-Reiniger Pro
 
-Stand 2026-10-28, **Stufe 1 gebaut** (Abschnitt „Stufe 1 · gebaut“ unten). Der Brief lebt seitdem **hier**
+Stand 2026-10-28, **Stufe 1 und Stufe 3 gebaut** (Abschnitte „Stufe 1 · gebaut“ und „Stufe 3 · gebaut“ unten).
+Stufe 2 (Entscheiden, Reinigen) ist noch offen — Stufe 3 wurde vorgezogen, weil sie nur liest. Der Brief lebt seitdem **hier**
 im Repo `project-cleaner-pro`; die Fassung im Sende-Prüfer ist eingefroren und zeigt hierher.
 
 ## Anlass
@@ -295,7 +296,7 @@ ungereinigte ZIP, gilt:
 |---|---|
 | 1 ✅ | Einwerfen, Inventur, harte Angaben und Metadaten, Anzeige (nur lesen) — gebaut 2026-10-28 |
 | 2 | Entscheiden, Marken und Musterwerte, saubere Kopie, Stellenplan, Nachprüfung |
-| 3 | Gefühlte Metadaten (Wortlisten, Eigennamen, Pfade) |
+| 3 ✅ | Gefühlte Metadaten (Wortlisten, Eigennamen, Pfade) — gebaut 2026-10-28 (vor Stufe 2, nur lesen) |
 | 4 | Neu gezeichnete Blätter, Mustermappe |
 | 5 | Tresor und Gäste-Sperre |
 | 6 | Zurückbauen, mit eigenen Werten füllen |
@@ -341,6 +342,36 @@ Am Ende: Brief nachziehen und wieder so einen Kurzauftrag ausgeben.
 - ⚠ **Nicht gemessen:** echtes Handy/Tablet, große Repos, echte Fotos und Office-Dateien, Ziehen mit der Maus.
   `file://` geht nicht (der Kern ist ein ES-Modul) — die App braucht eine Adresse (GitHub Pages).
 - ⚠ **GitHub Pages ist noch nicht eingeschaltet** (Einstellungen → Pages → Branch `main`, Ordner `/`).
+
+## Stufe 3 · gebaut (2026-10-28)
+
+- **Wortlisten** in `assets/reiniger-listen.js` (reine Daten, ES-Modul). Der Kern importiert sie; **beide Dateien
+  wandern zusammen** in die Familienakte und werden dort beide gepinnt. Neu im Kern: `gefuehlt(text, { modus })`,
+  `SORTEN_GEFUEHLT`, eine vierte Schicht `gefuehlt` (in der Anzeige „Gefühlte Metadaten“, blau, zwischen Metadaten
+  und Auffälligem).
+- **Was gefunden wird** (jeder Fund ist ein Hinweis, kein Beweis):
+  | Art | wie |
+  |---|---|
+  | `ORT` | ~250 Städte (D ab ~40 000 Einw., A, CH, L, Südtirol) und ~80 Stadtteile. Wörter mit zweiter Bedeutung („Essen“, „Halle“, „Siegen“, „Zug“, „Worms“) nur mit „in/aus/nach/bei …“ oder PLZ davor. Zeitzonen (`Europe/Berlin`) zählen nicht |
+  | `HOCHSCHULE` | Kürzel (RWTH, LMU, TUM, ETH Zürich …), „Universität/Hochschule/Uni/… + Name“, auch Schulen und Kitas („Grundschule am …“), Hochschul-Adressen (`uni-hamburg.de`). „TU/FH/HS/PH“ nur mit Ort danach |
+  | `FIRMA` | Name + Rechtsform (GmbH, GmbH & Co. KG, UG, AG, e.V., Ltd., Inc., LLC …). Große bekannte Firmen aus Lizenzen (Google LLC, Microsoft …) zählen nicht |
+  | `ADRESSE`, `PLZ-ORT` | Straße mit eindeutiger Endung (-straße, -weg, -allee, -platz …) + Hausnummer; PLZ + Ort nur, wenn der Ort in der Liste steht, eine Straße kurz davor steht oder `D-`/`A-`/`CH-` davor |
+  | `KFZ` | `HH-AB 1234` / `HH AB 1234` mit einem Unterscheidungszeichen aus der Liste (~350) |
+  | `EIGENNAME` | Vornamen aus einer Liste (~290): als Paar mit Nachnamen überall, allein nur auf einem Knopf / in Testdaten (`"Lena"`, `>Lena<`) oder im Dateinamen. Immer **Vorschlag**. „Jan“, „Max“, „Leo“ … nur als Paar. Was schon als Name/Verfasser/Git-Name dasteht, kommt nicht doppelt |
+  | `RECHNER` | `DESKTOP-…`/`LAPTOP-…`, „Erikas-MacBook-Pro“, `*.fritz.box`, `nutzer@rechner:~$`, Netzlaufwerke `\\server\freigabe`, `COMPUTERNAME=` |
+  | `ORDNERPFAD` | feste Windows-Pfade (`G:\…\SOFTWARE TESTORDNER`, auch mit Leerzeichen und als `\\` im Code), `/Volumes/…`, `/media/…`, `/mnt/c/…`, Cloud-Ordner (`OneDrive - Firma`, `Dropbox (Firma)`). `C:\Windows`, `C:\Program Files` und `C:\Users\…` (das ist schon „Benutzername im Pfad“) nicht |
+- **Datei- und Ordnernamen** werden mit geprüft („fotos/Hamburg-2019/“, „Lena.jpg“), jeder Ordner nur einmal.
+- Gesucht wird in Text und Code, im Text aus PDF/Office, in losen Git-Objekten und in den Zeichenketten unbekannter Dateien.
+- **Musterwerte** („Musterstraße 1“, „Musterstadt“) zählen nie — sonst meldet die Nachprüfung in Stufe 2 die eigenen Ersatzwerte.
+- **Rauschen gemessen:** über 112 MB fremden JavaScript-Code (npm, yarn, TypeScript, Prettier …) bleiben außer echten
+  Namen aus Lizenzen/CHANGELOGs nur ~10 Funde; im eigenen Code 0. Eine Probe mit elf Fallen-Zeilen (Zeitzone, „nach dem
+  Essen“, Java SE, `A-Z 0-9`, `["Jan", …]`, `C:\Windows`, `git@github.com:` …) muss leer bleiben.
+- **Proben:** `npm test` 100 grün · 0 ROT; `npm run gegenprobe` 19 gefangen · 0 blind (7 neue Fälle: Liste, Zeitzone,
+  „Essen“-Regel, Ordnerpfad, Ordnernamen, Doppelte, Gruppe in der Anzeige).
+- ⚠ **Nicht gemessen:** echte fremde Projekte mit deutschem Text (Rauschen dort unbekannt; deutsche Hauptwörter nach einem
+  Vornamen ergeben falsche Paare wie „Lena Geburtstag“ — deshalb nur Vorschlag). **Die Listen sind nicht vollständig:**
+  kleine Orte, seltene Vornamen, Nachnamen ohne Vornamen, Firmen ohne Rechtsform, Kennzeichen kleiner Kreise, Österreich-
+  und Schweiz-Kennzeichen werden nicht gefunden. Klaus' Blick bleibt Pflicht.
 
 ## Grenzen (vorab benannt)
 
