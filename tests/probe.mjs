@@ -1,4 +1,4 @@
-/* Projekt-Reiniger Pro — die Probe (Stufen 1 und 3).
+/* Projekt-Reiniger Pro — die Probe (Stufen 1–3).
  *
  *   node tests/probe.mjs            alles
  *   BILDER=<ordner> node tests/…    legt Bildschirmfotos ab
@@ -130,6 +130,72 @@ const { beispielProjekt } = await import(pathToFileURL(join(WURZEL, "assets/beis
   ok("ZIP: genau zwei Einträge entpackt (node_modules nie)", entpackt === 2, "entpackt " + entpackt);
 }
 {
+  /* Stufe 2: reinigen, Stellenplan, Nachprüfung — und der Beweis, dass die Werte weg sind. */
+  const dateien = await beispielProjekt();
+  const r = await Kern.pruefe(dateien);
+  const g = await Kern.saubereKopie(dateien, { ergebnis: r });
+  const D = new TextDecoder(), alles = [...g.sauber, ...g.beilagen].map((d) => d.pfad + "\n" + D.decode(d.bytes)).join("\n");
+  const datei = (p) => { const d = g.sauber.find((x) => x.pfad === p); return d ? D.decode(d.bytes) : ""; };
+  const ORIGINALE = ["erika.mustermann@beispiel.example", "max@beispiel.example", "+49 30 1234567", "DE02120300000000202051", "12.03.1985",
+    "sk-beispielbeispielbeispiel1234", "Sommer2025!", "Hamburg", "Altona", "Kastanienallee 7", "22767", "HH-XY 1234", "DESKTOP-7QK2M9X",
+    "02BEISPIEL-SOFTWARE", "\"Lena\"", "\"Paul\"", "Max Beispiel", "Beispiel Software GmbH", "Universität Hamburg", "erika\\"];
+  const noch = ORIGINALE.filter((w) => alles.includes(w));
+  ok("reinigen: kein Originalwert mehr in Kopie, Stellenplan und Bericht", noch.length === 0, noch.join(" | "));
+  ok("reinigen: Nachprüfung meldet 0 Originalwerte und 0 neue Funde", g.nach.originalTreffer.length === 0 && g.nach.offen.length === 0,
+    JSON.stringify(g.nach.originalTreffer.slice(0, 3)) + " " + g.nach.offen.map((b) => b.art + "=" + b.wert).join(" | "));
+  ok("reinigen: .git geht nie mit, node_modules auch nicht", !g.sauber.some((d) => /\.git\/|node_modules/.test(d.pfad)) && g.bericht.gitDateien === 2);
+  ok("reinigen: Doku bekommt Marken, gleicher Wert gleiche Nummer", /⟦ORT-1⟧-⟦ORT-2⟧/.test(datei("musterapp/docs/ueber-uns.md")) && (datei("musterapp/brief.txt").match(/⟦NAME-1⟧/g) || []).length === 1 && /⟦NAME-1⟧/.test(datei("musterapp/README.md")));
+  ok("reinigen: Code bekommt Musterwerte (läuft weiter)", /"Mustername", "Mustername2"/.test(datei("musterapp/src/knoepfe.js")) && /"DE89370400440532013000"/.test(datei("musterapp/src/start.js")) && JSON.parse(datei("musterapp/package.json")).author.startsWith("Max Mustermann"));
+  ok("reinigen: Ordnerpfad im Code richtig mit \\\\ ersetzt", /"C:\\\\Musterordner1"/.test(datei("musterapp/src/knoepfe.js")));
+  ok("reinigen: Ordnername wird umbenannt (Hamburg-2019 → Musterstadt-2019)", g.sauber.some((d) => d.pfad === "musterapp/fotos/Musterstadt-2019/notiz.txt"));
+  ok("reinigen: .env — jeder Wert ersetzt, auch der nicht erkannte", /^API_KEY=MUSTER/m.test(datei("musterapp/.env")) && /^DB_PASSWORD=MUSTER-WERT$/m.test(datei("musterapp/.env")));
+  ok("reinigen: Zeitzone bleibt stehen (keine Angabe über eine Person)", /"Europe\/Berlin"/.test(datei("musterapp/src/knoepfe.js")));
+  const plan = D.decode(g.beilagen.find((b) => b.pfad === Kern.STELLENPLAN_DATEI).bytes);
+  ok("Stellenplan: jede Stelle mit Datei und Zeile, ohne Werte", /musterapp\/docs\/ueber-uns\.md\s+Zeile 3\s+⟦ORT-1⟧\s+Art: Ort/.test(plan) && g.stellenplan.length >= 25 && !plan.includes("Hamburg"));
+  ok("Bericht: nennt nur Arten und Zahlen, sagt Nachprüfung laut", /Originalwerte in der Kopie: 0/.test(D.decode(g.beilagen.find((b) => b.pfad === Kern.BERICHT_DATEI).bytes)));
+  ok("Zuordnung geht nicht in die Kopie (nur im Speicher)", Object.keys(g.zuordnung).length > 10 && !g.sauber.some((d) => /zuordnung/i.test(d.pfad)));
+  const zurueck = await Kern.einwerfen([{ pfad: "x.zip", bytes: g.zip }]);
+  const zr = await Kern.pruefe(zurueck.dateien);
+  ok("ZIP: lässt sich wieder öffnen, gleiche Dateien, keine Originalwerte", zurueck.dateien.length === g.sauber.length + 3 &&
+    !zr.buendel.some((b) => ["MAIL", "IBAN", "ORT", "KFZ"].includes(b.art) && !/muster|⟦/i.test(b.wert) && !g.posten.some((p) => p.muster === b.wert)), zr.buendel.map((b) => b.art + "=" + b.wert).slice(0, 5).join(" | "));
+  /* Entscheiden: behalten, eigener Wert, Marke im Code; und eine Datei übernehmen */
+  const k = (art, w) => Kern.buendelSchluessel(r.buendel.find((b) => b.art === art && b.wert === w));
+  const g2 = await Kern.saubereKopie(dateien, { ergebnis: r, wahl: {
+    [k("ORT", "Hamburg")]: { weg: "behalten" }, [k("FIRMA", "Beispiel Software GmbH")]: { weg: "eigen", wert: "Klaus Software" },
+    [k("IBAN", "DE02120300000000202051")]: { weg: "marke" } } });
+  const d2 = (p) => D.decode((g2.sauber.find((x) => x.pfad === p) || { bytes: new Uint8Array() }).bytes);
+  ok("entscheiden: „behalten“ bleibt stehen und zählt als behalten, nicht als offen", /Hamburg/.test(d2("musterapp/docs/ueber-uns.md")) && g2.nach.behalten >= 1 && g2.nach.originalTreffer.length === 0 && !g2.nach.offen.some((b) => b.wert === "Hamburg"));
+  ok("entscheiden: eigener Wert steht an allen Stellen", /heute bei der Klaus Software\./.test(d2("musterapp/docs/ueber-uns.md")));
+  ok("entscheiden: Marke auch im Code, wenn so gewählt", /"⟦IBAN-1⟧"/.test(d2("musterapp/src/start.js")));
+}
+{
+  /* Selbst eingetragene Namen: was die Suche nicht erkennt, wird überall gefunden und ersetzt (auch im Dateinamen). */
+  const T = new TextEncoder();
+  const dateien = [{ pfad: "p/notiz.md", bytes: T.encode("Gruß an Quirin Zwackelmann und QUIRIN ZWACKELMANN.\n") }, { pfad: "p/Zwackelmann-Plan.txt", bytes: T.encode("x\n") }];
+  const r = await Kern.pruefe(dateien, { begriffe: ["Quirin Zwackelmann", "Zwackelmann"] });
+  ok("eigener Name: gefunden (ohne Groß/klein), auch im Dateinamen", r.befunde.filter((b) => b.art === "BEGRIFF").length >= 3 && r.befunde.some((b) => b.art === "BEGRIFF" && /Dateinamen/.test(b.stelle || "")));
+  const g = await Kern.saubereKopie(dateien, { ergebnis: r }, { begriffe: ["Quirin Zwackelmann", "Zwackelmann"] });
+  const alles = g.sauber.map((d) => d.pfad + new TextDecoder().decode(d.bytes)).join("\n");
+  ok("eigener Name: überall ersetzt, Nachprüfung 0", !/zwackelmann/i.test(alles) && g.nach.originalTreffer.length === 0, alles);
+}
+{
+  /* Nicht reinigbare Dateien: Vorgabe weglassen, angehakt unverändert mit — und laut im Bericht. */
+  const png = Uint8Array.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0]);
+  const dateien = [{ pfad: "p/a.txt", bytes: new TextEncoder().encode("Mail anna@beispiel.example\n") }, { pfad: "p/bild.png", bytes: png }];
+  const r = await Kern.pruefe(dateien);
+  ok("Dateiplan: Bild steht als nicht Stelle für Stelle reinigbar da", Kern.dateiPlan(r).some((p) => p.pfad === "p/bild.png"));
+  const g = await Kern.saubereKopie(dateien, { ergebnis: r });
+  ok("Bild: Vorgabe weglassen", !g.sauber.some((d) => d.pfad === "p/bild.png") && g.bericht.weggelassen.some((w) => w.pfad === "p/bild.png"));
+  const g2 = await Kern.saubereKopie(dateien, { ergebnis: r, uebernehmen: ["p/bild.png"] });
+  const bin = new Uint8Array([0, 1, 2, 3, ...new TextEncoder().encode(" Mail anna@beispiel.example "), 0, 0]);
+  const d3 = [...dateien, { pfad: "p/daten.bin", bytes: bin }];
+  const r3 = await Kern.pruefe(d3);
+  const g3 = await Kern.saubereKopie(d3, { ergebnis: r3, uebernehmen: ["p/daten.bin"] });
+  ok("Nachprüfung: steht ein Originalwert noch in einer übernommenen Datei, wird er laut genannt", g3.nach.originalTreffer.some((t) => t.pfad === "p/daten.bin" && t.art === "MAIL"));
+  ok("Bild: angehakt geht es unverändert mit, der Bericht sagt „NICHT gereinigt“", g2.sauber.some((d) => d.pfad === "p/bild.png" && d.unveraendert) &&
+    /NICHT gereinigt/.test(new TextDecoder().decode(g2.beilagen.find((b) => b.pfad === Kern.BERICHT_DATEI).bytes)));
+}
+{
   /* Rauschen: nichts davon ist eine gefühlte Angabe. Jede Zeile ist eine Falle, in die eine Wortliste tappen könnte. */
   const fallen = [
     "nach dem Essen gehen wir los; Halle 3 ist offen; wir siegen; der Zug fährt",
@@ -250,6 +316,71 @@ await seite.setViewportSize({ width: 360, height: 740 });
 await seite.click('[data-reiter="inventur"]');
 ok("Handy: Reiter wechselt zur Inventur", await seite.evaluate(() => getComputedStyle(document.querySelector("#inventur")).display !== "none" && getComputedStyle(document.querySelector("#befunde")).display === "none"));
 await alleGroessen("Inventur");
+
+/* Stufe 2 im Browser: entscheiden, reinigen, herunterladen. */
+await seite.setViewportSize({ width: 1280, height: 800 });
+ok("Entscheiden: jedes ersetzbare Bündel hat eine Wahl (Vorgabe automatisch)", await seite.evaluate(() =>
+  document.querySelectorAll(".buendel select.weg").length > 10 && Array.from(document.querySelectorAll("select.weg")).every((s) => s.value === "auto")));
+await seite.selectOption('.buendel[data-art="FIRMA"] select.weg', "eigen");
+await seite.fill('.buendel[data-art="FIRMA"] input.eigen', "Klaus Software");
+await seite.click("#reinigen");
+await seite.waitForSelector("[data-kopie]", { timeout: 30000 });
+ok("Reinigen: „Saubere Kopie fertig“, 0 Originalwerte, 0 neue Funde", await seite.evaluate(() =>
+  document.querySelector("[data-kopie]").dataset.kopie === "sauber" && document.querySelector("[data-original]").dataset.original === "0" && document.querySelector("[data-offen]").dataset.offen === "0"));
+ok("Reinigen: eigener Wert aus der Oberfläche ist in der Kopie", await seite.evaluate(() => {
+  const g = window.__reiniger.gereinigt(); const d = g.sauber.find((x) => /ueber-uns/.test(x.pfad)); return /Klaus Software/.test(new TextDecoder().decode(d.bytes));
+}));
+{
+  const [lad] = await Promise.all([seite.waitForEvent("download"), seite.click('[data-laden$="-sauber.zip"]')]);
+  const pfad = await lad.path();
+  const zip = new Uint8Array(readFileSync(pfad));
+  const ein = await Kern.einwerfen([{ pfad: "k.zip", bytes: zip }]);
+  const texte = await Promise.all(ein.dateien.map(async (d) => new TextDecoder().decode(await d.lesen())));
+  ok("Download: ZIP heißt musterapp-sauber.zip, öffnet sich, keine Mail des Originals darin",
+    lad.suggestedFilename() === "musterapp-sauber.zip" && ein.dateien.length > 10 && !texte.some((t) => /erika\.mustermann@/.test(t)) && ein.dateien.some((d) => d.pfad === "REINIGER-STELLENPLAN.txt"));
+}
+await alleGroessen("Kopie");
+
+/* Antippen: Stelle → Datei an genau der Zeile, Original und saubere Kopie */
+await seite.setViewportSize({ width: 1280, height: 800 });
+ok("Oben steht, was geprüft wurde (Ordner-Symbol und Name)", await seite.evaluate(() => { const q = document.querySelector("[data-quelle]"); return /Geprüft:/.test(q.textContent) && q.querySelector("[data-quelle-name]").textContent === "musterapp" && !!q.querySelector("svg.ikon"); }));
+ok("Keine Emoji in der Oberfläche — nur Strich-Symbole (Klaus 2026-10-28)", await seite.evaluate(() => {
+  const w = document.createTreeWalker(document.getElementById("app"), NodeFilter.SHOW_TEXT); const treffer = [];
+  for (let n = w.nextNode(); n; n = w.nextNode()) { if (n.parentElement.closest(".wert, .auszug, .quelltext, [data-quelle-name], .pfad")) continue; if (/\p{Extended_Pictographic}|[↺⬇↗＋▾▸✕✓⚠]/u.test(n.textContent)) treffer.push(n.textContent.trim().slice(0, 30)); }
+  return treffer.length === 0 || treffer;
+}) === true);
+await seite.click("#alle-zu");
+ok("Alle zu: jede Gruppe zugeklappt", await seite.evaluate(() => Array.from(document.querySelectorAll("#befunde details.gruppe")).every((d) => !d.open)));
+await seite.click("#alle-auf");
+ok("Alle auf: Gruppen und Stellen aufgeklappt, Auszug zeigt die Zeile mit Markierung", await (async () => {
+  await seite.waitForFunction(() => !!document.querySelector('.buendel[data-art="KFZ"] code.auszug mark'), null, { timeout: 10000 }).catch(() => {});
+  return seite.evaluate(() => Array.from(document.querySelectorAll("#befunde details")).every((d) => d.open) &&
+    document.querySelector('.buendel[data-art="KFZ"] code.auszug mark').textContent === "HH-XY 1234");
+})());
+await seite.click('.buendel[data-art="KFZ"] .stelle-knopf');
+ok("Stelle antippen: Datei öffnet sich, Zielzeile 5 markiert, Wert gelb", await seite.evaluate(() => {
+  const a = document.querySelector("#ansicht"), z = a.querySelector("li.ziel");
+  return !a.hidden && z && z.dataset.nr === "5" && z.querySelector("mark").textContent === "HH-XY 1234" && /ueber-uns\.md/.test(a.querySelector(".pfad").textContent);
+}));
+await seite.click('[data-fassung="sauber"]');
+ok("Umschalten auf saubere Kopie: dieselbe Datei, an der Stelle steht die Marke", await seite.evaluate(() => {
+  const a = document.querySelector("#ansicht"); return /⟦KFZ-1⟧/.test(a.querySelector("li.ziel").textContent) && !/HH-XY/.test(a.textContent);
+}));
+for (const [w, h] of GROESSEN) {
+  await seite.setViewportSize({ width: w, height: h }); await seite.waitForTimeout(40);
+  const f = await seite.evaluate(messen);
+  ok("Ansicht " + w + "×" + h + ": Vollbild, nichts quer, nichts abgeschnitten", f.length === 0, f.slice(0, 4).join(" | "));
+}
+await seite.click("#ansicht-zu");
+ok("Zurück: Ansicht zu, Funde wieder da", await seite.evaluate(() => document.querySelector("#ansicht").hidden && !!document.querySelector("#reinigen")));
+await seite.setViewportSize({ width: 1280, height: 800 });
+await seite.click('[data-pfad="musterapp/src/knoepfe.js"] .pfad-knopf');
+ok("Inventur: Datei antippen öffnet sie, Funde gelb", await seite.evaluate(() => { const a = document.querySelector("#ansicht"); return !a.hidden && a.querySelectorAll("mark").length >= 2; }));
+await seite.click("#ansicht-zu");
+await seite.fill("#begriff", "Musterapp");
+await seite.click("#begriff-dazu");
+await seite.waitForFunction(() => !!document.querySelector('[data-begriff="Musterapp"]'), null, { timeout: 30000 });
+ok("Eigener Name eingetragen: neu gesucht, steht als „Selbst eingetragen“ da", await seite.evaluate(() => !!document.querySelector('.buendel[data-art="BEGRIFF"]')));
 
 /* Eine leere Prüfung: auch dort die leere Fläche mit Kristall. */
 await seite.setViewportSize({ width: 1280, height: 800 });

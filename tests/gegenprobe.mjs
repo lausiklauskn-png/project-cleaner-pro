@@ -27,6 +27,14 @@ const FAELLE = [
   ["ORDNERNAME", "assets/reiniger-kern.js", "if (!imGit) gefuehltImPfad(", "if (false) gefuehltImPfad(", /Ordnernamen/],
   ["DOPPELT", "assets/reiniger-kern.js", "if (b.art === \"EIGENNAME\" && namen.has(", "if (false && namen.has(", /nicht doppelt/],
   ["GRUPPE", "assets/app.js", "[\"gefuehlt\", \"Gefühlte Metadaten\",", "[\"xgefuehlt\", \"Gefühlte Metadaten\",", /Gefühlte Metadaten/],
+  ["ERSETZEN", "assets/reiniger-kern.js", "  const neu = text.replace(re, (treffer, pos) => {", "  const neu = text; text.replace(re, (treffer, pos) => {", /kein Originalwert mehr|Originalwerte/],
+  ["GITMIT", "assets/reiniger-kern.js", "if (/(^|\\/)\\.git(\\/|$)/.test(pfad)) { gitDateien++; continue; }", "if (false) { gitDateien++; continue; }", /\.git geht nie mit/],
+  ["ENVREST", "assets/reiniger-kern.js", "if (e.marken.some((m) => m.kennung === \"ENV\"))", "if (false)", /\.env — jeder Wert/],
+  ["BEHALTEN", "assets/reiniger-kern.js", "  if (p.weg === \"behalten\") return null;", "", /behalten/],
+  ["PLANWERT", "assets/reiniger-kern.js", "weg: s.weg, ersatz: s.ersatz });\n      sauber.push", "weg: s.weg, ersatz: s.ersatz + \" war: \" + s.schluessel });\n      sauber.push", /Originalwert|ohne Werte/],
+  ["NACHPRUEF", "assets/reiniger-kern.js", "        if (re.test(text)) originalTreffer.push(", "        if (false) originalTreffer.push(", /laut genannt/],
+  ["SPRUNG", "assets/app.js", "el(\"li\", { \"data-nr\": String(von + i + 1), class: von + i + 1 === zeile ? \"ziel\" : null }", "el(\"li\", { \"data-nr\": String(von + i + 1), class: null }", /Stelle antippen/],
+  ["BEGRIFF", "assets/reiniger-kern.js", "  for (const f of begriffeIn(text, begriffe)) melde(", "  for (const f of []) melde(", /eigener Name/],
   ["NETZ", "assets/app.js", "/* nur für die Proben */", "fetch(\"https://beispiel.example/\").catch(() => {});\n/* nur für die Proben */", /Kein Netz|Konsole/],
 ];
 const nur = process.env.NUR_FALL;
