@@ -35,6 +35,8 @@ const FAELLE = [
   ["NACHPRUEF", "assets/reiniger-kern.js", "        if (re.test(text)) originalTreffer.push(", "        if (false) originalTreffer.push(", /laut genannt/],
   ["SPRUNG", "assets/app.js", "el(\"li\", { \"data-nr\": String(von + i + 1), class: von + i + 1 === zeile ? \"ziel\" : null }", "el(\"li\", { \"data-nr\": String(von + i + 1), class: null }", /Stelle antippen/],
   ["BEGRIFF", "assets/reiniger-kern.js", "  for (const f of begriffeIn(text, begriffe)) melde(", "  for (const f of []) melde(", /eigener Name/],
+  ["FASSUNG", "sw.js", "const CACHE_VERSION = \"reiniger-v", "const CACHE_VERSION = \"reiniger-v9", /Fassung: APP_FASSUNG/],
+  ["AKTUALISIEREN", "assets/app.js", "  location.reload();\n}", "}", /Aktualisieren: Seite lädt neu/],
   ["NETZ", "assets/app.js", "/* nur für die Proben */", "fetch(\"https://beispiel.example/\").catch(() => {});\n/* nur für die Proben */", /Kein Netz|Konsole/],
 ];
 const nur = process.env.NUR_FALL;

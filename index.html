@@ -30,7 +30,9 @@
     </a>
     <span class="nurlesen" title="Alles bleibt auf diesem Gerät. Das Original wird nie verändert; die saubere Kopie geht nur als Download hinaus.">Lokal</span>
     <span class="luecke"></span>
-    <button type="button" class="knopf hell" id="neu" hidden><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7 M4 4v4h4"/></svg>Neu</button>
+    <button type="button" class="knopf hell" id="installieren" aria-label="Als App installieren" title="Als App installieren"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M12 6v7 M9 10l3 3 3-3 M11 18h2"/></svg><span class="t">Installieren</span></button>
+    <button type="button" class="knopf hell" id="aktualisieren" aria-label="Neue Fassung holen" title="Neue Fassung holen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8 M4 4v4h4 M4 13a8 8 0 0 0 14.3 4.9L20 16 M20 20v-4h-4"/></svg><span class="t">Aktualisieren</span></button>
+    <button type="button" class="knopf hell" id="neu" aria-label="Neu anfangen" title="Neu anfangen" hidden><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z M14 3v4h4 M12 11v6 M9 14h6"/></svg><span class="t">Neu</span></button>
   </header>
 
   <main class="haupt" id="haupt">
@@ -69,6 +71,7 @@
     </section>
   </main>
   <section class="ansicht" id="ansicht" hidden aria-label="Datei ansehen"></section>
+  <div class="meldung" id="meldung" role="status" hidden><button type="button" class="knopf" id="meldung-zu" aria-label="Meldung schließen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12 M18 6L6 18"/></svg></button><p id="meldung-text"></p></div>
   <div class="ziehen" id="ziehen" hidden>Loslassen zum Prüfen</div>
 </div>
 </body>

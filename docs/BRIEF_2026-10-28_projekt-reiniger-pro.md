@@ -419,6 +419,22 @@ seiner eigenen Seite und wurde **nicht** kopiert; übernommen ist die Idee.
   bekannte Werte suchen. Datum-Funde sind in Doku sehr häufig (Klaus' Test: 59 harte Angaben, fast alles Datum) —
   dort ggf. „Behalten“ wählen.
 
+## Installieren und Aktualisieren (2026-10-28)
+
+Klaus: *„… einen Installieren-Button … und einen Aktualisierungs-Button, weil installieren funktioniert so nicht. Wir
+müssen den Browser anstoßen … für Handys, damit ich nicht eine Kompi machen muss.“*
+
+- **Installieren** (Kopf): öffnet den Installationsdialog des Browsers (`beforeinstallprompt`). Bietet der Browser ihn
+  nicht an, sagt eine Meldung warum (meist: nur eine Verknüpfung mit Chrome-Zeichen) und wie es von Hand geht. Ablauf und
+  Texte übernommen aus dem Auslieferungsprüfer (`assets/installieren.js`); **nicht** byte-1:1, weil jene Datei Emoji
+  zeichnet und Inline-Stile setzt (hier CSP `style-src 'self'`). Als installierte App ist der Knopf weg.
+- **Aktualisieren** (Kopf): fragt beim Server nach einem neuen Service-Worker, löscht den Code-Vorrat (nur Namen
+  `reiniger-…`, nie Daten anderer Apps unter github.io) und lädt neu. Läuft eine Prüfung, wird vorher gefragt. Liegt
+  eine neue Fassung bereit, wird der Knopf petrol. Beim Start fragt die App ohnehin einmal nach (`reg.update()`).
+- **Fassung**: `APP_FASSUNG` in `app.js` muss gleich der Nummer in `CACHE_VERSION` (`sw.js`) sein — die Probe prüft das.
+  Beide bei jeder Änderung an einer Datei aus `CORE` erhöhen. Heute: 4. Proben: `npm test` 154 grün, `npm run gegenprobe` 29 gefangen · 0 blind.
+- Am Handy (< 640 px) nur Symbole; „Neu“ hat ein eigenes Symbol (Blatt mit Plus), damit es nicht wie „Aktualisieren“ aussieht.
+
 ## Grenzen (vorab benannt)
 
 - Die Suche arbeitet mit Mustern und Listen. Sie findet viel, aber **nicht garantiert alles**.
