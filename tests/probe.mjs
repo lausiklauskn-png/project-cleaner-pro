@@ -149,16 +149,17 @@ const T8 = (s) => new TextEncoder().encode(s), D8 = (b) => new TextDecoder().dec
   ok("gleicher Wert = gleiche Nummer, anderer Wert = andere Nummer",
     /⟦NAME-1⟧<br>/.test(text("musterapp/impressum.html")) && /Mail: ⟦MAIL-1⟧/.test(text("musterapp/impressum.html")) &&
     /Frau ⟦NAME-1⟧,/.test(text("musterapp/brief.txt")) && /Grüße\n⟦NAME-2⟧/.test(text("musterapp/brief.txt")), text("musterapp/brief.txt"));
-  ok("Code: Musterwert statt Marke, das Programm läuft weiter (start.js)",
-    !/⟦/.test(text("musterapp/src/start.js")) && /konto = "DE00000000000000000001"/.test(text("musterapp/src/start.js")) && /geburtstag = "01\.01\.2000"/.test(text("musterapp/src/start.js")) && /Users\\\\benutzer\\\\/.test(text("musterapp/src/start.js")), text("musterapp/src/start.js"));
+  ok("Code: Zahl-Marken wie im Text, gleiche Nummer wie im README (start.js)",
+    /konto = "⟦IBAN-1⟧"/.test(text("musterapp/src/start.js")) && /geburtstag = "⟦DATUM-1⟧"/.test(text("musterapp/src/start.js")) && /Users\\\\⟦BENUTZER-1⟧\\\\/.test(text("musterapp/src/start.js")) &&
+    /Copyright 2025 ⟦NAME-1⟧/.test(text("musterapp/src/start.js")), text("musterapp/src/start.js"));
   let pj = null; try { pj = JSON.parse(text("musterapp/package.json")); } catch { /* rot unten */ }
-  ok("Code: package.json bleibt gültiges JSON, mit Musterwert", !!pj && pj.author === "Max Mustermann <muster1@beispiel.example>", text("musterapp/package.json"));
+  ok("Code: package.json bleibt gültiges JSON, mit Marken", !!pj && pj.author === "⟦NAME-1⟧ <⟦MAIL-1⟧>", text("musterapp/package.json"));
   const nach = await Kern.nachpruefe(rein, e);
   const planT = Kern.stellenplanText(rein), planJ = Kern.stellenplanJson(rein), ber = Kern.bericht(rein, nach);
   ok("Stellenplan und Bericht nennen keinen alten Wert (Text, JSON, Bericht)", alle.every((w) => ![planT, planJ, ber].some((x) => x.toLowerCase().includes(w.toLowerCase()))));
   ok("Stellenplan: jede Stelle zeigt auf eine Datei der Kopie, mit Zeile", rein.stellenplan.length >= 10 && rein.stellenplan.every((x) => pfade.includes(x.pfad) && (x.zeile > 0 || x.ort)));
   ok("Stellenplan: in der genannten Zeile steht der Ersatz", rein.stellenplan.every((x) => x.ort || text(x.pfad).split("\n")[x.zeile - 1].includes(x.ersatz)));
-  ok("Stellenplan im Format des Briefs", /musterapp\/impressum\.html\s+Zeile 1\s+⟦NAME-1⟧\s+Art: Name/.test(planT) && /musterapp\/src\/start\.js\s+Zeile 1\s+Max Mustermann \(war: Name\)/.test(planT), planT.slice(0, 400));
+  ok("Stellenplan im Format des Briefs", /musterapp\/impressum\.html\s+Zeile 1\s+⟦NAME-1⟧\s+Art: Name/.test(planT) && /musterapp\/src\/start\.js\s+Zeile 1\s+⟦NAME-1⟧\s+Art: Name/.test(planT), planT.slice(0, 400));
   ok("Nachprüfung: mit den Vorgaben nichts offen", nach.offen.length === 0, JSON.stringify(nach.offen).slice(0, 300));
   ok("Bericht: zählt, was ersetzt und weggelassen wurde", /Name → Marke: \d+×/.test(ber) && /musterapp\/\.env — /.test(ber) && /Nichts offen gefunden/.test(ber) && /nicht garantiert alles/.test(ber));
 
@@ -172,7 +173,7 @@ const T8 = (s) => new TextEncoder().encode(s), D8 = (b) => new TextDecoder().dec
   const t2 = (p) => { const x = r2.sauber.find((y) => y.pfad === p); return x ? D8(x.bytes) : ""; };
   ok("behalten: der Wert bleibt stehen", /Grüße\nMax Beispiel/.test(t2("musterapp/brief.txt")));
   ok("eigener Wert: steht überall, in Text und Code", /Gebaut von Klaus Eigen\./.test(t2("musterapp/README.md")) && /Copyright 2025 Klaus Eigen/.test(t2("musterapp/src/start.js")));
-  ok(".env auf „reinigen“: kommt mit, Schlüssel durch Musterwert ersetzt", /API_KEY=MUSTER-SCHLUESSEL-1/.test(t2("musterapp/.env")), t2("musterapp/.env"));
+  ok(".env auf „reinigen“: kommt mit, Schlüssel durch Marke ersetzt", /API_KEY=⟦SCHLUESSEL-1⟧/.test(t2("musterapp/.env")), t2("musterapp/.env"));
   ok("auch wenn eine Entscheidung .git auf „reinigen“ setzt: .git kommt nicht mit", !r2.sauber.some((x) => /\.git\//.test(x.pfad)));
   const n2 = await Kern.nachpruefe(r2, e2);
   ok("Nachprüfung: bewusst Behaltenes und eigene Werte sind nicht „offen“", !n2.offen.some((o) => /Max Beispiel|Klaus Eigen/.test(o.wert || "")), JSON.stringify(n2.offen).slice(0, 300));
@@ -197,7 +198,7 @@ const T8 = (s) => new TextEncoder().encode(s), D8 = (b) => new TextDecoder().dec
     dateien: { "q/erika/x.md": { wie: "reinigen", moeglich: ["reinigen", "weglassen"], grund: "" } } };
   const r4 = await Kern.reinige([{ pfad: "q/erika/x.md", bytes: T8("Anna Muster, Annabell, Hanna, ANNA, Amerika\n") }], e4);
   ok("Ersetzen achtet auf Wortgrenzen und auf Groß/klein", r4.sauber.length === 1 && D8(r4.sauber[0].bytes) === "⟦NAME-1⟧ Muster, Annabell, Hanna, ⟦NAME-1⟧, Amerika\n", r4.sauber[0] && D8(r4.sauber[0].bytes));
-  ok("Dateinamen: ein Wert im Pfad wird zum Musterwert, im Stellenplan als „Datei- oder Ordnername“", r4.sauber[0].pfad === "q/benutzer/x.md" && r4.stellenplan.some((x) => x.ort && x.pfad === "q/benutzer/x.md"), r4.sauber[0].pfad);
+  ok("Dateinamen: ein Wert im Pfad wird zur Marke, im Stellenplan als „Datei- oder Ordnername“", r4.sauber[0].pfad === "q/⟦BENUTZER-1⟧/x.md" && r4.stellenplan.some((x) => x.ort && x.pfad === "q/⟦BENUTZER-1⟧/x.md"), r4.sauber[0].pfad);
 }
 {
   /* ZIP: ein fremder Leser muss es öffnen können, Prüfsummen stimmen */
@@ -205,14 +206,14 @@ const T8 = (s) => new TextEncoder().encode(s), D8 = (b) => new TextDecoder().dec
   const r = await Kern.pruefe(dateien), e = Kern.vorschlag(r), rein = await Kern.reinige(dateien, e), nach = await Kern.nachpruefe(rein, e);
   const aus = await Kern.ausgabe(rein, nach);
   ok("ZIP: Name aus dem Projektordner", aus.name === "musterapp-sauber.zip", aus.name);
-  const z = Kern.zipDateien(aus.zip);
+  const z = Kern.zipDateien(aus.bytes);
   const namen = z.dateien.map((d) => d.pfad);
   ok("ZIP: Kopie plus _reiniger/ (Stellenplan, Bericht)", namen.length === rein.sauber.length + 3 && namen.includes("musterapp/_reiniger/STELLENPLAN.txt") && namen.includes("musterapp/_reiniger/BERICHT.txt"), namen.join(", "));
   let gleich = true; for (const s of rein.sauber) { const d = z.dateien.find((x) => x.pfad === s.pfad); if (!d || Buffer.compare(Buffer.from(await d.lesen()), Buffer.from(s.bytes)) !== 0) gleich = false; }
   ok("ZIP: jede Datei kommt Byte für Byte zurück", gleich);
   const probe = T8("Prüfsumme ⟦NAME-1⟧ ".repeat(50));
   ok("crc32 stimmt mit node:zlib überein", Kern.crc32(probe) === zlibCrc32(probe));
-  const ord = mkdtempSync(join(tmpdir(), "reiniger-zip-")); writeFileSync(join(ord, "k.zip"), aus.zip);
+  const ord = mkdtempSync(join(tmpdir(), "reiniger-zip-")); writeFileSync(join(ord, "k.zip"), aus.bytes);
   const py = spawnSync("python3", ["-I", "-c", "import zipfile,sys\nz=zipfile.ZipFile(sys.argv[1])\nprint(z.testzip(), len(z.namelist()))", join(ord, "k.zip")], { encoding: "utf8" });
   rmSync(ord, { recursive: true });
   if (py.error) console.log("  ⊘ fremder ZIP-Leser nicht da (python3 fehlt) — nicht gemessen");
@@ -258,7 +259,7 @@ function fremdPruefen(zipBytes) {
   const e3 = Kern.vorschlag(r); e3.dateien["app/vorlagen.zip/notiz.txt"].wie = "uebernehmen";
   const r3 = await Kern.reinige(ein.dateien, e3), n3 = await Kern.nachpruefe(r3, e3);
   ok("Nachprüfung findet einen Rest auch in einem neu gepackten Archiv", n3.offen.some((o) => o.grund === "rest" && o.pfad === "app/vorlagen.zip/notiz.txt"), JSON.stringify(n3.offen).slice(0, 300));
-  const f = fremdPruefen((await Kern.ausgabe(rein, nach)).zip);
+  const f = fremdPruefen((await Kern.ausgabe(rein, nach)).bytes);
   if (!f) console.log("  ⊘ fremder Leser nicht da (python3 fehlt) — nicht gemessen");
   else {
     ok("Fremder Leser (Python): ZIP, inneres ZIP, tar.gz und .gz öffnen sich", f.testzip === null && f.dateien.includes("app/vorlagen.zip/notiz.txt") && f.dateien.includes("app/alt.tar.gz/alt/info.txt") && f.dateien.includes("app/notiz.txt.gz/"), JSON.stringify(f).slice(0, 300));
@@ -287,6 +288,85 @@ function fremdPruefen(zipBytes) {
   rmSync(ord, { recursive: true });
   if (py.error || /No module named/.test(py.stderr)) console.log("  ⊘ Pillow fehlt — Pixelvergleich nicht gemessen");
   else ok("Pillow: die Bilder öffnen sich, ohne EXIF, mit denselben Bildpunkten", py.status === 0 && Object.values(JSON.parse(py.stdout)).every(([ex, gleich]) => ex === 0 && gleich), (py.stdout + py.stderr).slice(0, 300));
+}
+
+/* ── A4 · Rundweg: in derselben Form hinaus, wieder hinein, erkannt ── */
+console.log("A4 · Rundweg (Import, Neubau, Export, Wieder-Import)");
+async function lauf(liste, aendern) {
+  const ein = await Kern.einwerfen(liste);
+  const r = await Kern.pruefe(ein.dateien); r.quelle = ein.quelle;
+  const e = Kern.vorschlag(r); if (aendern) aendern(e);
+  const rein = await Kern.reinige(ein.dateien, e), nach = await Kern.nachpruefe(rein, e);
+  return { ein, r, e, rein, nach, aus: await Kern.ausgabe(rein, nach) };
+}
+{
+  /* Musterwert als Wahl: dort, wo ein Programm das Format prüft */
+  const l = await lauf(await beispielProjekt(), (e) => { e.werte.find((w) => w.schluessel === "erika mustermann").wie = "muster"; e.werte.find((w) => w.schluessel === "erika.mustermann@beispiel.example").wie = "muster"; });
+  const pj = JSON.parse(D8(l.rein.sauber.find((x) => /package\.json$/.test(x.pfad)).bytes));
+  ok("Musterwert als Wahl: erfundener Wert in derselben Form (package.json: Name und Mail)", pj.author === "Max Mustermann <muster1@beispiel.example>", JSON.stringify(pj));
+  const l2 = await lauf([{ pfad: l.aus.name, bytes: l.aus.bytes }]);
+  ok("Wieder-Import: eigene Musterwerte stehen auf „Behalten“, nicht als neuer Fund", l2.e.werte.some((w) => w.schluessel === "max mustermann" && w.frueherErsatz && w.wie === "behalten") &&
+    !l2.e.werte.some((w) => w.frueherErsatz && w.wie !== "behalten"), JSON.stringify(l2.e.werte.map((w) => [w.wert, w.wie, !!w.frueherErsatz])));
+}
+{
+  const Q = (l) => Kern.quelleVon(l.map((p) => ({ pfad: p }))).form;
+  ok("Herkunft erkannt: Datei, ZIP, tar.gz, Ordner, mehrere", Q(["brief.txt"]) === "datei" && Q(["a.zip"]) === "zip" && Q(["a.tar.gz"]) === "tgz" && Q(["a.tgz"]) === "tgz" &&
+    Q(["a.tar"]) === "tar" && Q(["n.txt.gz"]) === "gz" && Q(["p/a.txt", "p/b/c.txt"]) === "ordner" && Q(["a.txt", "b.txt"]) === "dateien");
+  ok("Dateinamen der Kopie: Endung bleibt, „-sauber“ nur einmal", Kern.sauberName("brief.txt") === "brief-sauber.txt" && Kern.sauberName("x.tar.gz") === "x-sauber.tar.gz" &&
+    Kern.sauberName("musterapp-sauber.zip") === "musterapp-sauber.zip" && Kern.sauberName("Makefile") === "Makefile-sauber");
+}
+{
+  const l = await lauf([{ pfad: "brief.txt", bytes: T8("Bitte an anna@beispiel.example antworten.\n") }]);
+  ok("Eine Datei hinein → dieselbe Datei hinaus (kein ZIP), Stellenplan daneben", l.aus.form === "datei" && l.aus.name === "brief-sauber.txt" &&
+    D8(l.aus.bytes) === "Bitte an ⟦MAIL-1⟧ antworten.\n" && !l.aus.beilagenDrin && l.aus.beilagen.length === 3, JSON.stringify({ form: l.aus.form, name: l.aus.name, t: D8(l.aus.bytes) }));
+}
+{
+  const l = await lauf([{ pfad: "projekt.tar.gz", bytes: muster("projekt.tar.gz") }]);
+  ok("tar.gz hinein → tar.gz hinaus, mit _reiniger/ darin", l.aus.form === "tgz" && l.aus.name === "projekt-sauber.tar.gz" && l.aus.bytes[0] === 0x1F && l.aus.bytes[1] === 0x8B);
+  const ord = mkdtempSync(join(tmpdir(), "reiniger-tgz-")); writeFileSync(join(ord, "p.tar.gz"), l.aus.bytes);
+  const py = spawnSync("python3", ["-I", "-c", "import tarfile,sys,json\nt=tarfile.open(sys.argv[1])\nprint(json.dumps({m.name: t.extractfile(m).read().decode() for m in t.getmembers()}))", join(ord, "p.tar.gz")], { encoding: "utf8" });
+  rmSync(ord, { recursive: true });
+  if (py.error) console.log("  ⊘ python3 fehlt — tar.gz nicht fremd gelesen");
+  else {
+    let m = {}; try { m = JSON.parse(py.stdout); } catch { /* rot unten */ }
+    ok("Fremder Leser (Python tarfile): Dateien gereinigt, Stellenplan im Archiv, kein alter Wert",
+      /⟦MAIL-1⟧/.test(m["projekt/README.md"] || "") && /⟦TELEFON-1⟧/.test(m["projekt/src/a.js"] || "") && !!m["projekt/_reiniger/stellenplan.json"] &&
+      !Object.values(m).some((t) => /anna@|1234567/.test(t)), (py.stdout + py.stderr).slice(0, 300));
+  }
+}
+{
+  const l = await lauf([{ pfad: "mix.zip", bytes: muster("mix.zip") }]);
+  ok("ZIP hinein → ZIP hinaus, gleicher Name mit „-sauber“", l.aus.form === "zip" && l.aus.name === "mix-sauber.zip");
+  const j = JSON.parse(D8(l.aus.beilagen[1].bytes));
+  ok("Stellenplan merkt sich, was jede Datei war und was mit ihr geschah", j.fassung === 2 && j.herkunft.form === "zip" && j.herkunft.name === "mix.zip" &&
+    j.dateien.some((d) => d.pfad === "app/bild.png" && d.art === "PNG-Bild" && d.wie === "metadaten") &&
+    j.dateien.some((d) => d.pfad === "app/vorlagen.zip/notiz.txt" && d.archiv === "app/vorlagen.zip" && d.wie === "reinigen") &&
+    j.dateien.some((d) => d.pfad === "app/werkzeug.jar" && d.wie === "weglassen"), JSON.stringify(j.dateien).slice(0, 300));
+}
+{
+  const l = await lauf([{ pfad: "Erika Mustermann/brief.txt", bytes: T8("Hallo Frau Erika Mustermann,\ndanke.\n") }]);
+  ok("Herkunftsname wird mit gereinigt (ein Name im Ordnernamen steht nicht im Stellenplan)",
+    l.rein.quelle.form === "ordner" && l.rein.quelle.name === "⟦NAME-1⟧" && !/Erika/.test(Kern.stellenplanJson(l.rein)) && !/Erika/.test(Kern.stellenplanText(l.rein)), JSON.stringify(l.rein.quelle));
+}
+{
+  /* Rundweg: die eigene Kopie wieder einwerfen */
+  const l1 = await lauf(await beispielProjekt());
+  const l2 = await lauf([{ pfad: l1.aus.name, bytes: l1.aus.bytes }]);
+  ok("Wieder-Import: die eigene Kopie wird erkannt („Gereinigte Kopie erkannt“)", !!l2.r.frueher && l2.r.hinweise.some((h) => /Gereinigte Kopie erkannt/.test(h)), l2.r.hinweise.join(" | "));
+  ok("Wieder-Import: Stellenplan und Bericht des alten Laufs werden nicht durchsucht und nicht doppelt ausgegeben",
+    !l2.r.befunde.some((b) => /_reiniger\//.test(b.pfad)) && Kern.zipDateien(l2.aus.bytes).dateien.filter((d) => /_reiniger\/stellenplan\.json$/.test(d.pfad)).length === 1);
+  ok("Wieder-Import: nichts offen, Name bleibt „musterapp-sauber.zip“", l2.nach.offen.length === 0 && l2.aus.name === "musterapp-sauber.zip", JSON.stringify(l2.nach.offen).slice(0, 200) + " " + l2.aus.name);
+  const j2 = JSON.parse(D8(l2.aus.beilagen[1].bytes));
+  ok("Wieder-Import: der alte Stellenplan steht unter „frueher“", Array.isArray(j2.frueher) && j2.frueher.length === 1 && j2.frueher[0].stellen.length === l1.rein.stellenplan.length && j2.frueher[0].herkunft.form === "ordner");
+  const l3 = await lauf([{ pfad: l2.aus.name, bytes: l2.aus.bytes }]);
+  /* eine neue Person in der schon gereinigten Kopie: ihre Nummer zählt weiter, statt eine alte zu doppeln */
+  const kopie = Kern.zipDateien(l1.aus.bytes).dateien;
+  const neu = await Promise.all(kopie.map(async (d) => ({ pfad: d.pfad, bytes: /README\.md$/.test(d.pfad) ? T8(D8(await d.lesen()) + "Neu: lena@beispiel.example\n") : await d.lesen() })));
+  const l4 = await lauf([{ pfad: "musterapp-sauber.zip", bytes: await Kern.zipBauen(neu) }]);
+  const readme4 = D8(l4.rein.sauber.find((x) => /README\.md$/.test(x.pfad)).bytes);
+  ok("Wieder-Import mit neuer Angabe: die Nummer zählt weiter (⟦MAIL-1⟧ bleibt, die neue wird ⟦MAIL-2⟧, nicht noch einmal 1)", /an ⟦MAIL-1⟧/.test(readme4) && /Neu: ⟦MAIL-2⟧/.test(readme4), readme4);
+  ok("Wieder-Import: unsere Marken selbst sind keine Funde", !l4.r.befunde.some((b) => /^⟦/.test(String(b.wert))) && l4.e.werte.length === 1, JSON.stringify(l4.e.werte.map((w) => w.wert)));
+  ok("Dritter Lauf: beide früheren Stellenpläne bleiben erhalten", JSON.parse(D8(l3.aus.beilagen[1].bytes)).frueher.length === 2);
 }
 
 /* ── B · im Browser ─────────────────────────────────────────────── */
@@ -343,7 +423,8 @@ function messen() {
   return fehler;
 }
 
-const GROESSEN = [[320, 640], [360, 740], [412, 915], [768, 1024], [1280, 800], [740, 360], [1920, 1080]];
+/* dazu die Teilansicht (geteilter Bildschirm, Klaus 2026-10-28): halber Desktop, Tablet geteilt, halbes Handy */
+const GROESSEN = [[320, 640], [360, 740], [412, 915], [768, 1024], [1280, 800], [740, 360], [1920, 1080], [960, 1080], [600, 960], [412, 420]];
 const netz = [];
 const ctx = await browser.newContext({ serviceWorkers: "block" });
 const seite = await ctx.newPage();
@@ -523,6 +604,112 @@ const pdfR = await seite.evaluate(() => { const r = window.__reiniger.ergebnis()
 ok("PDF: Stufe 2, als PDF markiert", pdfR.i.stufe === 2 && pdfR.i.marken.some((m) => m.kennung === "PDF"), JSON.stringify(pdfR.i));
 ok("PDF: Metadaten (Verfasser) gefunden", pdfR.b.some((x) => /^PDF-METADATEN=/.test(x) && /Anna Beispiel/.test(x)), pdfR.b.join(" | "));
 ok("PDF: Seitentext über pdf.js gelesen, Mail gefunden", pdfR.b.includes("MAIL=anna@beispiel.example"), pdfR.b.join(" | "));
+
+
+/* Fortschritt: eine Arbeit zur Zeit, jeder Schritt sichtbar */
+await seite.setViewportSize({ width: 1280, height: 800 });
+await seite.click("#neu");
+const schritte = await seite.evaluate(async () => {
+  const gesehen = new Set(), dateien = new Set();
+  const mo = new MutationObserver((liste) => { for (const r of liste) for (const n of r.addedNodes) {
+    if (r.target.id === "fortschritt-schritt") gesehen.add(n.data);
+    if (r.target.id === "fortschritt-text" && n.data) dateien.add(document.querySelector("#fortschritt-schritt").textContent + "|" + n.data); } });
+  mo.observe(document.querySelector("#fortschritt"), { subtree: true, childList: true, characterData: true });
+  const R = window.__reiniger;
+  await R.starte(await R.beispielProjekt());
+  const p = R.bauen();
+  R.starte([{ pfad: "x.txt", bytes: new TextEncoder().encode("x") }]);   // während es läuft
+  const hinweis = (document.querySelector("[data-laeuft-hinweis]") || {}).textContent || "";
+  const sichtbar = !document.querySelector("#fortschritt").hidden;
+  await p; mo.disconnect();
+  const d = [...dateien];
+  return { schritte: [...gesehen], dateien: d.length, reinigenMitDatei: d.some((x) => /^Reinigen\|musterapp\//.test(x)), nachMitDatei: d.some((x) => /^Nachprüfung\|musterapp\//.test(x)), hinweis, sichtbar, danach: document.querySelector("#fortschritt").hidden,
+    ergebnisBleibt: R.ergebnis().inventur.some((e) => e.pfad === "musterapp/README.md") };
+});
+ok("Fortschritt: jeder Schritt steht da (Einlesen, Prüfen, Reinigen, Nachprüfung, Ausgabe packen), mit Dateinamen",
+  ["Prüfen", "Reinigen", "Nachprüfung", "Ausgabe packen"].every((s) => schritte.schritte.includes(s)) && schritte.reinigenMitDatei && schritte.nachMitDatei, JSON.stringify(schritte));
+ok("Eine Arbeit zur Zeit: wer währenddessen startet, liest, was gerade läuft — die laufende Arbeit bleibt", schritte.sichtbar && /Es läuft gerade: Reinigen/.test(schritte.hinweis) && schritte.ergebnisBleibt && schritte.danach, JSON.stringify(schritte));
+
+/* Installieren: der Knopf stößt den Dialog des Browsers an; bietet er nichts an, sagt er warum */
+await seite.evaluate(() => { const m = document.getElementById("geraet-meldung"); if (m) m.hidden = true; });
+await seite.click("#installieren");
+ok("Installieren ohne Angebot des Browsers: Meldung mit dem Weg über das Menü", await seite.evaluate(() =>
+  !document.getElementById("geraet-meldung").hidden && /Chrome-Menü/.test(document.getElementById("geraet-meldung-text").textContent) && window.ReinigerGeraet.lage() === "nicht-angeboten"));
+const install = await seite.evaluate(async () => {
+  let aufgerufen = 0;
+  const e = new Event("beforeinstallprompt", { cancelable: true });
+  e.prompt = () => { aufgerufen++; return Promise.resolve(); };
+  e.userChoice = Promise.resolve({ outcome: "accepted" });
+  window.dispatchEvent(e);
+  const lage = window.ReinigerGeraet.lage(), verhindert = e.defaultPrevented;
+  document.getElementById("installieren").click();
+  await new Promise((ok) => setTimeout(ok, 50));
+  return { aufgerufen, lage, verhindert, meldung: document.getElementById("geraet-meldung-text").textContent };
+});
+ok("Installieren mit Angebot: Knopf ruft den Installations-Dialog des Browsers auf", install.verhindert && install.lage === "angeboten" && install.aufgerufen === 1 && /Installiert/.test(install.meldung), JSON.stringify(install));
+ok("Kopfleiste: Installieren und Aktualisieren stehen da, ohne Emoji", await seite.evaluate(() => {
+  const i = document.getElementById("installieren"), a = document.getElementById("aktualisieren");
+  return !!i && !i.hidden && !!a && !/[\u{1F300}-\u{1FAFF}☀-➿]/u.test(document.querySelector(".kopf").textContent);
+}));
+
+/* Aktualisieren: nur der eigene Vorrat fliegt raus, die Adresse ist danach wieder sauber */
+await seite.evaluate(async () => { await (await caches.open("reiniger-alt")).put("/x", new Response("a")); await (await caches.open("fremde-app-v1")).put("/x", new Response("b")); });
+await Promise.all([seite.waitForNavigation({ waitUntil: "load" }), seite.click("#aktualisieren")]);
+await seite.waitForTimeout(200);
+const nachher = await seite.evaluate(async () => ({ namen: await caches.keys(), adresse: location.search }));
+ok("Aktualisieren: eigener Vorrat weg, fremder bleibt, Adresse ohne ?frisch", !nachher.namen.includes("reiniger-alt") && nachher.namen.includes("fremde-app-v1") && !/frisch/.test(nachher.adresse), JSON.stringify(nachher));
+
+/* Als installierte App: kein Installieren-Knopf */
+{
+  const ctx2 = await browser.newContext({ serviceWorkers: "block" });
+  await ctx2.addInitScript(() => { const alt = window.matchMedia.bind(window); window.matchMedia = (q) => /display-mode: standalone/.test(q) ? { matches: true, media: q, addEventListener() {}, removeEventListener() {} } : alt(q); });
+  const s2 = await ctx2.newPage();
+  await s2.goto(BASIS + "?ohne-sw", { waitUntil: "load" });
+  ok("Als installierte App: kein Installieren-Knopf, Aktualisieren bleibt", await s2.evaluate(() => document.getElementById("installieren").hidden && !document.getElementById("aktualisieren").hidden));
+  await ctx2.close();
+}
+
+
+/* Rundweg im Browser: eine Datei → dieselbe Datei; Ordner → in einen Ordner schreiben; Kopie wieder einwerfen */
+await seite.setViewportSize({ width: 1280, height: 800 });
+{
+  const ord = mkdtempSync(join(tmpdir(), "reiniger-eine-")); writeFileSync(join(ord, "notiz.md"), "Mail an anna@beispiel.example\n");
+  await seite.evaluate(() => { const n = document.querySelector("#neu"); if (!n.hidden) n.click(); });
+  await seite.setInputFiles("#wahl-dateien", join(ord, "notiz.md"));
+  await seite.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden && document.querySelector("#bauen"), null, { timeout: 30000 });
+  await seite.click("#bauen");
+  await seite.waitForFunction(() => window.__reiniger.gebaut() && document.querySelector("#laden-zip"), null, { timeout: 30000 });
+  const [dl] = await Promise.all([seite.waitForEvent("download", { timeout: 10000 }), seite.click("#laden-zip")]);
+  ok("Browser: eine Datei hinein → dieselbe Datei hinaus (notiz-sauber.md, kein ZIP)", dl.suggestedFilename() === "notiz-sauber.md" && readFileSync(await dl.path(), "utf8") === "Mail an ⟦MAIL-1⟧\n");
+  rmSync(ord, { recursive: true });
+}
+{
+  await seite.evaluate(() => { const n = document.querySelector("#neu"); if (!n.hidden) n.click(); });
+  /* Ordner schreiben: der Ordner-Dialog des Browsers wird nachgestellt (in der Probe gibt es keinen Menschen, der wählt). */
+  await seite.evaluate(() => {
+    window.__geschrieben = {};
+    const verz = (pfad) => ({
+      getDirectoryHandle: async (n, o) => { const p = pfad + n + "/"; if (!(o && o.create) && !Object.keys(window.__geschrieben).some((k) => k.startsWith(p))) throw new DOMException("NotFound"); return verz(p); },
+      getFileHandle: async (n) => ({ createWritable: async () => ({ write: async (b) => { window.__geschrieben[pfad + n] = new TextDecoder().decode(b); }, close: async () => {} }) }),
+    });
+    window.showDirectoryPicker = async () => verz("/");
+  });
+  await seite.evaluate(async () => window.__reiniger.starte(await window.__reiniger.beispielProjekt()));
+  await seite.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden && document.querySelector("#bauen"), null, { timeout: 30000 });
+  await seite.click("#bauen");
+  await seite.waitForFunction(() => window.__reiniger.gebaut() && document.querySelector("#in-ordner"), null, { timeout: 30000 });
+  await seite.click("#in-ordner");
+  await seite.waitForFunction(() => Object.keys(window.__geschrieben).length > 3, null, { timeout: 10000 }).catch(() => {});
+  const g = await seite.evaluate(() => window.__geschrieben);
+  ok("Ordner hinein → in einen neuen Ordner hinaus (mit _reiniger/, ohne .git)", !!g["/musterapp-sauber/README.md"] && /⟦NAME-1⟧/.test(g["/musterapp-sauber/README.md"]) &&
+    !!g["/musterapp-sauber/_reiniger/STELLENPLAN.txt"] && !Object.keys(g).some((k) => /\.git\//.test(k)), Object.keys(g).join(", "));
+  const [dl] = await Promise.all([seite.waitForEvent("download", { timeout: 10000 }), seite.click("#laden-zip")]);
+  const kopie = await dl.path();
+  await seite.evaluate(() => { const n = document.querySelector("#neu"); if (!n.hidden) n.click(); });
+  await seite.setInputFiles("#wahl-dateien", { name: "musterapp-sauber.zip", mimeType: "application/zip", buffer: readFileSync(kopie) });
+  await seite.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden, null, { timeout: 30000 });
+  ok("Browser: die eigene Kopie wieder eingeworfen → „Gereinigte Kopie erkannt“", await seite.evaluate(() => /Gereinigte Kopie erkannt/.test(document.querySelector("#hinweise").textContent)));
+}
 
 ok("Kein Netz: keine einzige Anfrage nach außen", netz.length === 0, netz.join(", "));
 ok("Keine Fehler in der Konsole", konsole.length === 0, konsole.slice(0, 3).join(" | "));

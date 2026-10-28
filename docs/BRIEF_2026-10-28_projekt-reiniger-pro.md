@@ -68,7 +68,7 @@ passiert.
 | Wo | Darstellung |
 |---|---|
 | Texte, Doku, Impressum | Marke mit Art und Nummer: `⟦NAME-1⟧`, `⟦ORT-2⟧`. Ein gleicher Wert bekommt eine gleiche Nummer |
-| Code (Knöpfe, Variablen) | ein Musterwert („Musterstadt“), damit das Programm weiterläuft. Die Stelle steht im Stellenplan |
+| Code (Knöpfe, Variablen) | ~~ein Musterwert („Musterstadt“)~~ — **seit 2026-10-28 ebenfalls die Marke mit Zahl** (Klaus: *„einfacher durch Zahlenwerte … Doppelklammer“*). Ein Musterwert ist nur noch eine Wahl je Wert, für Stellen, an denen ein Programm das Format prüft |
 | PDF, Foto, Office | ein neu gezeichnetes Blatt mit grauem Kasten und Etikett |
 
 **Nicht schwärzen.** Ein schwarzer Balken verrät die Länge des Wortes, und in einer PDF bleibt
@@ -476,6 +476,74 @@ gehören in ein anderes Programm (Workflow PDF Pro). Der Reiniger ist die Schleu
 **Vorgeschlagene Reihenfolge** (Klaus entscheidet): erst Stufe 3 (gefühlte Metadaten), dann **A** als eigener
 Eingang „Text oder Dokument an eine KI“ (ohne OCR), dann OCR auf Knopfdruck, dann B zusammen mit Workflow PDF Pro.
 
+## Installieren, Aktualisieren, Rundweg, Fortschritt, Teilansicht (Klaus 2026-10-28)
+
+Klaus: *„einen Aktualisierungsbutton. Und einen Installationsbutton … der Browser braucht einen extra Anstoß“* ·
+*„es muss sowohl der Installation, der Importweg wie auch der Neubauweg als auch der Exportweg geklärt sein … wieder
+importiert werden können. Und trotzdem muss sich gemerkt werden, was das für eine Datei war“* · *„eine Prüfung immer
+zur Zeit … mit Ladebalken … damit ich nicht denke, die ist abgestürzt“* · *„auch in der Teilansicht gut aussehen“* ·
+*„einfacher durch Zahlenwerte … Doppelklammer“*.
+
+- **Installieren** (`assets/geraet.js`, Bauart aus dem Sende-Prüfer bzw. Sage #1151–#1153): Die App fängt das Angebot
+  des Browsers ab (`beforeinstallprompt`) und ruft es auf Knopfdruck auf; dann öffnet sich **sein** Dialog. Bietet er
+  nichts an, nennt der Knopf die Gründe und den Weg über das Menü (Android-Chrome, Windows-Edge/Chrome). Läuft die App
+  schon installiert, gibt es keinen Knopf.
+- **Aktualisieren:** Der runde Knopf wirft nur den eigenen Vorrat (`reiniger-…`) weg, meldet den Service-Worker ab und
+  lädt mit geänderter Adresse neu. Es gehen keine Daten verloren, die App speichert keine.
+- **Rundweg: was hineinkommt, geht in derselben Form hinaus**, mit dem Namen `…-sauber`:
+  | hinein | hinaus |
+  |---|---|
+  | eine Datei (Text, SVG, Bild …) | dieselbe Datei; Stellenplan und Bericht als eigene Downloads |
+  | ZIP | ZIP, mit `_reiniger/` darin |
+  | tar / tar.gz | dasselbe Archiv, mit `_reiniger/` darin |
+  | .gz | dieselbe gz-Datei |
+  | Ordner oder mehrere Dateien | ZIP; am Windows-PC (Chrome/Edge) zusätzlich **„In Ordner speichern“**, als neuer Ordner `…-sauber` |
+- **Was die Datei war, steht im Stellenplan** (`stellenplan.json`, Fassung 2): Herkunft (Form, gereinigter Name,
+  Datum, Kern-Fassung) und je Datei, was sie war (z. B. „PNG-Bild“) und was mit ihr geschah (reinigen, ohne
+  Metadaten, weg). Werte stehen nicht darin, auch der Name des Ordners wird mit gereinigt.
+- **Wieder-Import:** Die eigene Kopie wird erkannt („Gereinigte Kopie erkannt“). Der alte Stellenplan und Bericht
+  werden nicht durchsucht und nicht doppelt ausgegeben; der alte Plan steht im neuen unter `frueher`, über beliebig
+  viele Läufe. **Die Nummern zählen weiter:** Eine neue Person bekommt nicht noch einmal ⟦NAME-1⟧. Eigene Musterwerte
+  früherer Läufe stehen auf „Behalten“, und die eigenen Marken sind keine Funde.
+- **Marken überall** (Zahl in Doppelklammer, wie im Sende-Prüfer): Text, Code, Konfiguration und Dateinamen bekommen
+  dieselbe Marke, gleicher Wert gleiche Nummer. package.json bleibt gültiges JSON. Der Musterwert ist nur noch eine Wahl.
+  Gefunden beim Bauen: Die alten Musterwerte im Code hielt die App beim Wieder-Import für neue Funde. Mit Marken kann
+  das nicht passieren.
+- **Fortschritt, eine Arbeit zur Zeit:** Oben steht immer der Schritt (Einlesen, Auspacken, Prüfen, Reinigen, Neu
+  packen, Nachprüfung, Ausgabe packen), dazu die Datei, „n von N · %“, ein Balken, die Laufzeit in Sekunden und ein
+  drehendes Zeichen. Wer währenddessen etwas startet, liest: „Es läuft gerade: … Eine Arbeit zur Zeit.“
+- **Teilansicht:** Die Vollbild-Probe misst jetzt zusätzlich halben Desktop (960×1080), Tablet geteilt (600×960)
+  und halbes Handy (412×420). Die Kopfleiste lief bei 600 px über; die Knöpfe zeigen bis 700 px nur das Icon.
+- Proben: `npm test` **212 grün · 0 ROT**; `npm run gegenprobe` **55 gefangen · 0 blind** (14 neue Fälle; zwei waren
+  zuerst blind, beide in der Probe, geschärft). ⚠ Nicht gemessen: der echte Installations-Dialog (in der Probe
+  nachgestellt), das Speichern in einen echten Ordner (Ordner-Dialog nachgestellt), das Tablet.
+
+## Vorschläge: große Dateien, native App, SD-Karte, verschlüsselte Ablage (Klaus 2026-10-28, noch nicht gebaut)
+
+Klaus: *„ZIP-Dateien sind etwas größer. Die Browser-Variante wird wahrscheinlich diese nicht unbedingt alles
+verarbeiten können … zu einer nativen App übergehen und dann … zu einer Windows-Web-App … den Ordner für die
+Dateiauslagerung auf der SD-Karte … Auch verschlüsselt … Vielleicht hast du bessere Ideen.“*
+
+**Heute (gemessen ist nur Kleines):** Der Browser liest ein eingeworfenes ZIP einmal ganz in den Speicher und baut
+die Kopie ebenfalls ganz im Speicher. Am PC tragen das einige hundert MB, am Handy weniger. Die Grenze am Tablet ist
+nicht gemessen.
+
+**Bessere Reihenfolge (Vorschlag):**
+1. **Erst den Speicher entlasten, in derselben Codebasis:** Das ZIP wird stückweise gelesen (`File.slice`): nur das
+   Inhaltsverzeichnis am Ende und jede Datei erst, wenn sie dran ist. Die Kopie wird **stückweise geschrieben**, am
+   PC direkt auf die Platte (`showSaveFilePicker` / `showDirectoryPicker`, Chrome und Edge). Dann begrenzt nicht mehr
+   der Arbeitsspeicher, sondern der Plattenplatz. Das hilft überall, auch später in der APK.
+2. **Windows: die installierte App ist schon die „Windows-Web-App“.** In Edge oder Chrome installiert, darf sie
+   Ordner lesen und schreiben, auch auf SD-Karte und USB-Stick („In Ordner speichern“ gibt es schon). Eine eigene
+   Windows-Hülle (Tauri/Electron) braucht es erst, wenn das nicht reicht.
+3. **Android: APK mit Capacitor**, wie Private Brain Pro und Workflow PDF Pro (eine Codebasis). Nur dort darf die App
+   einen **festen Ordner auf der SD-Karte** wählen und behalten (Android-Speicherzugriff), und große Dateien streamen.
+   Der Browser am Handy kann das nicht.
+4. **Verschlüsselte Ablage = der Tresor aus Stufe 5, als Ordner:** Jede Datei wird einzeln verschlüsselt
+   (AES-256-GCM mit dem Schloss `schluesseltresor.js`), dazu ein verschlüsseltes Verzeichnis. Ablage im gewählten
+   Ordner (Windows: PWA, Android: APK, auf SD-Karte möglich), sonst als Download. Mit Ablaufdatum wie im Brief.
+- ⚠ Die Gäste-Sperre und der Tresor gehören dazu. Erst wenn die App etwas ablegt, braucht sie einen Code.
+
 ## Grenzen (vorab benannt)
 
 - Die Suche arbeitet mit Mustern und Listen. Sie findet viel, aber **nicht garantiert alles**.
@@ -488,6 +556,8 @@ Eingang „Text oder Dokument an eine KI“ (ohne OCR), dann OCR auf Knopfdruck,
 - Musterwert oder Marke als Vorgabe für JSON/YAML? Jetzt: Musterwert (Konfiguration zählt wie Code).
 - Sollen `_reiniger/`-Dateien im ZIP liegen (jetzt ja) oder nur einzeln heruntergeladen werden?
 - KI-Paket (Vorschlag A): im Reiniger als eigener Eingang, oder Dokumente/OCR in den Sende-Prüfer? Und wann?
+- Große Dateien und Ablage: Reihenfolge 1 (stückweise lesen/schreiben) → 2 (Windows-PWA mit Ordnern) → 3 (APK mit
+  SD-Ordner) → 4 (verschlüsselte Ablage)? Oder APK zuerst?
 - Eigene Adresse (Unterdomain) oder fürs Erste github.io?
 - ✅ Das Repo gibt es: `project-cleaner-pro` (Klaus 2026-10-28). Stufe 1 liegt darin.
 - GitHub Pages einschalten (Klaus, Einstellungen des Repos).

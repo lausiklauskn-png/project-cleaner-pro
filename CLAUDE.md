@@ -25,11 +25,19 @@ Kurzauftrag zum Kopieren ausgeben.
   damit abgelöst. Alle Größen baut `node tools/icons-bauen.mjs` — **nie von Hand**; sonst meldet die Probe „veraltet“.
 - **Vollbild:** `100dvh`, keine Höchstbreite, `display: standalone`. Die Probe misst bei 320×640, 360×740,
   412×915, 768×1024, 1280×800, 740×360 (Handy quer) und 1920×1080 in fünf Zuständen (Einwurf, Funde, Ergebnis, Inventur, Gemischt):
-  nichts quer, nichts ragt über seinen Kasten, keine Beschriftung abgeschnitten, kein Knopf bricht um, App füllt das Fenster.
-- **Speichert nichts.** Der Service-Worker legt nur den Code ab (`CACHE_VERSION` `reiniger-v2`).
+  dazu Teilansicht 960×1080, 600×960, 412×420 — nichts quer, nichts ragt über seinen Kasten, keine Beschriftung abgeschnitten, kein Knopf bricht um, App füllt das Fenster.
+- **Speichert nichts.** Der Service-Worker legt nur den Code ab (`CACHE_VERSION` `reiniger-v6`).
+- **Installieren / Aktualisieren** (`assets/geraet.js`, Bauart Sende-Prüfer): `beforeinstallprompt` abfangen, auf
+  Knopfdruck `prompt()`; als App kein Knopf. Aktualisieren löscht nur Vorräte mit Präfix `reiniger-`.
+- **Rundweg:** `quelleVon` merkt die Form (datei · zip · tar · tgz · gz · ordner · dateien); `ausgabe` gibt **in
+  derselben Form** zurück (`…-sauber`, `sauberName`). `stellenplan.json` Fassung 2 trägt `herkunft`, `dateien`
+  (was jede Datei war, was mit ihr geschah) und `frueher`. Eine wieder eingeworfene Kopie wird erkannt (`_reiniger/`
+  = Beilage, nicht durchsucht), **Nummern zählen weiter** (`markenMax`), eigene Marken sind keine Funde.
+- **Fortschritt:** `einwerfen`, `pruefe`, `reinige`, `nachpruefe` melden `(nr, gesamt, pfad, schritt)`; die
+  Oberfläche zeigt Schritt, Datei, Zahl, Balken, Sekunden. Eine Arbeit zur Zeit (`besetzt()`).
 - **Stufe 2 · Entscheiden je Wert** (ein Wert über alle Arten = eine Entscheidung, `wertSchluessel`):
-  Entfernen = Marke `⟦ART-n⟧` in Text/Doku, **Musterwert in Code, Konfiguration (`CODE_ENDUNG`, auch JSON/YAML)
-  und Dateinamen**; Musterwert; eigener Wert; behalten. Gleicher Wert → gleiche Nummer. Ersetzt wird ohne
+  Entfernen = Marke `⟦ART-n⟧` **überall** (Text, Code, Konfiguration, Dateinamen — Klaus 2026-10-28: „Zahlenwerte …
+  Doppelklammer“); Musterwert nur noch als Wahl; eigener Wert; behalten. Gleicher Wert → gleiche Nummer. Ersetzt wird ohne
   Rücksicht auf Groß/klein, aber nur an Wortgrenzen, längster Wert zuerst, in einem Durchgang.
 - **Je Datei:** Text reinigen · unverändert übernehmen · weglassen. `.git` kommt **nie** mit (zweimal gesichert:
   im Vorschlag fest und in `reinige` selbst); `.env`, Sicherung, Datenbank, Export, Schlüsseldatei standardmäßig
@@ -64,8 +72,8 @@ Kurzauftrag zum Kopieren ausgeben.
 ## Prüfen
 
 ```bash
-npm test             # 170 grün · 0 ROT (2026-10-28, Stufe 2 + alle Dateiarten + Hineinziehen)
-npm run gegenprobe   # 41 gefangen · 0 blind · 0 falsch · 0 tot (2026-10-28)
+npm test             # 212 grün · 0 ROT (2026-10-28, + Installieren, Rundweg, Fortschritt, Teilansicht)
+npm run gegenprobe   # 55 gefangen · 0 blind · 0 falsch · 0 tot (2026-10-28)
 ```
 
 ## ⚠ Nicht gemessen

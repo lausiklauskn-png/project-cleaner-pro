@@ -28,7 +28,7 @@ def zipdatei(eintraege):
 
 innen = zipdatei([("notiz.txt", "Mail: anna@beispiel.example\n"), ("logo.svg", svg)])
 tg = io.BytesIO()
-with tarfile.open(fileobj=tg, mode="w:gz") as t:
+with gzip.GzipFile(fileobj=tg, mode="wb", mtime=0) as gzf, tarfile.open(fileobj=gzf, mode="w") as t:
     for n, d in [("alt/info.txt", b"Telefon +49 30 1234567\n"), ("alt/" + "langer-ordnername-" * 6 + "/x.txt", b"IBAN DE02120300000000202051\n")]:
         i = tarfile.TarInfo(n); i.size = len(d); t.addfile(i, io.BytesIO(d))
 tr = io.BytesIO()
@@ -42,6 +42,12 @@ with tarfile.open(fileobj=tr, mode="w", format=tarfile.USTAR_FORMAT) as t:
     ("app/notiz.txt.gz", gzip.compress(b"Notiz von anna@beispiel.example\n", mtime=0)),
     ("app/werkzeug.jar", zipdatei([("META-INF/MANIFEST.MF", "Created-By: anna@beispiel.example\n")])),
 ]))
+# ein eigenständiges tar.gz (kommt als tar.gz, muss als tar.gz zurück)
+tg2 = io.BytesIO()
+with gzip.GzipFile(fileobj=tg2, mode="wb", mtime=0) as gzf, tarfile.open(fileobj=gzf, mode="w") as t:
+    for n, d in [("projekt/README.md", b"Kontakt: anna@beispiel.example\n"), ("projekt/src/a.js", b"export const tel = \"+49 30 1234567\";\n")]:
+        i = tarfile.TarInfo(n); i.size = len(d); t.addfile(i, io.BytesIO(d))
+(ZIEL / "projekt.tar.gz").write_bytes(tg2.getvalue())
 # Archiv in Archiv in … (6 Ebenen) — ausgepackt wird bis zur Tiefe 4
 tief = zipdatei([("ganz-unten.txt", "anna@beispiel.example\n")])
 for k in range(5): tief = zipdatei([("ebene%d.zip" % (5 - k), tief)])

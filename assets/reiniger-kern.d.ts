@@ -104,6 +104,8 @@ export interface WertEntscheidung {
   /** wertSchluessel(wert): klein geschrieben, ohne Rand */
   schluessel: string; wert: string; arten: string[]; marke: MarkeArt; vorschlag: boolean; anzahl: number;
   wie: Wie; eigen: string;
+  /** steht im Stellenplan eines früheren Laufs als Ersatz — unser eigener Musterwert, Vorgabe „behalten“ */
+  frueherErsatz?: boolean;
 }
 export interface Entscheidungen {
   fassung: 1;

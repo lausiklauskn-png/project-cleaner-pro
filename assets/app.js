@@ -16,7 +16,7 @@ function el(tag, attr, ...kinder) {
 }
 const gross = (n) => n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(1).replace(".", ",") + " KB" : (n / 1048576).toFixed(1).replace(".", ",") + " MB";
 
-let ergebnis = null, laeuft = false;
+let ergebnis = null, laeuft = false, laeuftSchritt = "";
 let eingeworfen = [], entscheidungen = null, gebaut = null;
 
 /* pdf.js aus dem eigenen Ordner (nicht im Vorrat des Workers). */
@@ -50,7 +50,7 @@ addEventListener("dragover", (e) => { if (ziehtDateien(e)) { e.preventDefault();
 addEventListener("drop", async (e) => {
   if (!ziehtDateien(e)) return;
   e.preventDefault(); ziehZaehler = 0; $("#ziehen").hidden = true;
-  if (laeuft) return;
+  if (besetzt()) return;
   /* Die Einträge müssen sofort geholt werden — nach dem ersten await ist die Ablage leer. */
   const eintraege = Array.from(e.dataTransfer.items || []).filter((i) => i.kind === "file").map((i) => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
   const dateien = Array.from(e.dataTransfer.files || []);
@@ -78,24 +78,54 @@ async function ausEintraegen(eintraege) {
 }
 
 /* ── Prüfen ──────────────────────────────────────────────── */
+/* ── Fortschritt: immer eine Arbeit zur Zeit, und man sieht, woran sie gerade ist ── */
+let uhr = null, beginn = 0;
+function fortschrittAn(schritt) {
+  laeuft = true; laeuftSchritt = schritt; beginn = Date.now();
+  $("#fortschritt").hidden = false;
+  melde(1, 0, "", schritt);
+  clearInterval(uhr);
+  uhr = setInterval(() => { $("#fortschritt-zeit").textContent = Math.round((Date.now() - beginn) / 1000) + " s"; }, 500);
+}
+function melde(nr, gesamt, pfad, schritt) {
+  laeuftSchritt = schritt || laeuftSchritt;
+  $("#fortschritt-schritt").textContent = laeuftSchritt;
+  $("#fortschritt-zahl").textContent = gesamt ? nr + " von " + gesamt + " · " + Math.round(nr / gesamt * 100) + " %" : nr ? nr + ". Archiv" : "";
+  $("#fortschritt-text").textContent = pfad || "";
+  const b = $("#fortschritt-balken");
+  if (gesamt) { b.max = gesamt; b.value = nr; } else b.removeAttribute("value");   /* ohne Gesamtzahl: wandernder Balken */
+}
+function fortschrittAus() {
+  laeuft = false; clearInterval(uhr); uhr = null;
+  $("#fortschritt").hidden = true; $("#fortschritt-zeit").textContent = "";
+  const h = document.querySelector("[data-laeuft-hinweis]"); if (h) h.remove();
+}
+/* Wer etwas startet, während etwas läuft, bekommt eine Antwort statt Stille. */
+function besetzt() {
+  if (!laeuft) return false;
+  let h = document.querySelector("[data-laeuft-hinweis]");
+  if (!h) { h = el("span", { class: "laeuft-hinweis", "data-laeuft-hinweis": "" }); $("#fortschritt").append(h); }
+  h.textContent = "Es läuft gerade: " + laeuftSchritt + ". Eine Arbeit zur Zeit — bitte warten, bis sie fertig ist.";
+  return true;
+}
+
 async function starte(liste) {
-  if (laeuft) return;
-  laeuft = true;
+  if (besetzt()) return;
+  fortschrittAn("Einlesen");
   $("#einwurf").hidden = true; $("#arbeit").hidden = false; $("#neu").hidden = false;
   $("#zahlen").replaceChildren(); $("#hinweise").replaceChildren(); $("#befunde").replaceChildren(); $("#inventur").replaceChildren();
-  const fs = $("#fortschritt"); fs.hidden = false;
+  $("#reinigen").hidden = true;
   try {
-    const ein = await Kern.einwerfen(liste);
+    const ein = await Kern.einwerfen(liste, { fortschritt: melde });
     eingeworfen = ein.dateien;
-    ergebnis = await Kern.pruefe(ein.dateien, {
-      fortschritt: (nr, gesamt, pfad) => { $("#fortschritt-text").textContent = "Lese " + nr + " von " + gesamt + ": " + pfad; const b = $("#fortschritt-balken"); b.max = gesamt; b.value = nr; },
-    });
+    ergebnis = await Kern.pruefe(ein.dateien, { fortschritt: melde });
+    ergebnis.quelle = ein.quelle;
     ergebnis.hinweise.unshift(...ein.hinweise);
   } catch (e) {
     ergebnis = { inventur: [], befunde: [], buendel: [], zahlen: { dateien: 0, gelesen: 0, uebersprungen: 0, markiert: 0, ungeprueft: 0, befunde: 0 },
       hinweise: ["Die Prüfung brach ab (" + (e && e.message || e) + "). Nichts ist geprüft."] };
   }
-  fs.hidden = true; laeuft = false;
+  fortschrittAus();
   entscheidungen = Kern.vorschlag(ergebnis); gebaut = null;
   zeigen();
 }
@@ -137,7 +167,7 @@ function zeigen() {
       ? "Keine Funde in dem, was gelesen werden konnte. " + z.ungeprueft + " Datei(en) sind ungeprüft — das heißt nicht sauber."
       : "Keine Funde. Die Suche arbeitet mit Mustern und Listen und findet nicht garantiert alles — bitte trotzdem selbst hinsehen."));
   } else {
-    bef.replaceChildren(nach || "", el("p", { class: "wahl-legende", text: "Je Wert einmal entscheiden, er gilt für alle Stellen. Entfernen: in Texten steht eine Marke wie ⟦NAME-1⟧, in Code und Konfiguration ein Musterwert, damit das Programm weiterläuft." }),
+    bef.replaceChildren(nach || "", el("p", { class: "wahl-legende", text: "Je Wert einmal entscheiden, er gilt für alle Stellen. Entfernen: überall steht eine Marke mit Zahl wie ⟦NAME-1⟧ — gleicher Wert, gleiche Nummer. Musterwert: ein erfundener Wert in derselben Form (für Stellen, an denen ein Programm das Format prüft)." }),
       ...SCHICHTEN.map(([s, titel, satz]) => {
       const liste = ergebnis.buendel.filter((b) => b.schicht === s);
       if (!liste.length) return null;
@@ -185,8 +215,9 @@ function wahlTeil(b) {
     w.eigen = eigen.value; veraltet();
     for (const x of document.querySelectorAll("[data-eigen]")) if (x.dataset.eigen === w.schluessel && x !== eigen) x.value = w.eigen;
   });
+  const frueher = w.frueherErsatz ? el("span", { class: "wahl-auch", text: "Musterwert aus einem früheren Reinigungslauf — steht deshalb auf „Behalten“." }) : null;
   const mehr = w.arten.length > 1 ? el("span", { class: "wahl-auch", text: "gilt auch für: " + w.arten.filter((a) => a !== b.art).map((a) => Kern.ART_NAME[a] || a).join(", ") }) : null;
-  return el("div", { class: "wahl" }, el("label", {}, el("span", { text: "In der Kopie:" }), sel), eigen, mehr);
+  return el("div", { class: "wahl" }, el("label", {}, el("span", { text: "In der Kopie:" }), sel), eigen, mehr, frueher);
 }
 
 function dateiWahl(e) {
@@ -232,31 +263,39 @@ function zeigeLeiste() {
       icon(gebaut.veraltet || o || u ? "warn" : "haken"),
       el("span", { text: gebaut.veraltet ? "Seit dem Bauen geändert — bitte neu bauen." : o ? "Nachprüfung: " + o + " offen" + (u ? ", " + u + " ungeprüft" : "") + " — siehe Funde"
         : u ? "Nachprüfung: nichts offen gefunden · " + u + " ungeprüft — siehe Funde" : "Nachprüfung: nichts offen gefunden (nicht garantiert alles)" })));
-    const zip = el("button", { type: "button", class: "knopf", id: "laden-zip" }, icon("laden"), beschriftung("Saubere Kopie (ZIP)", "ZIP"));
-    zip.addEventListener("click", () => laden(gebaut.aus.name, gebaut.aus.zip, "application/zip"));
+    /* Die Kopie geht in der Form hinaus, in der sie kam: Datei → Datei, ZIP → ZIP, tar.gz → tar.gz, Ordner → ZIP */
+    const a = gebaut.aus, endung = (/(\.tar\.gz|\.[A-Za-z0-9]+)$/.exec(a.name) || [""])[0];
+    const zip = el("button", { type: "button", class: "knopf", id: "laden-zip", title: a.name }, icon("laden"), beschriftung("Saubere Kopie (" + (endung || "Datei") + ")", "Kopie"));
+    zip.addEventListener("click", () => laden(a.name, a.bytes, a.typ));
     const plan = el("button", { type: "button", class: "knopf", id: "laden-plan" }, icon("laden"), beschriftung("Stellenplan", "Plan"));
     plan.addEventListener("click", () => laden("STELLENPLAN.txt", gebaut.aus.beilagen[0].bytes, "text/plain"));
     const ber = el("button", { type: "button", class: "knopf", id: "laden-bericht" }, icon("laden"), "Bericht");
     ber.addEventListener("click", () => laden("BERICHT.txt", gebaut.aus.beilagen[2].bytes, "text/plain"));
     teile.push(zip, plan, ber);
+    if (typeof window.showDirectoryPicker === "function" && /^zip-aus-(ordner|dateien)$/.test(a.form)) {
+      const ord = el("button", { type: "button", class: "knopf", id: "in-ordner", title: "Als Ordner auf dieser Festplatte speichern (Windows, Chrome/Edge)" }, icon("ordner"), beschriftung("In Ordner speichern", "Ordner"));
+      ord.addEventListener("click", () => inOrdnerSpeichern(ord));
+      teile.push(ord);
+    }
   }
   l.replaceChildren(...teile);
 }
 
 async function bauen() {
-  if (laeuft || !entscheidungen) return;
-  laeuft = true;
+  if (!entscheidungen || besetzt()) return;
+  fortschrittAn("Reinigen");
   const k = $("#bauen"); if (k) { k.disabled = true; k.replaceChildren(icon("bauen"), "Baue …"); }
   try {
-    const rein = await Kern.reinige(eingeworfen, entscheidungen);
-    const nach = await Kern.nachpruefe(rein, entscheidungen);
+    const rein = await Kern.reinige(eingeworfen, entscheidungen, { fortschritt: melde });
+    const nach = await Kern.nachpruefe(rein, entscheidungen, { fortschritt: melde });
+    melde(0, 0, "", "Ausgabe packen");
     const aus = await Kern.ausgabe(rein, nach);
     gebaut = { rein, nach, aus, veraltet: false };
   } catch (e) {
     gebaut = null;
     $("#hinweise").append(el("p", { text: "Bauen brach ab (" + (e && e.message || e) + "). Es gibt keine saubere Kopie." }));
   }
-  laeuft = false;
+  fortschrittAus();
   zeigen();
 }
 
@@ -279,6 +318,33 @@ function nachpruefungTeil() {
         : "Die Suche arbeitet mit Mustern und Listen und findet nicht garantiert alles — bitte trotzdem selbst hinsehen.") }),
     o.length ? el("ul", {}, ...zeilen) : null,
     el("p", { class: "klein", text: "Die Zuordnung (welche Marke für welchen Wert steht) bleibt nur bis „Neu“ im Speicher. Aufbewahren kann sie erst der Tresor (Stufe 5)." }));
+}
+
+/* Ordner hinein → Ordner hinaus (nur wo der Browser Ordner schreiben darf: Chrome/Edge am PC).
+   Es entsteht ein NEUER Unterordner „<name>-sauber“; nichts Vorhandenes wird überschrieben. */
+async function inOrdnerSpeichern(knopf) {
+  let ziel;
+  try { ziel = await window.showDirectoryPicker({ mode: "readwrite" }); } catch { return; }
+  knopf.disabled = true;
+  try {
+    const r = gebaut.rein, wurzeln = new Set(r.sauber.map((s) => s.pfad.split("/")[0]));
+    const ein = wurzeln.size === 1 && r.sauber.every((s) => s.pfad.includes("/")) ? Array.from(wurzeln)[0] : "";
+    let name = gebaut.aus.name.replace(/\.zip$/, ""), n = 1;
+    for (;;) { try { await ziel.getDirectoryHandle(n === 1 ? name : name + " (" + n + ")"); n++; } catch { break; } }
+    if (n > 1) name += " (" + n + ")";
+    const wurzel = await ziel.getDirectoryHandle(name, { create: true });
+    const dateien = [...r.sauber.map((s) => ({ pfad: ein ? s.pfad.slice(ein.length + 1) : s.pfad, bytes: s.bytes })), ...gebaut.aus.beilagen];
+    for (const d of dateien) {
+      const teile = d.pfad.split("/"); let o = wurzel;
+      for (const t of teile.slice(0, -1)) o = await o.getDirectoryHandle(t, { create: true });
+      const w = await (await o.getFileHandle(teile[teile.length - 1], { create: true })).createWritable();
+      await w.write(d.bytes); await w.close();
+    }
+    $("#hinweise").append(el("p", {}, icon("haken"), el("span", { text: dateien.length + " Datei(en) in den Ordner „" + name + "“ geschrieben." })));
+  } catch (e) {
+    $("#hinweise").append(el("p", {}, icon("warn"), el("span", { text: "In den Ordner schreiben ging nicht (" + (e && e.message || e) + "). Die ZIP-Kopie geht weiter." })));
+  }
+  knopf.disabled = false;
 }
 
 function laden(name, bytes, typ) {

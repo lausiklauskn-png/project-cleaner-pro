@@ -227,8 +227,11 @@ export function tarDateien(bytes, vorsilbe = "") {
  */
 export async function einwerfen(liste, optionen = {}) {
   const aus = [], hinweise = [];
+  const quelle = quelleVon(liste);
   let zaehler = 0, zuviel = 0;
   const eine = liste.length === 1 && optionen.wurzelZip !== false;
+  const melden = optionen.fortschritt || (() => {});
+  let gemeldet = 0;
   async function auspacken(d, tiefe, archiv) {
     const pfad = normPfad(d.pfad);
     const art0 = !d.unlesbar && !d.nichtGeoeffnet && !uebersprungen(pfad) && !/(^|\/)\.git\//.test(pfad) ? archivArtVon(pfad) : null;
@@ -237,6 +240,8 @@ export async function einwerfen(liste, optionen = {}) {
     try { bytes = d.bytes || (d.lesen ? await d.lesen() : null); } catch (e) { bytes = null; }
     if (!bytes) { aus.push(Object.assign({}, d, { pfad, archiv })); return; }
     bytes = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    melden(++gemeldet, null, pfad, optionen.schritt || "Auspacken");
+    await new Promise((ok) => setTimeout(ok, 0));
     const art = archivArtVon(pfad, bytes);
     const alsDatei = (grund) => { if (grund) hinweise.push(pfad + ": " + grund); aus.push({ pfad, bytes, groesse: bytes.length, archiv }); };
     if (!art) return alsDatei("");
@@ -263,7 +268,19 @@ export async function einwerfen(liste, optionen = {}) {
   }
   for (const d of liste) await auspacken(d, 0, d.archiv || null);
   if (zuviel) hinweise.push(zuviel + " Einträge über dem Deckel (" + ARCHIV_DATEIEN_MAX + ") nicht ausgepackt — ungeprüft.");
-  return { dateien: aus, hinweise };
+  return { dateien: aus, hinweise, quelle };
+}
+
+/**
+ * Was kam herein? Danach richtet sich, in welcher Form die saubere Kopie hinausgeht:
+ * eine Datei → dieselbe Datei · ZIP → ZIP · tar/tar.gz/gz → dieselbe Art · Ordner oder mehrere → ZIP.
+ */
+export function quelleVon(liste) {
+  const pfade = liste.map((d) => normPfad(d.pfad));
+  if (pfade.length === 1 && !pfade[0].includes("/")) return { form: archivArtVon(pfade[0]) || "datei", name: pfade[0] };
+  const wurzeln = new Set(pfade.map((p) => p.split("/")[0]));
+  if (wurzeln.size === 1 && pfade.every((p) => p.includes("/"))) return { form: "ordner", name: Array.from(wurzeln)[0] };
+  return { form: "dateien", name: "projekt" };
 }
 
 /* ── Inventur: was ist das für eine Datei? ─────────────────────────────── */
@@ -431,6 +448,9 @@ export async function pruefe(dateien, optionen = {}) {
 
   const liste = dateien.map((d) => Object.assign({}, d, { pfad: normPfad(d.pfad) })).sort((a, b) => a.pfad < b.pfad ? -1 : a.pfad > b.pfad ? 1 : 0);
   const sprung = new Map();          // übersprungener Ordner → { anzahl, groesse }
+  let frueher = null;                // Stellenplan eines früheren Laufs (eine wieder eingeworfene Kopie)
+  const markenMax = {};              // höchste Nummer je Marken-Art, die schon in der Eingabe steht
+  const markenZaehlen = (text) => { const re = /⟦([A-Z][A-Z0-9_]*)-(\d+)⟧/g; let m; while ((m = re.exec(text))) markenMax[m[1]] = Math.max(markenMax[m[1]] || 0, +m[2]); };
   let gitPakete = 0, gitObjekte = 0, gitObjekteZuviel = 0;
   let nr = 0;
   for (const d of liste) {
@@ -442,7 +462,7 @@ export async function pruefe(dateien, optionen = {}) {
       sprung.set(ue, s);
       continue;
     }
-    fortschritt(nr, liste.length, d.pfad);
+    fortschritt(nr, liste.length, d.pfad, optionen.schritt || "Prüfen");
     if (nr % 25 === 0) await new Promise((ok) => setTimeout(ok, 0));
     const eintrag = { pfad: d.pfad, groesse: d.groesse || 0, art: "", artName: "", stufe: 3, stufeName: STUFE_NAME[3], marken: [], gelesen: false, ungeprueft: "", befunde: 0 };
     if (d.archiv) eintrag.archiv = d.archiv;
@@ -451,8 +471,22 @@ export async function pruefe(dateien, optionen = {}) {
       Object.assign(eintrag, einordnen(d.pfad, ""), { art: "archiv", archivArt: d.archivArt, artName: ({ zip: "ZIP", tar: "tar", tgz: "tar.gz", gz: "gz" }[d.archivArt] || "") + "-Archiv, ausgepackt (" + d.ausgepackt + " Datei" + (d.ausgepackt === 1 ? "" : "en") + ")", gelesen: true, ausgepackt: d.ausgepackt, stufe: 1, stufeName: "neu packen" });
       continue;
     }
-    const melde = (b) => { befunde.push(b); eintrag.befunde++; };
+    const melde = (b) => {
+      if (!b.nurDatei && NUR_MARKEN.test(String(b.wert).trim())) return;   /* unsere eigene Marke ist kein Fund */
+      befunde.push(b); eintrag.befunde++;
+    };
     const imGit = /(^|\/)\.git\//.test(d.pfad);
+    if (BEILAGE.test(d.pfad)) {                    /* Stellenplan/Bericht eines früheren Laufs: erkannt, nicht durchsucht */
+      Object.assign(eintrag, { art: "beilage", artName: "Beilage eines früheren Reinigungslaufs", stufe: 0, stufeName: "wird ersetzt", gelesen: true });
+      if (/stellenplan\.json$/.test(d.pfad)) {
+        try {
+          const b = d.bytes || (d.lesen ? await d.lesen() : null);
+          const j = JSON.parse(new TextDecoder().decode(b));
+          if (j && j.art === "projekt-reiniger-stellenplan") frueher = j;
+        } catch { /* kein gültiger Stellenplan */ }
+      }
+      continue;
+    }
     if (d.unlesbar) { eintrag.ungeprueft = d.unlesbar; Object.assign(eintrag, einordnen(d.pfad, "")); continue; }
     if ((d.groesse || 0) > GROESSE_MAX) { eintrag.ungeprueft = "zu groß zum Lesen — ungeprüft"; Object.assign(eintrag, einordnen(d.pfad, "")); continue; }
     let bytes;
@@ -502,6 +536,7 @@ export async function pruefe(dateien, optionen = {}) {
       if (!t) { eintrag.ungeprueft = "nicht als UTF-8 lesbar — ungeprüft"; continue; }
       eintrag.textlich = true;
       if (bytes.length > TEXT_MAX) eintrag.ungeprueft = "nur die ersten " + (TEXT_MAX >> 20) + " MB durchsucht, der Rest ist ungeprüft";
+      markenZaehlen(t.text);
       if (M25) hartInText(M25, d.pfad, t.text, melde); else eintrag.ungeprueft = "harte Angaben ungeprüft (Modul 25 fehlt)";
       metaInText(d.pfad, t.text, melde);
       packageJson(d.pfad, t.text, melde);
@@ -520,6 +555,7 @@ export async function pruefe(dateien, optionen = {}) {
       for (const x of r.befunde) {
         melde({ schicht: SCHICHT_VON_KENNUNG(x.kennung), art: x.kennung, wert: x.satz, pfad: d.pfad, satz: x.satz, nurDatei: true });
       }
+      if (r.text) markenZaehlen(r.text);
       if (r.text && M25) hartInText(M25, d.pfad, r.text, melde, r.textQuelle === "bild" ? "Text im Bild" : r.seiten ? "Seitentext" : "Dokumenttext");
       if (r.text) metaInText(d.pfad, r.text, melde);
       const offen = [];
@@ -556,8 +592,19 @@ export async function pruefe(dateien, optionen = {}) {
     ungeprueft: inventur.filter((e) => e.ungeprueft).length,
     befunde: befunde.length,
   };
-  return { inventur, befunde, buendel: buendeln(befunde), hinweise, zahlen };
+  if (frueher) {
+    const h = frueher.herkunft || {};
+    hinweise.push("Gereinigte Kopie erkannt: schon einmal gereinigt" + (h.erstellt ? " am " + String(h.erstellt).slice(0, 10) : "") +
+      (h.form ? " (kam als " + (FORM_NAME[h.form] || h.form) + (h.name ? " „" + h.name + "“" : "") + ")" : "") + ", " + ((frueher.stellen || []).length) +
+      " Stelle(n). Der alte Stellenplan wird in den neuen übernommen.");
+  }
+  for (const s of (frueher && frueher.stellen) || []) { const m = /^⟦([A-Z][A-Z0-9_]*)-(\d+)⟧$/.exec(s.ersatz || ""); if (m) markenMax[m[1]] = Math.max(markenMax[m[1]] || 0, +m[2]); }
+  return { inventur, befunde, buendel: buendeln(befunde), hinweise, zahlen, frueher, markenMax };
 }
+
+const NUR_MARKEN = /^(?:⟦[A-Z][A-Z0-9_]*-\d+⟧[\s,;:<>()"']*)+$/;
+const BEILAGE = /(^|\/)_reiniger\/(STELLENPLAN\.txt|stellenplan\.json|BERICHT\.txt)$/;
+export const FORM_NAME = { datei: "einzelne Datei", zip: "ZIP", tar: "tar-Archiv", tgz: "tar.gz-Archiv", gz: "gz-Datei", ordner: "Ordner", dateien: "mehrere Dateien" };
 
 /** Gleiche Funde bündeln: „Hamburg, 14×“. */
 export function buendeln(befunde) {
@@ -578,9 +625,9 @@ export function buendeln(befunde) {
  *
  * Entschieden wird je WERT, einmal für alle Stellen (ein Wert, der als Verfasser,
  * Copyright und Git-Name auftaucht, ist EINE Entscheidung):
- *   entfernen  Marke ⟦ART-n⟧ in Texten und Doku; in Code, Konfiguration und
- *              Dateinamen ein Musterwert, damit das Programm weiterläuft
- *   muster     überall ein Musterwert
+ *   entfernen  überall eine Marke mit Zahl ⟦ART-n⟧ — in Text, Code, Konfiguration und
+ *              Dateinamen (Klaus 2026-10-28: „einfacher durch Zahlenwerte … Doppelklammer“)
+ *   muster     überall ein Musterwert (für Stellen, an denen ein Programm das Format prüft)
  *   eigen      überall ein eigener Wert
  *   behalten   bleibt stehen (bewusst)
  * Und je DATEI: reinigen (Text; ein ausgepacktes Archiv wird aus seinen gereinigten
@@ -643,11 +690,15 @@ export function musterwert(marke, n, alt) {
  */
 export function vorschlag(ergebnis) {
   const werte = [], karte = new Map();
+  /* Ersatzwerte früherer Läufe (eine wieder eingeworfene Kopie): das sind unsere Musterwerte, keine Funde. */
+  const frueherErsatz = new Set();
+  const sammle = (f) => { if (!f) return; for (const s of f.stellen || []) if (s.ersatz) frueherErsatz.add(wertSchluessel(s.ersatz)); for (const g of f.frueher || []) sammle(g); };
+  sammle(ergebnis.frueher);
   for (const b of ergebnis.buendel) {
     if (b.nurDatei || !b.wert || String(b.wert).trim().length < 2) continue;
     const k = wertSchluessel(b.wert);
     let w = karte.get(k);
-    if (!w) { w = { schluessel: k, wert: String(b.wert).trim(), arten: [], marke: "WERT", vorschlag: true, anzahl: 0, wie: "entfernen", eigen: "" }; karte.set(k, w); werte.push(w); }
+    if (!w) { w = { schluessel: k, wert: String(b.wert).trim(), arten: [], marke: "WERT", vorschlag: true, anzahl: 0, wie: frueherErsatz.has(k) ? "behalten" : "entfernen", eigen: "" }; if (frueherErsatz.has(k)) w.frueherErsatz = true; karte.set(k, w); werte.push(w); }
     if (!w.arten.includes(b.art)) w.arten.push(b.art);
     if (!b.vorschlag) w.vorschlag = false;
     w.anzahl += b.anzahl;
@@ -658,6 +709,7 @@ export function vorschlag(ergebnis) {
   const hartIn = new Set(ergebnis.befunde.filter((b) => b.schicht === "hart").map((b) => b.pfad));
   for (const e of ergebnis.inventur) {
     if (e.art === "ordner") continue;
+    if (e.art === "beilage") { dateien[e.pfad] = { wie: "weglassen", moeglich: ["weglassen"], art: e.artName, grund: "Stellenplan oder Bericht eines früheren Laufs — wird durch den neuen ersetzt (der alte Stellenplan wird übernommen)." }; continue; }
     if (e.art === "archiv") { dateien[e.pfad] = { wie: "reinigen", moeglich: ["reinigen", "weglassen"], grund: "ausgepacktes Archiv — wird aus den gereinigten Dateien darin neu gepackt." }; continue; }
     const kennungen = e.marken.map((m) => m.kennung);
     if (kennungen.includes("GIT") || /(^|\/)\.git\//.test(e.pfad)) { dateien[e.pfad] = { wie: "weglassen", moeglich: ["weglassen"], grund: "Git-Geschichte — die saubere Kopie beginnt ohne .git." }; continue; }
@@ -677,7 +729,8 @@ export function vorschlag(ergebnis) {
         grund: unbedenklich ? "ohne Funde gelesen — kommt unverändert mit." : grundRiskant || (e.befunde ? "trägt Funde und lässt sich hier nicht Stelle für Stelle reinigen (neu bauen: Stufe 4)." : "ungeprüft — kommt standardmäßig nicht mit.") };
     }
   }
-  return { fassung: 1, werte, dateien };
+  for (const e of ergebnis.inventur) if (dateien[e.pfad] && !dateien[e.pfad].art) dateien[e.pfad].art = e.artName || e.art || "";
+  return { fassung: 1, werte, dateien, quelle: ergebnis.quelle || null, frueher: ergebnis.frueher || null, markenMax: ergebnis.markenMax || {} };
 }
 
 function regexQuelle(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
@@ -685,7 +738,9 @@ const WORT = /[\p{L}\p{N}_]/u;
 
 /** Baut aus den Entscheidungen die Ersatz-Tabelle (gleicher Wert → gleiche Nummer). */
 function ersatzTabelle(entscheidungen, hinweise) {
-  const zaehler = {}, musterZaehler = {}, tabelle = new Map();
+  /* Nummern zählen weiter, wo die Eingabe schon Marken trägt (eine wieder eingeworfene Kopie) —
+     sonst bekäme eine neue Person dieselbe Nummer wie eine alte. */
+  const zaehler = Object.assign({}, entscheidungen.markenMax || {}), musterZaehler = {}, tabelle = new Map();
   for (const w of entscheidungen.werte) {
     let wie = w.wie;
     if (wie === "behalten") continue;
@@ -693,7 +748,7 @@ function ersatzTabelle(entscheidungen, hinweise) {
     const m = w.marke || "WERT";
     const muster = () => { musterZaehler[m] = (musterZaehler[m] || 0) + 1; return musterwert(m, musterZaehler[m], w.wert); };
     let text, code;
-    if (wie === "entfernen") { zaehler[m] = (zaehler[m] || 0) + 1; text = "⟦" + m + "-" + zaehler[m] + "⟧"; code = muster(); }
+    if (wie === "entfernen") { zaehler[m] = (zaehler[m] || 0) + 1; text = code = "⟦" + m + "-" + zaehler[m] + "⟧"; }
     else if (wie === "muster") text = code = muster();
     else text = code = String(w.eigen).trim();
     tabelle.set(w.schluessel, { wert: w.wert, marke: m, wie, text, code });
@@ -713,7 +768,8 @@ function ersetzer(tabelle) {
  * Stellenplan und die Zuordnung. Ändert die Eingabe nicht.
  * @returns {Promise<{sauber, stellenplan, zuordnung, weg, hinweise, zahlen}>}
  */
-export async function reinige(dateien, entscheidungen) {
+export async function reinige(dateien, entscheidungen, optionen = {}) {
+  const melden = optionen.fortschritt || (() => {});
   const hinweise = [], stellenplan = [], weg = [], sauber = [];
   const tabelle = ersatzTabelle(entscheidungen, hinweise);
   const re = ersetzer(tabelle);
@@ -726,18 +782,23 @@ export async function reinige(dateien, entscheidungen) {
       const t = tabelle.get(wertSchluessel(treffer));
       if (!t) return treffer;
       const ersatz = alsCode ? t.code : t.text;
+      if (art === "still") return ersatz;
       stellenplan.push({ pfad: pfadNeu, zeile: art === "pfad" ? undefined : zeile, ort: art === "pfad" ? "Datei- oder Ordnername" : undefined,
         ersatz, art: t.marke, wie: ersatz.startsWith("⟦") ? "marke" : t.wie === "eigen" ? "eigen" : "muster" });
       return ersatz;
     });
   };
-  const sauberPfad = (pfad) => normPfad(pfad).split("/").map((teil) => ersetze(teil, true, null, "pfad")).join("/");
+  const sauberPfad = (pfad, still) => normPfad(pfad).split("/").map((teil) => ersetze(teil, true, null, still ? "still" : "pfad")).join("/");
   const liste = dateien.map((d) => Object.assign({}, d, { pfad: normPfad(d.pfad) })).sort((a, b) => a.pfad < b.pfad ? -1 : a.pfad > b.pfad ? 1 : 0);
   let ersetzt = 0, gitWeg = 0, uebersprungenWeg = 0, bilder = 0;
   const behaelter = [];
+  let nr = 0;
   for (const d of liste) {
+    melden(++nr, liste.length, d.pfad, "Reinigen");
+    if (nr % 25 === 0) await new Promise((ok) => setTimeout(ok, 0));
     if (uebersprungen(d.pfad) || d.nichtGeoeffnet) { uebersprungenWeg++; continue; }
     if (/(^|\/)\.git(\/|$)/.test(d.pfad)) { gitWeg++; continue; }
+    if (BEILAGE.test(d.pfad)) continue;          /* alter Stellenplan/Bericht: der neue ersetzt ihn */
     const plan = entscheidungen.dateien[d.pfad];
     const wie = plan ? plan.wie : "weglassen";
     const vorher = stellenplan.length;
@@ -775,8 +836,10 @@ export async function reinige(dateien, entscheidungen) {
   /* Archive von innen nach außen neu packen; ein weggelassenes nimmt seinen Inhalt mit. */
   behaelter.sort((a, b) => b.alt.split("/").length - a.alt.split("/").length);
   const geschrieben = new Set(sauber);                         // Dateien (keine Archive) in der Kopie
-  let gepackt = 0;
+  let gepackt = 0, packNr = 0;
   for (const c of behaelter) {
+    melden(++packNr, behaelter.length, c.neu, "Neu packen");
+    await new Promise((ok) => setTimeout(ok, 0));
     const kinder = sauber.filter((x) => x.archiv === c.alt);
     for (let i = sauber.length - 1; i >= 0; i--) if (sauber[i].archiv === c.alt) sauber.splice(i, 1);
     if (c.wie === "weglassen") { const raus = (x) => { geschrieben.delete(x); for (const k of x.kinder || []) raus(k); }; kinder.forEach(raus); }
@@ -798,7 +861,16 @@ export async function reinige(dateien, entscheidungen) {
   if (gitWeg) hinweise.push(gitWeg + " Datei(en) aus .git kommen nicht mit — die eigene Geschichte beginnt bei null (git init).");
   if (uebersprungenWeg) hinweise.push(uebersprungenWeg + " nicht gelesene Datei(en) (node_modules, Build-Ordner) kommen nicht mit — nach dem Auspacken neu installieren bzw. neu bauen.");
   const zuordnung = Array.from(tabelle.values()).map((t) => ({ marke: t.text, code: t.code, art: t.marke, wie: t.wie, wert: t.wert }));
-  return { sauber, stellenplan, zuordnung, weg, hinweise,
+  const q = entscheidungen.quelle || { form: "dateien", name: "projekt" };
+  const quelle = { form: q.form, name: sauberPfad(q.name, true) };
+  /* Was jede Datei war und was mit ihr geschah — damit die Kopie weiß, woher sie kommt (ohne Werte). */
+  const dateiliste = [];
+  for (const d of liste) {
+    if (uebersprungen(d.pfad) || d.nichtGeoeffnet || /(^|\/)\.git(\/|$)/.test(d.pfad) || BEILAGE.test(d.pfad)) continue;
+    const plan = entscheidungen.dateien[d.pfad] || {};
+    dateiliste.push({ pfad: sauberPfad(d.pfad, true), art: plan.art || "", wie: plan.wie || "weglassen", archiv: d.archiv ? sauberPfad(d.archiv, true) : undefined });
+  }
+  return { sauber, stellenplan, zuordnung, weg, hinweise, quelle, dateiliste, frueher: entscheidungen.frueher || null,
     zahlen: { dateien: dateienDrin, gereinigt: [...geschrieben].filter((s) => s.gereinigt).length, weg: weg.length, git: gitWeg, uebersprungen: uebersprungenWeg,
       stellen: stellenplan.filter((s) => !s.ort).length, umbenannt: stellenplan.filter((s) => s.ort).length, bilder, archive: gepackt } };
 }
@@ -822,8 +894,8 @@ function utf16le(s) { const b = new Uint8Array(s.length * 2); for (let i = 0; i 
  * Datei der Kopie, die ungeprüft blieb. Leer heißt NICHT „garantiert sauber“.
  */
 export async function nachpruefe(rein, entscheidungen, optionen = {}) {
-  const ein = await einwerfen(rein.sauber.map((x) => ({ pfad: x.pfad, bytes: x.bytes })), { wurzelZip: false });
-  const r = await pruefe(ein.dateien, optionen);
+  const ein = await einwerfen(rein.sauber.map((x) => ({ pfad: x.pfad, bytes: x.bytes })), { wurzelZip: false, fortschritt: optionen.fortschritt, schritt: "Nachprüfung: auspacken" });
+  const r = await pruefe(ein.dateien, Object.assign({}, optionen, { schritt: "Nachprüfung" }));
   const flach = [];
   for (const d of ein.dateien) {
     if (d.ausgepackt != null || d.unlesbar) continue;
@@ -837,7 +909,8 @@ export async function nachpruefe(rein, entscheidungen, optionen = {}) {
   const istMarke = (v) => /^(?:⟦[A-Z][A-Z0-9_]*-\d+⟧\s*)+$/.test(String(v).trim());
   const offen = [];
   /* 1 · alte Werte in den Bytes (UTF-8 und UTF-16, Groß/klein bei ASCII egal) */
-  const alte = rein.zuordnung.filter((z) => z.wert.length >= 2);
+  /* ein Wert, der durch sich selbst ersetzt wurde (z. B. ein Musterwert, der schon dastand), ist kein Rest */
+  const alte = rein.zuordnung.filter((z) => z.wert.length >= 2 && wertSchluessel(z.wert) !== wertSchluessel(z.code) && wertSchluessel(z.wert) !== wertSchluessel(z.marke));
   for (const s of flach) {
     const klein = kleinAscii(s.bytes);
     for (const z of alte) {
@@ -870,12 +943,19 @@ export function stellenplanText(rein, jetzt = new Date()) {
   const b0 = Math.max(4, ...zeilen.map((z) => z[0].length)), b1 = Math.max(5, ...zeilen.map((z) => z[1].length));
   return "Stellenplan — Projekt-Reiniger Pro, " + jetzt.toISOString().slice(0, 10) + "\n" +
     "Er nennt nur, WO eine Angabe stand und WAS jetzt dort steht. Die entfernten Werte stehen nicht darin.\n" +
-    "Marken ⟦ART-n⟧: gleicher Wert = gleiche Nummer. Musterwerte stehen in Code und Konfiguration, damit das Programm weiterläuft.\n\n" +
+    "Marken ⟦ART-n⟧: gleicher Wert = gleiche Nummer, auch in Code und Dateinamen. Musterwerte nur dort, wo sie gewählt wurden.\n" +
+    (rein.quelle ? "Herkunft: kam als " + (FORM_NAME[rein.quelle.form] || rein.quelle.form) + " „" + rein.quelle.name + "“ und geht in derselben Form zurück.\n" : "") +
+    (rein.frueher ? "Schon einmal gereinigt" + (rein.frueher.herkunft && rein.frueher.herkunft.erstellt ? " am " + String(rein.frueher.herkunft.erstellt).slice(0, 10) : "") + " — die früheren Stellen stehen in stellenplan.json unter „frueher“.\n" : "") + "\n" +
     (zeilen.length ? zeilen.map((z) => z[0].padEnd(b0) + "   " + z[1].padEnd(b1) + "   " + z[2]).join("\n") : "(keine Stelle ersetzt)") + "\n";
 }
-export function stellenplanJson(rein) {
-  return JSON.stringify({ art: "projekt-reiniger-stellenplan", fassung: 1,
-    stellen: rein.stellenplan.map((s) => ({ pfad: s.pfad, zeile: s.zeile, ort: s.ort, ersatz: s.wie === "eigen" ? undefined : s.ersatz, wie: s.wie, art: s.art })) }, null, 2) + "\n";
+export function stellenplanJson(rein, jetzt = new Date()) {
+  const f = rein.frueher;
+  const frueher = f ? [{ herkunft: f.herkunft || null, stellen: f.stellen || [] }].concat(f.frueher || []) : undefined;
+  return JSON.stringify({ art: "projekt-reiniger-stellenplan", fassung: 2,
+    herkunft: rein.quelle ? { form: rein.quelle.form, name: rein.quelle.name, erstellt: jetzt.toISOString(), kern: KERN_FASSUNG, dateien: (rein.dateiliste || []).length } : undefined,
+    dateien: rein.dateiliste,
+    stellen: rein.stellenplan.map((s) => ({ pfad: s.pfad, zeile: s.zeile, ort: s.ort, ersatz: s.wie === "eigen" ? undefined : s.ersatz, wie: s.wie, art: s.art })),
+    frueher }, null, 2) + "\n";
 }
 
 /** Der Bericht: WAS entfernt wurde und was offen bleibt — ohne Werte. */
@@ -932,18 +1012,45 @@ export async function zipBauen(dateien) {
   return zusammen([...teile, ...zentral, ende], off + zl + 22);
 }
 
-/** Alles zusammen für den Download: die Kopie, dazu _reiniger/ mit Stellenplan und Bericht (ohne Werte). */
+/** „brief.txt“ → „brief-sauber.txt“, „x.tar.gz“ → „x-sauber.tar.gz“; schon „-sauber“ bleibt, wie es ist. */
+export function sauberName(name) {
+  const n = dateiName(name || "projekt");
+  const m = /^(.*?)((?:\.tar)?\.[A-Za-z0-9]{1,10})?$/.exec(n);
+  const stamm = m[1] || n, endung = m[2] || "";
+  return (/-sauber$/.test(stamm) ? stamm : stamm + "-sauber") + endung;
+}
+const TYP = { zip: "application/zip", tar: "application/x-tar", tgz: "application/gzip", gz: "application/gzip" };
+
+/**
+ * Die saubere Kopie in DERSELBEN Form, in der sie hereinkam:
+ *   eine Datei → dieselbe Datei (Stellenplan und Bericht liegen daneben, als eigene Downloads)
+ *   ZIP / tar / tar.gz → dasselbe Archiv, mit _reiniger/ darin · gz → dieselbe gz-Datei
+ *   Ordner oder mehrere Dateien → ein ZIP mit _reiniger/
+ * Wird die Kopie wieder eingeworfen, erkennt der Reiniger sie an _reiniger/stellenplan.json.
+ */
 export async function ausgabe(rein, nach, jetzt = new Date()) {
   const T = new TextEncoder();
   const beilagen = [
     { pfad: "_reiniger/STELLENPLAN.txt", bytes: T.encode(stellenplanText(rein, jetzt)) },
-    { pfad: "_reiniger/stellenplan.json", bytes: T.encode(stellenplanJson(rein)) },
+    { pfad: "_reiniger/stellenplan.json", bytes: T.encode(stellenplanJson(rein, jetzt)) },
     { pfad: "_reiniger/BERICHT.txt", bytes: T.encode(bericht(rein, nach, jetzt)) },
   ];
+  const q = rein.quelle || { form: "dateien", name: "projekt" };
+  const einzeln = rein.sauber.length === 1 ? rein.sauber[0] : null;
+  if (q.form === "datei" && einzeln && einzeln.neuGepackt == null)
+    return { bytes: einzeln.bytes, name: sauberName(einzeln.pfad), typ: "application/octet-stream", form: "datei", beilagen, beilagenDrin: false };
+  if (q.form === "gz" && einzeln)
+    return { bytes: einzeln.bytes, name: sauberName(einzeln.pfad), typ: TYP.gz, form: "gz", beilagen, beilagenDrin: false };
+  if ((q.form === "tar" || q.form === "tgz") && einzeln && einzeln.kinder) {
+    const innen = einzeln.kinder.map((k) => ({ pfad: k.pfad.startsWith(einzeln.pfad + "/") ? k.pfad.slice(einzeln.pfad.length + 1) : dateiName(k.pfad), bytes: k.bytes }));
+    const w = new Set(innen.map((k) => k.pfad.split("/")[0])), ein = w.size === 1 && innen.every((k) => k.pfad.includes("/")) ? Array.from(w)[0] + "/" : "";
+    return { bytes: await archivBauen(q.form, [...innen, ...beilagen.map((b) => ({ pfad: ein + b.pfad, bytes: b.bytes }))]), name: sauberName(einzeln.pfad), typ: TYP[q.form], form: q.form, beilagen, beilagenDrin: true };
+  }
   const wurzeln = new Set(rein.sauber.map((s) => s.pfad.split("/")[0]));
   const ein = wurzeln.size === 1 && rein.sauber.every((s) => s.pfad.includes("/")) ? Array.from(wurzeln)[0] : "";
   const beilagenPfad = beilagen.map((b) => ({ pfad: (ein ? ein + "/" : "") + b.pfad, bytes: b.bytes }));
-  return { zip: await zipBauen([...rein.sauber, ...beilagenPfad]), name: (ein || "projekt") + "-sauber.zip", beilagen };
+  const name = q.form === "zip" ? sauberName(q.name) : sauberName((ein || q.name || "projekt") + ".zip");
+  return { bytes: await zipBauen([...rein.sauber, ...beilagenPfad]), name, typ: TYP.zip, form: q.form === "zip" ? "zip" : "zip-aus-" + q.form, beilagen, beilagenDrin: true };
 }
 
 /* ── Bilder ohne Metadaten (ohne Leinwand, Byte für Byte) ─────────────────

@@ -1,8 +1,8 @@
 /* Projekt-Reiniger Pro — Vorrat für offline. Abgelegt wird nur der Code der App, nie Daten.
    CACHE_VERSION erhöhen, wenn sich eine Datei aus CORE ändert. */
-const CACHE_VERSION = "reiniger-v5";
+const CACHE_VERSION = "reiniger-v6";
 const CORE = [
-  "./", "index.html", "manifest.json", "assets/app.css", "assets/app.js", "assets/beispiel.js", "assets/reiniger-kern.js",
+  "./", "index.html", "manifest.json", "assets/app.css", "assets/app.js", "assets/geraet.js", "assets/beispiel.js", "assets/reiniger-kern.js",
   "modules/25_pseudonym.js", "assets/pruefer-formate.js", "assets/pruefer-mail.js", "assets/pruefer.js", "assets/pruefer-anhang.js",
   "icons/logo-96.png", "icons/favicon-32.png", "icons/favicon-48.png", "icons/icon-192.png", "icons/kristall.webp",
 ];

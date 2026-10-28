@@ -19,6 +19,7 @@
 <script src="assets/pruefer-mail.js" defer></script>
 <script src="assets/pruefer.js" defer></script>
 <script src="assets/pruefer-anhang.js" defer></script>
+<script src="assets/geraet.js" defer></script>
 <script type="module" src="assets/app.js"></script>
 </head>
 <body>
@@ -30,6 +31,8 @@
   <symbol id="i-bauen" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M18 16l.8 2.2L21 19l-2.2.8L18 22l-.8-2.2L15 19l2.2-.8z"/></symbol>
   <symbol id="i-laden" viewBox="0 0 24 24"><path d="M12 4v11 M7 10l5 5 5-5 M5 20h14"/></symbol>
   <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z M12 10v4.5 M12 17.2v.3"/></symbol>
+  <symbol id="i-installieren" viewBox="0 0 24 24"><path d="M12 3v11 M8 10l4 4 4-4 M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></symbol>
+  <symbol id="i-aktualisieren" viewBox="0 0 24 24"><path d="M20 5v5h-5 M19.4 10A8 8 0 1 0 20 14"/></symbol>
   <symbol id="i-haken" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
 </svg>
 <div class="app" id="app">
@@ -40,7 +43,9 @@
     </a>
     <span class="nurlesen" title="Alles bleibt auf diesem Gerät: nichts geht ins Netz, nichts wird gespeichert">Nur lokal</span>
     <span class="luecke"></span>
-    <button type="button" class="knopf hell" id="neu" hidden><svg class="ic" aria-hidden="true"><use href="#i-neu"/></svg>Neu</button>
+    <button type="button" class="knopf hell" id="installieren" title="Als App installieren"><svg class="ic" aria-hidden="true"><use href="#i-installieren"/></svg><span class="t">Installieren</span></button>
+    <button type="button" class="knopf hell rund" id="aktualisieren" title="Neue Version laden (Vorrat leeren und neu laden)" aria-label="Neue Version laden"><svg class="ic" aria-hidden="true"><use href="#i-aktualisieren"/></svg></button>
+    <button type="button" class="knopf hell" id="neu" hidden><svg class="ic" aria-hidden="true"><use href="#i-neu"/></svg><span class="t">Neu</span></button>
   </header>
 
   <main class="haupt" id="haupt">
@@ -65,7 +70,10 @@
     </section>
 
     <section class="arbeit" id="arbeit" hidden aria-live="polite">
-      <div class="fortschritt" id="fortschritt" hidden><span id="fortschritt-text">Lese …</span><progress id="fortschritt-balken" max="1" value="0"></progress></div>
+      <div class="fortschritt" id="fortschritt" hidden role="status" aria-live="polite">
+        <div class="fortschritt-kopf"><svg class="ic dreht" aria-hidden="true"><use href="#i-aktualisieren"/></svg><b id="fortschritt-schritt">Prüfen</b><span id="fortschritt-zahl"></span><span id="fortschritt-zeit"></span></div>
+        <span id="fortschritt-text">Lese …</span><progress id="fortschritt-balken" max="1" value="0"></progress>
+      </div>
       <ul class="zahlen" id="zahlen"></ul>
       <div class="hinweise" id="hinweise"></div>
       <div class="reinigen" id="reinigen" hidden></div>
