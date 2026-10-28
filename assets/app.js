@@ -181,7 +181,7 @@ function dateiWahl(e) {
   if (!plan) return null;
   if (plan.moeglich.length === 1) return el("span", { class: "chip weg", "data-datei-fest": "", title: plan.grund, text: "kommt nicht mit" });
   const sel = el("select", { "data-datei": e.pfad, "aria-label": "In der Kopie" },
-    ...plan.moeglich.map((k) => el("option", { value: k, text: Kern.DATEI_WIE_NAME[k] })));
+    ...plan.moeglich.map((k) => el("option", { value: k, text: e.art === "archiv" && k === "reinigen" ? "Neu packen" : Kern.DATEI_WIE_NAME[k] })));
   sel.value = plan.wie;
   sel.title = plan.grund;
   sel.addEventListener("change", () => { plan.wie = sel.value; veraltet(); zeigeLeiste(); });
@@ -207,9 +207,10 @@ function zeigeLeiste() {
   knopf.addEventListener("click", bauen);
   const teile = [el("p", { class: "leiste-satz", text: satz }), knopf];
   if (gebaut) {
-    const o = gebaut.nach.offen.length;
-    teile.push(el("p", { class: "leiste-satz " + (o ? "rot" : "gut"), "data-nachpruefung": o ? "offen" : "leer",
-      text: gebaut.veraltet ? "⚠ Seit dem Bauen geändert — bitte neu bauen." : o ? "⚠ Nachprüfung: " + o + " offen — siehe Funde" : "✓ Nachprüfung: nichts offen gefunden (nicht garantiert alles)" }));
+    const { o, u } = offenZahlen();
+    teile.push(el("p", { class: "leiste-satz " + (o ? "rot" : u ? "warn" : "gut"), "data-nachpruefung": o ? "offen" : u ? "ungeprueft" : "leer",
+      text: gebaut.veraltet ? "⚠ Seit dem Bauen geändert — bitte neu bauen." : o ? "⚠ Nachprüfung: " + o + " offen" + (u ? ", " + u + " ungeprüft" : "") + " — siehe Funde"
+        : u ? "Nachprüfung: nichts offen gefunden · " + u + " ungeprüft — siehe Funde" : "✓ Nachprüfung: nichts offen gefunden (nicht garantiert alles)" }));
     const zip = el("button", { type: "button", class: "knopf", id: "laden-zip" }, beschriftung("⬇ Saubere Kopie (ZIP)", "⬇ ZIP"));
     zip.addEventListener("click", () => laden(gebaut.aus.name, gebaut.aus.zip, "application/zip"));
     const plan = el("button", { type: "button", class: "knopf", id: "laden-plan" }, beschriftung("⬇ Stellenplan", "⬇ Plan"));
@@ -238,15 +239,23 @@ async function bauen() {
   zeigen();
 }
 
+function offenZahlen() {
+  const alle = gebaut ? gebaut.nach.offen : [];
+  return { o: alle.filter((x) => x.grund !== "ungeprueft").length, u: alle.filter((x) => x.grund === "ungeprueft").length };
+}
+
 function nachpruefungTeil() {
   if (!gebaut) return null;
-  const r = gebaut.rein, o = gebaut.nach.offen;
+  const r = gebaut.rein, o = gebaut.nach.offen, z = offenZahlen();
   const zeilen = o.map((x) => el("li", { "data-offen": x.grund, text: (x.pfad ? x.pfad + " — " : "") +
     (x.grund === "fund" && !x.nurDatei ? x.satz + " " + Array.from(new Set(x.stellen.map((s) => s.pfad + (s.zeile ? " · Zeile " + s.zeile : "")))).slice(0, 6).join(", ") : x.satz) }));
-  return el("section", { class: "nachpruefung" + (o.length ? " rot" : ""), id: "nachpruefung" },
-    el("h2", { text: o.length ? "Nachprüfung: " + o.length + " offen" : "Nachprüfung: nichts offen gefunden" }),
-    el("p", { text: r.zahlen.dateien + " Datei(en) in der Kopie, " + r.zahlen.stellen + " Stelle(n) ersetzt, " + r.zahlen.weg + " weggelassen, .git nicht dabei. " +
-      (o.length ? "Bitte die offenen Stellen entscheiden oder die Datei weglassen, dann neu bauen." : "Die Suche arbeitet mit Mustern und Listen und findet nicht garantiert alles — bitte trotzdem selbst hinsehen.") }),
+  return el("section", { class: "nachpruefung" + (z.o ? " rot" : z.u ? " warn" : ""), id: "nachpruefung" },
+    el("h2", { text: z.o ? "Nachprüfung: " + z.o + " offen" + (z.u ? ", " + z.u + " ungeprüft" : "") : "Nachprüfung: nichts offen gefunden" + (z.u ? " · " + z.u + " ungeprüft" : "") }),
+    el("p", { text: r.zahlen.dateien + " Datei(en) in der Kopie, " + r.zahlen.stellen + " Stelle(n) ersetzt, " + r.zahlen.weg + " weggelassen, .git nicht dabei" +
+      (r.zahlen.archive ? ", " + r.zahlen.archive + " Archiv(e) neu gepackt" : "") + (r.zahlen.bilder ? ", " + r.zahlen.bilder + " Bild(er) ohne Metadaten" : "") + ". " +
+      (z.o ? "Bitte die offenen Stellen entscheiden oder die Datei weglassen, dann neu bauen."
+        : z.u ? "„Ungeprüft“ heißt nicht sauber: bitte selbst hinsehen oder die Datei weglassen. Text in Bildern prüft erst Stufe 4."
+        : "Die Suche arbeitet mit Mustern und Listen und findet nicht garantiert alles — bitte trotzdem selbst hinsehen.") }),
     o.length ? el("ul", {}, ...zeilen) : null,
     el("p", { class: "klein", text: "Die Zuordnung (welche Marke für welchen Wert steht) bleibt nur bis „↺ Neu“ im Speicher. Aufbewahren kann sie erst der Tresor (Stufe 5)." }));
 }
@@ -283,7 +292,7 @@ function zeigeInventur() {
   $("#inventur").replaceChildren(
     el("div", { class: "inventur-kopf" }, el("h2", { text: "Inventur (" + ergebnis.inventur.length + ")" }),
       el("label", {}, box, "nur Auffälliges")),
-    el("p", { class: "stufen-legende", text: "Stufe 1 voll reinigen · Stufe 2 neu bauen · Stufe 3 nur prüfen (entfernen oder ersetzen). Text wird Stelle für Stelle gereinigt; Bilder, PDF und Office kommen nur unverändert mit, wenn sie ohne Funde gelesen wurden (neu gezeichnet werden sie ab Stufe 4 des Projekts)." }),
+    el("p", { class: "stufen-legende", text: "Stufe 1 voll reinigen · Stufe 2 neu bauen · Stufe 3 nur prüfen (entfernen oder ersetzen). Text und SVG werden Stelle für Stelle gereinigt, ausgepackte Archive (ZIP, tar, tar.gz, gz) neu gepackt, PNG/JPEG/WebP ohne Metadaten übernommen. PDF und Office kommen nur unverändert mit, wenn sie ohne Funde gelesen wurden (neu gezeichnet wird ab Stufe 4 des Projekts)." }),
     el("ul", { class: "datei" }, ...zeilen));
 }
 

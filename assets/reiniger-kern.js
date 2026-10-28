@@ -166,32 +166,103 @@ export function zipDateien(bytes, vorsilbe = "") {
   return { dateien, hinweise };
 }
 
+/* ── Archive: ZIP, tar, tar.gz/.tgz, .gz — in jeder Tiefe ausgepackt ─────── */
+
+export const ARCHIV_TIEFE_MAX = 4;                // so tief wird Archiv in Archiv ausgepackt
+export const ARCHIV_DATEIEN_MAX = 50000;          // Deckel für alle ausgepackten Einträge zusammen
+
+/** Welche Archivart wird ausgepackt? (ein Office-Dokument, jar, apk … ist zwar ein ZIP, wird aber nicht ausgepackt) */
+export function archivArtVon(pfad, kopf) {
+  const n = dateiName(pfad).toLowerCase();
+  const pk = kopf && kopf[0] === 0x50 && kopf[1] === 0x4B;
+  const gz = kopf && kopf[0] === 0x1F && kopf[1] === 0x8B;
+  if (/\.zip$/.test(n)) return !kopf || pk ? "zip" : null;
+  if (/\.(tar\.gz|tgz)$/.test(n)) return !kopf || gz ? "tgz" : null;
+  if (/\.tar$/.test(n)) return "tar";
+  if (/\.gz$/.test(n)) return !kopf || gz ? "gz" : null;
+  return null;
+}
+
+function oktal(b, i, len) {
+  let s = ""; for (let k = i; k < i + len && b[k]; k++) s += String.fromCharCode(b[k]);
+  s = s.trim(); return s ? parseInt(s, 8) : 0;
+}
+function cstr(b, i, len) { let e = i; while (e < i + len && b[e]) e++; return new TextDecoder("utf-8").decode(b.subarray(i, e)); }
+
+/** Liest ein tar (ustar, GNU-Langnamen, pax-Pfade). Nur Dateien; Verweise werden benannt, nicht verfolgt. */
+export function tarDateien(bytes, vorsilbe = "") {
+  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const dateien = [], hinweise = [];
+  let p = 0, langName = null, paxPfad = null, verweise = 0;
+  while (p + 512 <= b.length) {
+    if (b.subarray(p, p + 512).every((x) => x === 0)) break;
+    const typ = String.fromCharCode(b[p + 156] || 48), groesse = oktal(b, p + 124, 12);
+    let name = cstr(b, p, 100);
+    const praefix = cstr(b, p + 257, 6) === "ustar" ? cstr(b, p + 345, 155) : "";
+    if (praefix) name = praefix + "/" + name;
+    const start = p + 512, ende = start + groesse;
+    if (ende > b.length) { hinweise.push("Das tar-Archiv bricht mitten in „" + name + "“ ab — der Rest ist ungeprüft."); break; }
+    const daten = b.subarray(start, ende);
+    if (typ === "L") langName = cstr(daten, 0, daten.length);
+    else if (typ === "x") { const m = /(?:^|\n)\d+ path=([^\n]*)\n/.exec(new TextDecoder().decode(daten)); paxPfad = m ? m[1] : null; }
+    else if (typ === "0" || typ === "\0" || typ === "7") {
+      const pfad = normPfad(vorsilbe + (paxPfad || langName || name));
+      dateien.push({ pfad, groesse, bytes: daten });
+      langName = paxPfad = null;
+    } else { if (typ === "1" || typ === "2") verweise++; langName = paxPfad = null; }
+    p = start + Math.ceil(groesse / 512) * 512;
+  }
+  if (verweise) hinweise.push(verweise + " Verweis(e) im tar-Archiv nicht verfolgt — sie kommen nicht mit.");
+  return { dateien, hinweise };
+}
+
 /**
  * Einwerfen: Liste aus `{ pfad, bytes }` oder `{ pfad, groesse, lesen }`.
- * Ein ZIP wird entpackt — liegt nur eines da, wird es selbst zum Projekt;
- * sonst landet sein Inhalt unter „name.zip/…“. Ein ZIP im Projekt bleibt
- * eine Datei (Stufe 1: nicht weiter ausgepackt).
+ * Archive (ZIP, tar, tar.gz, .gz) werden in jeder Tiefe ausgepackt — bis
+ * ARCHIV_TIEFE_MAX. Liegt nur ein einziges ZIP da, wird es selbst zum Projekt
+ * (`wurzelZip: false` schaltet das ab). Jede ausgepackte Datei trägt `archiv`
+ * (den Pfad ihres Archivs), damit die saubere Kopie das Archiv neu packen kann;
+ * das Archiv selbst steht als `{ pfad, ausgepackt, archivArt }` in der Liste.
+ * Nichts in übersprungenen Ordnern und nichts in .git wird ausgepackt.
  */
-export async function einwerfen(liste) {
+export async function einwerfen(liste, optionen = {}) {
   const aus = [], hinweise = [];
-  const eine = liste.length === 1;
-  for (const d of liste) {
+  let zaehler = 0, zuviel = 0;
+  const eine = liste.length === 1 && optionen.wurzelZip !== false;
+  async function auspacken(d, tiefe, archiv) {
     const pfad = normPfad(d.pfad);
-    if (/\.zip$/i.test(pfad) && !pfad.includes("/")) {
-      const bytes = d.bytes || (d.lesen ? await d.lesen() : null);
-      if (bytes && bytes[0] === 0x50 && bytes[1] === 0x4B) {
-        const z = zipDateien(bytes, eine ? "" : pfad + "/");
-        if (!z.kaputt) {
-          hinweise.push(...z.hinweise.map((h) => pfad + ": " + h));
-          aus.push(...z.dateien);
-          continue;
-        }
+    const art0 = !d.unlesbar && !d.nichtGeoeffnet && !uebersprungen(pfad) && !/(^|\/)\.git\//.test(pfad) ? archivArtVon(pfad) : null;
+    if (!art0 || (d.groesse || 0) > GROESSE_MAX) { aus.push(Object.assign({}, d, { pfad, archiv: archiv || d.archiv, groesse: d.groesse != null ? d.groesse : d.bytes ? d.bytes.length : 0 })); return; }
+    let bytes;
+    try { bytes = d.bytes || (d.lesen ? await d.lesen() : null); } catch (e) { bytes = null; }
+    if (!bytes) { aus.push(Object.assign({}, d, { pfad, archiv })); return; }
+    bytes = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    const art = archivArtVon(pfad, bytes);
+    const alsDatei = (grund) => { if (grund) hinweise.push(pfad + ": " + grund); aus.push({ pfad, bytes, groesse: bytes.length, archiv }); };
+    if (!art) return alsDatei("");
+    if (tiefe >= ARCHIV_TIEFE_MAX) return alsDatei("Archiv tiefer als " + ARCHIV_TIEFE_MAX + " Ebenen — nicht ausgepackt, ungeprüft.");
+    const wurzel = tiefe === 0 && eine && art === "zip";
+    const vorsilbe = wurzel ? "" : pfad + "/";
+    let kinder = [], ihre = [];
+    try {
+      if (art === "zip") { const z = zipDateien(bytes, vorsilbe); if (z.kaputt) return alsDatei(z.hinweise[0]); kinder = z.dateien; ihre = z.hinweise; }
+      else if (art === "tar") { const t = tarDateien(bytes, vorsilbe); kinder = t.dateien; ihre = t.hinweise; }
+      else {
+        const roh = await entpacke(bytes, "gzip", GROESSE_MAX);
+        const innen = dateiName(pfad).replace(/\.(tgz)$/i, ".tar").replace(/\.gz$/i, "");
+        if (art === "tgz" || /\.tar$/i.test(innen)) { const t = tarDateien(roh, vorsilbe); kinder = t.dateien; ihre = t.hinweise; }
+        else kinder = [{ pfad: normPfad(vorsilbe + innen), groesse: roh.length, bytes: roh }];
       }
-      aus.push({ pfad, bytes, groesse: bytes ? bytes.length : d.groesse });
-      continue;
+    } catch (e) { return alsDatei("nicht auspackbar (" + (e && e.message || e) + ") — ungeprüft."); }
+    hinweise.push(...ihre.map((h) => pfad + ": " + h));
+    if (!wurzel) aus.push({ pfad, ausgepackt: kinder.length, archivArt: art, groesse: bytes.length, archiv });
+    for (const k of kinder) {
+      if (++zaehler > ARCHIV_DATEIEN_MAX) { zuviel++; continue; }
+      await auspacken(k, tiefe + 1, wurzel ? archiv : pfad);
     }
-    aus.push({ pfad, bytes: d.bytes, lesen: d.lesen, nichtGeoeffnet: d.nichtGeoeffnet, groesse: d.groesse != null ? d.groesse : d.bytes ? d.bytes.length : 0, unlesbar: d.unlesbar });
   }
+  for (const d of liste) await auspacken(d, 0, d.archiv || null);
+  if (zuviel) hinweise.push(zuviel + " Einträge über dem Deckel (" + ARCHIV_DATEIEN_MAX + ") nicht ausgepackt — ungeprüft.");
   return { dateien: aus, hinweise };
 }
 
@@ -223,7 +294,7 @@ export function einordnen(pfad, art) {
   if (/impressum|imprint|legal[-_]?notice|datenschutz|privacy/.test(name))
     marke("IMPRESSUM", "Impressum oder Datenschutz — hier stehen Name und Anschrift.");
   if (ARCHIV_ENDUNG.has(end) || art === "zip" && !OFFICE_ENDUNG.has(end))
-    marke("ARCHIV", "Archiv im Projekt — sein Inhalt wird in Stufe 1 nicht einzeln ausgepackt.");
+    marke("ARCHIV", "Archiv im Projekt — ZIP, tar, tar.gz und .gz werden ausgepackt und einzeln geprüft; andere Archive nicht.");
   if (PROGRAMM_ENDUNG.has(end) || art === "programm") marke("PROGRAMM", "Programm — wird nie ausgeführt, nur benannt.");
 
   let stufe = 3;
@@ -374,7 +445,12 @@ export async function pruefe(dateien, optionen = {}) {
     fortschritt(nr, liste.length, d.pfad);
     if (nr % 25 === 0) await new Promise((ok) => setTimeout(ok, 0));
     const eintrag = { pfad: d.pfad, groesse: d.groesse || 0, art: "", artName: "", stufe: 3, stufeName: STUFE_NAME[3], marken: [], gelesen: false, ungeprueft: "", befunde: 0 };
+    if (d.archiv) eintrag.archiv = d.archiv;
     inventur.push(eintrag);
+    if (d.ausgepackt != null) {
+      Object.assign(eintrag, einordnen(d.pfad, ""), { art: "archiv", archivArt: d.archivArt, artName: ({ zip: "ZIP", tar: "tar", tgz: "tar.gz", gz: "gz" }[d.archivArt] || "") + "-Archiv, ausgepackt (" + d.ausgepackt + " Datei" + (d.ausgepackt === 1 ? "" : "en") + ")", gelesen: true, ausgepackt: d.ausgepackt, stufe: 1, stufeName: "neu packen" });
+      continue;
+    }
     const melde = (b) => { befunde.push(b); eintrag.befunde++; };
     const imGit = /(^|\/)\.git\//.test(d.pfad);
     if (d.unlesbar) { eintrag.ungeprueft = d.unlesbar; Object.assign(eintrag, einordnen(d.pfad, "")); continue; }
@@ -417,6 +493,8 @@ export async function pruefe(dateien, optionen = {}) {
     const ord = einordnen(d.pfad, art);
     Object.assign(eintrag, ord, { art });
     const end = endungVon(d.pfad);
+    const archivZu = ord.marken.some((m) => m.kennung === "ARCHIV") && !/^(docx|xlsx|pptx|odt)$/.test(art)
+      ? "Archiv nicht ausgepackt (" + (end ? "." + end : "unbekannte Art") + ") — sein Inhalt ist ungeprüft" : "";
 
     if (art === "text" || art === "html" || (art === "svg" && !PA)) {
       eintrag.artName = art === "html" ? "HTML-Seite" : "Text";
@@ -447,6 +525,7 @@ export async function pruefe(dateien, optionen = {}) {
       const offen = [];
       if (r.textUngeprueft || r.ungeprueftSatz) offen.push(r.ungeprueftSatz || "Text ungeprüft");
       if (r.bildUngeprueft) offen.push("Text im Bild ungeprüft (Texterkennung kommt auf Knopfdruck, Stufe 4)");
+      if (archivZu) offen.push(archivZu);
       eintrag.ungeprueft = Array.from(new Set(offen)).join(" · ");
       eintrag.hinweise = r.hinweise || [];
       continue;
@@ -458,7 +537,7 @@ export async function pruefe(dateien, optionen = {}) {
     if (M25 && s) hartInText(M25, d.pfad, s, melde, "Zeichenkette in der Datei");
     if (s) metaInText(d.pfad, s, melde);
     if (imGit) gitInText(d.pfad, s, melde);
-    eintrag.ungeprueft = "nur lesbare Zeichenketten geprüft" + (end ? " (." + end + ")" : "") + " — der Rest ist ungeprüft";
+    eintrag.ungeprueft = archivZu || "nur lesbare Zeichenketten geprüft" + (end ? " (." + end + ")" : "") + " — der Rest ist ungeprüft";
   }
 
   for (const [ordner, s] of sprung) {
@@ -470,7 +549,7 @@ export async function pruefe(dateien, optionen = {}) {
   if (gitObjekteZuviel) hinweise.push(gitObjekteZuviel + " Git-Objekte über dem Deckel (" + GIT_OBJEKTE_MAX + ") nicht geöffnet — ungeprüft.");
 
   const zahlen = {
-    dateien: inventur.filter((e) => e.art !== "ordner").length,
+    dateien: inventur.filter((e) => e.art !== "ordner" && e.art !== "archiv").length,
     gelesen: inventur.filter((e) => e.gelesen).length,
     uebersprungen: Array.from(sprung.values()).reduce((n, s) => n + s.anzahl, 0),
     markiert: inventur.filter((e) => e.marken.length).length,
@@ -504,8 +583,9 @@ export function buendeln(befunde) {
  *   muster     überall ein Musterwert
  *   eigen      überall ein eigener Wert
  *   behalten   bleibt stehen (bewusst)
- * Und je DATEI: reinigen (Text), übernehmen (unverändert) oder weglassen.
- * .git kommt nie mit; übersprungene Ordner (node_modules …) auch nicht.
+ * Und je DATEI: reinigen (Text; ein ausgepacktes Archiv wird aus seinen gereinigten
+ * Dateien neu gepackt), ohne Metadaten übernehmen (PNG, JPEG, WebP), unverändert
+ * übernehmen oder weglassen. .git kommt nie mit; übersprungene Ordner auch nicht.
  *
  * Der Stellenplan nennt Datei, Zeile, Marke/Ersatz und Art — NIE den alten Wert.
  * Die Zuordnung (Marke → alter Wert) bleibt im Speicher; abgelegt wird sie erst
@@ -513,7 +593,7 @@ export function buendeln(befunde) {
  */
 
 export const WIE_NAME = { entfernen: "Entfernen", muster: "Musterwert", eigen: "Eigener Wert", behalten: "Behalten" };
-export const DATEI_WIE_NAME = { reinigen: "Reinigen", uebernehmen: "Unverändert übernehmen", weglassen: "Weglassen" };
+export const DATEI_WIE_NAME = { reinigen: "Reinigen", metadaten: "Ohne Metadaten übernehmen", uebernehmen: "Unverändert übernehmen", weglassen: "Weglassen" };
 export const MARKE_ART_NAME = { NAME: "Name", MAIL: "E-Mail", TELEFON: "Telefon", IBAN: "IBAN", DATUM: "Datum", SCHLUESSEL: "Schlüssel / Passwort",
   BENUTZER: "Benutzername", ADRESSE: "Adresse (Server)", WERT: "Wert" };
 
@@ -575,12 +655,20 @@ export function vorschlag(ergebnis) {
     if (MARKE_REIHE.indexOf(m) < MARKE_REIHE.indexOf(w.marke)) w.marke = m;
   }
   const dateien = {};
+  const hartIn = new Set(ergebnis.befunde.filter((b) => b.schicht === "hart").map((b) => b.pfad));
   for (const e of ergebnis.inventur) {
     if (e.art === "ordner") continue;
+    if (e.art === "archiv") { dateien[e.pfad] = { wie: "reinigen", moeglich: ["reinigen", "weglassen"], grund: "ausgepacktes Archiv — wird aus den gereinigten Dateien darin neu gepackt." }; continue; }
     const kennungen = e.marken.map((m) => m.kennung);
     if (kennungen.includes("GIT") || /(^|\/)\.git\//.test(e.pfad)) { dateien[e.pfad] = { wie: "weglassen", moeglich: ["weglassen"], grund: "Git-Geschichte — die saubere Kopie beginnt ohne .git." }; continue; }
     const riskant = kennungen.filter((k) => WEG_MARKEN.has(k));
     const grundRiskant = riskant.length ? riskant.map((k) => MARKE_NAME[k]).join(", ") + " — kommt standardmäßig nicht mit." : "";
+    if (/^(png|jpeg|webp)$/.test(e.art) && e.gelesen && !riskant.length) {
+      const hart = hartIn.has(e.pfad);
+      dateien[e.pfad] = { wie: hart ? "weglassen" : "metadaten", moeglich: ["metadaten", "weglassen"].concat(e.befunde || e.ungeprueft ? [] : ["uebernehmen"]),
+        grund: hart ? "im Bild stehen harte Angaben — kommt standardmäßig nicht mit." : "Bild — Metadaten und Daten hinter dem Bildende werden entfernt. Sichtbarer Text im Bild bleibt (Neuzeichnen: Stufe 4)." };
+      continue;
+    }
     if (e.textlich) {
       dateien[e.pfad] = { wie: riskant.length ? "weglassen" : "reinigen", moeglich: ["reinigen", "weglassen"], grund: grundRiskant || (e.befunde ? "Text — die Stellen werden ersetzt." : "Text ohne Funde.") };
     } else {
@@ -645,7 +733,8 @@ export async function reinige(dateien, entscheidungen) {
   };
   const sauberPfad = (pfad) => normPfad(pfad).split("/").map((teil) => ersetze(teil, true, null, "pfad")).join("/");
   const liste = dateien.map((d) => Object.assign({}, d, { pfad: normPfad(d.pfad) })).sort((a, b) => a.pfad < b.pfad ? -1 : a.pfad > b.pfad ? 1 : 0);
-  let ersetzt = 0, gitWeg = 0, uebersprungenWeg = 0;
+  let ersetzt = 0, gitWeg = 0, uebersprungenWeg = 0, bilder = 0;
+  const behaelter = [];
   for (const d of liste) {
     if (uebersprungen(d.pfad) || d.nichtGeoeffnet) { uebersprungenWeg++; continue; }
     if (/(^|\/)\.git(\/|$)/.test(d.pfad)) { gitWeg++; continue; }
@@ -653,12 +742,24 @@ export async function reinige(dateien, entscheidungen) {
     const wie = plan ? plan.wie : "weglassen";
     const vorher = stellenplan.length;
     const neu = sauberPfad(d.pfad);
+    if (d.ausgepackt != null) {
+      for (let i = vorher; i < stellenplan.length; i++) stellenplan[i].pfad = neu;
+      behaelter.push({ alt: d.pfad, neu, art: d.archivArt, archiv: d.archiv, wie, grund: plan ? plan.grund : "", vorher });
+      continue;
+    }
     if (wie === "weglassen") { stellenplan.length = vorher; weg.push({ pfad: neu, grund: plan ? plan.grund : "nicht geprüft — kommt nicht mit." }); continue; }
     for (let i = vorher; i < stellenplan.length; i++) stellenplan[i].pfad = neu;
     let bytes;
     try { bytes = d.bytes || (d.lesen ? await d.lesen() : null); } catch { bytes = null; }
     if (!bytes) { stellenplan.length = vorher; weg.push({ pfad: neu, grund: "nicht lesbar — kommt nicht mit." }); continue; }
     bytes = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    if (wie === "metadaten") {
+      const m = ohneMetadaten(bytes);
+      if (!m) { stellenplan.length = vorher; weg.push({ pfad: neu, grund: "Metadaten ließen sich nicht sicher entfernen — kommt nicht mit." }); continue; }
+      bilder++;
+      sauber.push({ pfad: neu, bytes: m.bytes, gereinigt: true, archiv: d.archiv, ohneMetadaten: m.entfernt || "nichts zu entfernen" });
+      continue;
+    }
     if (wie === "reinigen") {
       let text;
       try { text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes); }
@@ -666,14 +767,40 @@ export async function reinige(dateien, entscheidungen) {
       const vorText = stellenplan.length;
       const rein = ersetze(text, istCode(d.pfad), neu, "text");
       ersetzt += stellenplan.length - vorText;
-      sauber.push({ pfad: neu, bytes: rein === text ? bytes : new TextEncoder().encode(rein), gereinigt: true });
-    } else sauber.push({ pfad: neu, bytes, gereinigt: false });
+      const bom = bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF;
+      sauber.push({ pfad: neu, bytes: rein === text ? bytes : new TextEncoder().encode(rein), gereinigt: true, archiv: d.archiv });
+      if (bom && rein !== text) { const x = sauber[sauber.length - 1]; if (!(x.bytes[0] === 0xEF && x.bytes[1] === 0xBB)) x.bytes = zusammen([new Uint8Array([0xEF, 0xBB, 0xBF]), x.bytes], x.bytes.length + 3); }
+    } else sauber.push({ pfad: neu, bytes, gereinigt: false, archiv: d.archiv });
   }
+  /* Archive von innen nach außen neu packen; ein weggelassenes nimmt seinen Inhalt mit. */
+  behaelter.sort((a, b) => b.alt.split("/").length - a.alt.split("/").length);
+  const geschrieben = new Set(sauber);                         // Dateien (keine Archive) in der Kopie
+  let gepackt = 0;
+  for (const c of behaelter) {
+    const kinder = sauber.filter((x) => x.archiv === c.alt);
+    for (let i = sauber.length - 1; i >= 0; i--) if (sauber[i].archiv === c.alt) sauber.splice(i, 1);
+    if (c.wie === "weglassen") { const raus = (x) => { geschrieben.delete(x); for (const k of x.kinder || []) raus(k); }; kinder.forEach(raus); }
+    const drin = (x) => x.pfad.startsWith(c.neu + "/");
+    if (c.wie === "weglassen") {
+      for (let i = stellenplan.length - 1; i >= 0; i--) if (drin(stellenplan[i]) || stellenplan[i].pfad === c.neu) stellenplan.splice(i, 1);
+      for (let i = weg.length - 1; i >= 0; i--) if (drin(weg[i])) weg.splice(i, 1);
+      weg.push({ pfad: c.neu, grund: (c.grund && !/neu gepackt/.test(c.grund) ? c.grund : "Archiv weggelassen") + " (" + kinder.length + " Datei(en) darin)" });
+      continue;
+    }
+    const innen = kinder.map((k) => ({ pfad: drin(k) ? k.pfad.slice(c.neu.length + 1) : dateiName(k.pfad), bytes: k.bytes }));
+    sauber.push({ pfad: c.neu, bytes: await archivBauen(c.art, innen), gereinigt: true, archiv: c.archiv, neuGepackt: innen.length, kinder });
+    gepackt++;
+  }
+  sauber.sort((a, b) => a.pfad < b.pfad ? -1 : a.pfad > b.pfad ? 1 : 0);
+  const dateienDrin = geschrieben.size;
+  if (gepackt) hinweise.push(gepackt + " Archiv(e) aus den gereinigten Dateien neu gepackt (ZIP, tar, tar.gz, gz).");
+  if (bilder) hinweise.push(bilder + " Bild(er) ohne Metadaten übernommen. Sichtbarer Text im Bild ist damit NICHT entfernt (Neuzeichnen: Stufe 4).");
   if (gitWeg) hinweise.push(gitWeg + " Datei(en) aus .git kommen nicht mit — die eigene Geschichte beginnt bei null (git init).");
   if (uebersprungenWeg) hinweise.push(uebersprungenWeg + " nicht gelesene Datei(en) (node_modules, Build-Ordner) kommen nicht mit — nach dem Auspacken neu installieren bzw. neu bauen.");
   const zuordnung = Array.from(tabelle.values()).map((t) => ({ marke: t.text, code: t.code, art: t.marke, wie: t.wie, wert: t.wert }));
   return { sauber, stellenplan, zuordnung, weg, hinweise,
-    zahlen: { dateien: sauber.length, gereinigt: sauber.filter((s) => s.gereinigt && s.bytes).length, weg: weg.length, git: gitWeg, uebersprungen: uebersprungenWeg, stellen: ersetzt, umbenannt: stellenplan.filter((s) => s.ort).length } };
+    zahlen: { dateien: dateienDrin, gereinigt: [...geschrieben].filter((s) => s.gereinigt).length, weg: weg.length, git: gitWeg, uebersprungen: uebersprungenWeg,
+      stellen: stellenplan.filter((s) => !s.ort).length, umbenannt: stellenplan.filter((s) => s.ort).length, bilder, archive: gepackt } };
 }
 
 function bytesFinden(heu, nadel) {
@@ -695,7 +822,15 @@ function utf16le(s) { const b = new Uint8Array(s.length * 2); for (let i = 0; i 
  * Datei der Kopie, die ungeprüft blieb. Leer heißt NICHT „garantiert sauber“.
  */
 export async function nachpruefe(rein, entscheidungen, optionen = {}) {
-  const r = await pruefe(rein.sauber, optionen);
+  const ein = await einwerfen(rein.sauber.map((x) => ({ pfad: x.pfad, bytes: x.bytes })), { wurzelZip: false });
+  const r = await pruefe(ein.dateien, optionen);
+  const flach = [];
+  for (const d of ein.dateien) {
+    if (d.ausgepackt != null || d.unlesbar) continue;
+    let b = null; try { b = d.bytes || (d.lesen ? await d.lesen() : null); } catch { b = null; }
+    if (b) flach.push({ pfad: d.pfad, bytes: b instanceof Uint8Array ? b : new Uint8Array(b) });
+  }
+  const unveraendert = new Set(rein.sauber.filter((x) => !x.gereinigt).map((x) => x.pfad));
   const bekannt = new Set();
   for (const z of rein.zuordnung) { bekannt.add(wertSchluessel(z.marke)); bekannt.add(wertSchluessel(z.code)); }
   for (const w of entscheidungen.werte) if (w.wie === "behalten") bekannt.add(w.schluessel);
@@ -703,12 +838,12 @@ export async function nachpruefe(rein, entscheidungen, optionen = {}) {
   const offen = [];
   /* 1 · alte Werte in den Bytes (UTF-8 und UTF-16, Groß/klein bei ASCII egal) */
   const alte = rein.zuordnung.filter((z) => z.wert.length >= 2);
-  for (const s of rein.sauber) {
+  for (const s of flach) {
     const klein = kleinAscii(s.bytes);
     for (const z of alte) {
       const w = z.wert.toLowerCase();
       if (bytesFinden(klein, new TextEncoder().encode(w)) !== -1 || bytesFinden(klein, utf16le(w)) !== -1)
-        offen.push({ grund: "rest", pfad: s.pfad, art: z.art, satz: "Ein entfernter Wert (" + (MARKE_ART_NAME[z.art] || z.art) + ") steckt noch in dieser Datei." + (s.gereinigt ? "" : " Sie wurde unverändert übernommen.") });
+        offen.push({ grund: "rest", pfad: s.pfad, art: z.art, satz: "Ein entfernter Wert (" + (MARKE_ART_NAME[z.art] || z.art) + ") steckt noch in dieser Datei." + (unveraendert.has(s.pfad) ? " Sie wurde unverändert übernommen." : "") });
     }
   }
   /* 2 · neue Funde */
@@ -720,7 +855,7 @@ export async function nachpruefe(rein, entscheidungen, optionen = {}) {
   }
   /* 3 · ungeprüft in der Kopie */
   for (const e of r.inventur) if (e.ungeprueft && e.art !== "ordner") offen.push({ grund: "ungeprueft", pfad: e.pfad, satz: "Ungeprüft in der Kopie: " + e.ungeprueft });
-  return { offen, ergebnis: r, hinweise: r.hinweise };
+  return { offen, ergebnis: r, hinweise: ein.hinweise.concat(r.hinweise) };
 }
 
 /** Der Stellenplan als Text (wie im Brief) und als JSON. Er enthält keinen alten Wert. */
@@ -809,4 +944,115 @@ export async function ausgabe(rein, nach, jetzt = new Date()) {
   const ein = wurzeln.size === 1 && rein.sauber.every((s) => s.pfad.includes("/")) ? Array.from(wurzeln)[0] : "";
   const beilagenPfad = beilagen.map((b) => ({ pfad: (ein ? ein + "/" : "") + b.pfad, bytes: b.bytes }));
   return { zip: await zipBauen([...rein.sauber, ...beilagenPfad]), name: (ein || "projekt") + "-sauber.zip", beilagen };
+}
+
+/* ── Bilder ohne Metadaten (ohne Leinwand, Byte für Byte) ─────────────────
+ * PNG: nur die Bild-Teile bleiben (IHDR, PLTE, IDAT, IEND, Transparenz, Farbraum,
+ * Auflösung, Animation); Text, EXIF, Zeitstempel und alles hinter IEND fällt weg.
+ * JPEG: APP1–APP15 (EXIF, XMP, Photoshop …) außer ICC-Farbprofil und Adobe-Marke,
+ * Kommentare und alles hinter dem Bildende fallen weg. WebP: EXIF- und XMP-Teile
+ * und alles hinter dem RIFF-Ende fallen weg.
+ * ⚠ Sichtbarer Text im Bild und Botschaften in den untersten Bits bleiben — das
+ * leistet erst das Neuzeichnen (Stufe 4). */
+const PNG_BLEIBT = new Set(["IHDR", "PLTE", "IDAT", "IEND", "tRNS", "gAMA", "cHRM", "sRGB", "sBIT", "bKGD", "pHYs", "hIST", "acTL", "fcTL", "fdAT"]);
+const u32be = (b, i) => ((b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3]) >>> 0;
+const latin = (b, i, n) => String.fromCharCode(...b.subarray(i, i + n));
+
+export function ohneMetadaten(bytes) {
+  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (b.length > 8 && b[0] === 0x89 && latin(b, 1, 3) === "PNG") {
+    const teile = [b.subarray(0, 8)], weg = new Set(); let p = 8, ende = false;
+    while (p + 12 <= b.length) {
+      const len = u32be(b, p), typ = latin(b, p + 4, 4), stop = p + 12 + len;
+      if (stop > b.length) return null;
+      if (PNG_BLEIBT.has(typ)) teile.push(b.subarray(p, stop)); else weg.add(typ);
+      p = stop;
+      if (typ === "IEND") { ende = true; break; }
+    }
+    if (!ende) return null;
+    const rest = b.length - p;
+    return { bytes: zusammen(teile, teile.reduce((n, t) => n + t.length, 0)), entfernt: [...weg].join(", ") + (rest ? (weg.size ? ", " : "") + rest + " Bytes hinter dem Bildende" : "") };
+  }
+  if (b.length > 4 && b[0] === 0xFF && b[1] === 0xD8) {
+    const teile = [b.subarray(0, 2)], weg = []; let p = 2;
+    while (p + 2 <= b.length) {
+      if (b[p] !== 0xFF) return null;
+      const m = b[p + 1];
+      if (m === 0xFF) { p++; continue; }
+      if (m === 0xD9) { teile.push(b.subarray(p, p + 2)); p += 2; break; }
+      if (m >= 0xD0 && m <= 0xD7 || m === 0x01) { teile.push(b.subarray(p, p + 2)); p += 2; continue; }
+      if (p + 4 > b.length) return null;
+      const len = (b[p + 2] << 8) | b[p + 3], stop = p + 2 + len;
+      if (len < 2 || stop > b.length) return null;
+      const kennung = latin(b, p + 4, Math.min(12, len - 2));
+      const app = m >= 0xE0 && m <= 0xEF;
+      const behalten = !app && m !== 0xFE || m === 0xE0 && /^JFIF\0/.test(kennung) || m === 0xE2 && /^ICC_PROFILE/.test(kennung) || m === 0xEE && /^Adobe/.test(kennung);
+      if (behalten) teile.push(b.subarray(p, stop)); else weg.push(m === 0xFE ? "Kommentar" : "APP" + (m - 0xE0) + (/^Exif/.test(kennung) ? " (EXIF)" : /^http/.test(kennung) ? " (XMP)" : ""));
+      p = stop;
+      if (m === 0xDA) {                                        // Bilddaten bis zum nächsten echten Marker
+        let q = p;
+        while (q + 1 < b.length && !(b[q] === 0xFF && b[q + 1] !== 0x00 && !(b[q + 1] >= 0xD0 && b[q + 1] <= 0xD7) && b[q + 1] !== 0xFF)) q++;
+        teile.push(b.subarray(p, q)); p = q;
+      }
+    }
+    if (teile[teile.length - 1][1] !== 0xD9) return null;
+    const rest = b.length - p;
+    return { bytes: zusammen(teile, teile.reduce((n, t) => n + t.length, 0)), entfernt: Array.from(new Set(weg)).join(", ") + (rest ? (weg.length ? ", " : "") + rest + " Bytes hinter dem Bildende" : "") };
+  }
+  if (b.length > 20 && latin(b, 0, 4) === "RIFF" && latin(b, 8, 4) === "WEBP") {
+    const riffEnde = Math.min(b.length, 8 + u32(b, 4));
+    const teile = [], weg = []; let p = 12, vp8x = -1;
+    while (p + 8 <= riffEnde) {
+      const typ = latin(b, p, 4), len = u32(b, p + 4), stop = p + 8 + len + (len & 1);
+      if (p + 8 + len > riffEnde) return null;
+      if (typ === "EXIF" || typ === "XMP ") weg.push(typ.trim());
+      else { if (typ === "VP8X") vp8x = teile.reduce((n, t) => n + t.length, 0); teile.push(b.subarray(p, Math.min(stop, riffEnde))); }
+      p = stop;
+    }
+    let koerper = zusammen(teile, teile.reduce((n, t) => n + t.length, 0));
+    if (vp8x >= 0) { koerper = koerper.slice(); koerper[vp8x + 8] &= ~0x0C; }
+    const kopf = new Uint8Array(12); kopf.set(b.subarray(0, 12)); new DataView(kopf.buffer).setUint32(4, koerper.length + 4, true);
+    const rest = b.length - riffEnde;
+    return { bytes: zusammen([kopf, koerper], 12 + koerper.length), entfernt: weg.join(", ") + (rest ? (weg.length ? ", " : "") + rest + " Bytes hinter dem Bildende" : "") };
+  }
+  return null;
+}
+
+/* ── Archive neu packen ─────────────────────────────────────────────────── */
+function tarBauen(dateien) {
+  const T = new TextEncoder(), teile = []; let n = 0;
+  const feld = (k, i, s, len) => { const x = T.encode(s); k.set(x.subarray(0, len), i); };
+  for (const d of dateien) {
+    let name = d.pfad;
+    if (T.encode(name).length > 100) {                         // GNU-Langname
+      const nb = T.encode(name + "\0"), k = new Uint8Array(512);
+      feld(k, 0, "././@LongLink", 100); feld(k, 100, "0000644\0", 8); feld(k, 108, "0000000\0", 8); feld(k, 116, "0000000\0", 8);
+      feld(k, 124, nb.length.toString(8).padStart(11, "0") + "\0", 12); feld(k, 136, "00000000000\0", 12); k[156] = 76; feld(k, 257, "ustar  \0", 8);
+      pruefsumme(k); teile.push(k, polstern(nb)); n += 512 + Math.ceil(nb.length / 512) * 512;
+      name = name.slice(0, 99);
+    }
+    const k = new Uint8Array(512);
+    feld(k, 0, name, 100); feld(k, 100, "0000644\0", 8); feld(k, 108, "0000000\0", 8); feld(k, 116, "0000000\0", 8);
+    feld(k, 124, d.bytes.length.toString(8).padStart(11, "0") + "\0", 12); feld(k, 136, "00000000000\0", 12); k[156] = 48; feld(k, 257, "ustar\0" + "00", 8);
+    pruefsumme(k); const daten = polstern(d.bytes); teile.push(k, daten); n += 512 + daten.length;
+  }
+  teile.push(new Uint8Array(1024)); n += 1024;
+  return zusammen(teile, n);
+  function polstern(x) { const p = new Uint8Array(Math.ceil(x.length / 512) * 512); p.set(x); return p; }
+  function pruefsumme(k) { for (let i = 148; i < 156; i++) k[i] = 32; let s = 0; for (const x of k) s += x; feld(k, 148, s.toString(8).padStart(6, "0") + "\0 ", 8); }
+}
+async function gzipBauen(b) {
+  const cs = new CompressionStream("gzip"), w = cs.writable.getWriter();
+  w.write(b).catch(() => {}); w.close().catch(() => {});
+  const r = cs.readable.getReader(), teile = []; let n = 0;
+  for (;;) { const { done, value } = await r.read(); if (done) break; teile.push(value); n += value.length; }
+  const g = zusammen(teile, n); g[4] = g[5] = g[6] = g[7] = 0;    // kein Zeitstempel
+  return g;
+}
+export async function archivBauen(art, dateien) {
+  if (art === "zip") return zipBauen(dateien);
+  if (art === "tar") return tarBauen(dateien);
+  if (art === "tgz") return gzipBauen(tarBauen(dateien));
+  if (art === "gz") return gzipBauen(dateien.length ? dateien[0].bytes : new Uint8Array(0));
+  throw new Error("unbekannte Archivart " + art);
 }

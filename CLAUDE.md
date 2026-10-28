@@ -24,7 +24,7 @@ Kurzauftrag zum Kopieren ausgeben.
   leeren Flächen steht er groß mit **„CLEANER“** in weißer Schrift darunter. Icon A (Kacheln im Kreispfeil) ist
   damit abgelöst. Alle Größen baut `node tools/icons-bauen.mjs` — **nie von Hand**; sonst meldet die Probe „veraltet“.
 - **Vollbild:** `100dvh`, keine Höchstbreite, `display: standalone`. Die Probe misst bei 320×640, 360×740,
-  412×915, 768×1024, 1280×800, 740×360 (Handy quer) und 1920×1080 in vier Zuständen (Einwurf, Funde, Ergebnis, Inventur):
+  412×915, 768×1024, 1280×800, 740×360 (Handy quer) und 1920×1080 in fünf Zuständen (Einwurf, Funde, Ergebnis, Inventur, Gemischt):
   nichts quer, nichts ragt über seinen Kasten, keine Beschriftung abgeschnitten, kein Knopf bricht um, App füllt das Fenster.
 - **Speichert nichts.** Der Service-Worker legt nur den Code ab (`CACHE_VERSION` `reiniger-v2`).
 - **Stufe 2 · Entscheiden je Wert** (ein Wert über alle Arten = eine Entscheidung, `wertSchluessel`):
@@ -40,12 +40,25 @@ Kurzauftrag zum Kopieren ausgeben.
   Datei + jede ungeprüfte Datei der Kopie. Leer heißt „nichts offen gefunden“, nie „sauber“.
 - **ZIP** mit festem Zeitstempel (1.1.1980), UTF-8-Namen, `_reiniger/` (Stellenplan als Text und JSON, Bericht)
   liegt darin. Die Probe öffnet es mit Python `zipfile` (Prüfsummen).
+- **Jede Dateiart (Klaus 2026-10-28: „ZIPs entpacken … PNGs laden, SVGs und alle Dateien, Typen“):**
+  `einwerfen` packt **ZIP, tar, tar.gz/.tgz und .gz in jeder Tiefe** aus (bis `ARCHIV_TIEFE_MAX` 4, Deckel
+  `ARCHIV_DATEIEN_MAX`); jede Datei trägt `archiv`, das Archiv selbst steht als `ausgepackt` in der Inventur.
+  `reinige` packt jedes Archiv **von innen nach außen neu** (gleiche Art), `nachpruefe` packt die Kopie wieder aus.
+  Andere Archive (.jar, .apk, .7z, .rar) heißen „Archiv nicht ausgepackt — ungeprüft“ und sind standardmäßig weg.
+  **PNG, JPEG, WebP:** „Ohne Metadaten übernehmen“ (`ohneMetadaten`, Byte für Byte, Bildpunkte unverändert —
+  Pillow misst es): EXIF/GPS, XMP, Text, Kommentar, Zeitstempel und alles hinter dem Bildende fallen weg.
+  ⚠ Sichtbarer Text im Bild und Botschaften in den untersten Bits bleiben (Neuzeichnen: Stufe 4) — die
+  Nachprüfung nennt jedes Bild deshalb „ungeprüft“. SVG wird als Text gereinigt. GIF, PDF, Office: nur
+  übernehmen oder weglassen (Stufe 4).
+- **Testdateien** `tests/muster/` baut `python3 -I tools/muster-bauen.py` mit Python `zipfile`/`tarfile` und
+  **Pillow** (fremde Werkzeuge, nicht der eigene Schreiber); `tests/muster-pruefen.py` liest die saubere Kopie
+  fremd. Fehlen python3 oder Pillow, sagt die Probe „⊘ nicht gemessen“ statt grün.
 
 ## Prüfen
 
 ```bash
-npm test             # 133 grün · 0 ROT (2026-10-28, Stufe 2)
-npm run gegenprobe   # 25 gefangen · 0 blind · 0 falsch · 0 tot (2026-10-28, Stufe 2, erster voller Lauf)
+npm test             # 164 grün · 0 ROT (2026-10-28, Stufe 2 + alle Dateiarten)
+npm run gegenprobe   # 37 gefangen · 0 blind · 0 falsch · 0 tot (2026-10-28; erster voller Lauf 35 · 2 blind, beide in der Probe, geschärft)
 ```
 
 ## ⚠ Nicht gemessen

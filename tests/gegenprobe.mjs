@@ -34,6 +34,19 @@ const FAELLE = [
   ["BAUEN", "assets/app.js", "knopf.addEventListener(\"click\", bauen);", "", /Bauen: der Knopf baut/],
   ["ZIPCRC", "assets/reiniger-kern.js", "for (let i = 0; i < b.length; i++) c = CRC_TAFEL[(c ^ b[i]) & 255] ^ (c >>> 8);", "for (let i = 1; i < b.length; i++) c = CRC_TAFEL[(c ^ b[i]) & 255] ^ (c >>> 8);", /crc32|fremder Leser/],
   ["LEISTE", "assets/app.css", ".reinigen .knopf { min-height: 40px; padding: 6px 14px; }", ".reinigen .knopf { min-height: 40px; padding: 6px 14px; }\n.reinigen { flex-wrap: nowrap; }", /Ergebnis .*(läuft quer|ragt über|abgeschnitten|passt nicht)/],
+  /* alle Dateiarten: Archive in jeder Tiefe, Bilder ohne Metadaten */
+  ["INNENZIP", "assets/reiniger-kern.js", "      await auspacken(k, tiefe + 1, wurzel ? archiv : pfad);", "      aus.push(Object.assign({}, k, { archiv: wurzel ? archiv : pfad }));", /ZIP in ZIP, tar, tar\.gz und \.gz werden ausgepackt/],
+  ["TAR", "assets/reiniger-kern.js", "  if (/\\.tar$/.test(n)) return \"tar\";", "  if (/\\.tar$/.test(n)) return null;", /ausgepackt|tar/],
+  ["TIEFE", "assets/reiniger-kern.js", "export const ARCHIV_TIEFE_MAX = 4;", "export const ARCHIV_TIEFE_MAX = 99;", /bis Tiefe/],
+  ["NEUPACKEN", "assets/reiniger-kern.js", "    sauber.push({ pfad: c.neu, bytes: await archivBauen(c.art, innen),", "    sauber.push({ pfad: c.neu, bytes: new Uint8Array(0),", /Fremder Leser|Archive neu gepackt|kein Rest/],
+  ["ARCHIVZU", "assets/reiniger-kern.js", "      ? \"Archiv nicht ausgepackt (\" + (end ? \".\" + end : \"unbekannte Art\") + \") — sein Inhalt ist ungeprüft\" : \"\";", "      ? \"\" : \"\";", /\.jar\), heißt ungeprüft/],
+  ["ARCHIVWEG", "assets/reiniger-kern.js", "if (c.wie === \"weglassen\") {\n      for", "if (false) {\n      for", /Archiv weglassen/],
+  ["PNGTEXT", "assets/reiniger-kern.js", "const PNG_BLEIBT = new Set([\"IHDR\",", "const PNG_BLEIBT = new Set([\"tEXt\", \"IHDR\",", /PNG öffnet sich, ohne Text|kein alter Wert/],
+  ["JPEGEXIF", "assets/reiniger-kern.js", "const behalten = !app && m !== 0xFE ||", "const behalten = app || m === 0xFE ||", /Ohne Metadaten \(foto\.jpg\)/],
+  ["WEBPXMP", "assets/reiniger-kern.js", "if (typ === \"EXIF\" || typ === \"XMP \") weg.push(typ.trim());\n      else {", "if (false) weg.push(typ.trim());\n      else {", /Ohne Metadaten \(bild\.webp\)/],
+  ["ANHAENGSEL", "assets/reiniger-kern.js", "      if (typ === \"IEND\") { ende = true; break; }", "      if (typ === \"IEND\") { ende = true; teile.push(b.subarray(p)); break; }", /kein alter Wert|kein Rest/],
+  ["NACHAUSPACKEN", "assets/reiniger-kern.js", "  const ein = await einwerfen(rein.sauber.map((x) => ({ pfad: x.pfad, bytes: x.bytes })), { wurzelZip: false });", "  const ein = { dateien: rein.sauber.map((x) => ({ pfad: x.pfad, bytes: x.bytes })), hinweise: [] };", /Nachprüfung packt die Kopie wieder aus/],
+  ["BILDWAHL", "assets/reiniger-kern.js", "dateien[e.pfad] = { wie: hart ? \"weglassen\" : \"metadaten\",", "dateien[e.pfad] = { wie: \"weglassen\",", /PNG ohne Metadaten|Ohne Metadaten übernehmen/],
   ["NETZ", "assets/app.js", "/* nur für die Proben */", "fetch(\"https://beispiel.example/\").catch(() => {});\n/* nur für die Proben */", /Kein Netz|Konsole/],
 ];
 const nur = process.env.NUR_FALL;

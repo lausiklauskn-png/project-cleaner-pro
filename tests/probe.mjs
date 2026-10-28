@@ -219,6 +219,76 @@ const T8 = (s) => new TextEncoder().encode(s), D8 = (b) => new TextDecoder().dec
   else ok("ZIP: fremder Leser (Python zipfile) öffnet es, Prüfsummen stimmen", py.status === 0 && py.stdout.trim() === "None " + namen.length, (py.stdout + py.stderr).trim().slice(0, 200));
 }
 
+/* ── A3 · alle Dateiarten: Archive in jeder Tiefe, Bilder ohne Metadaten ── */
+console.log("A3 · Archive und Bilder ohne Browser");
+const MUSTER = join(WURZEL, "tests/muster");
+const muster = (n) => new Uint8Array(readFileSync(join(MUSTER, n)));
+function fremdPruefen(zipBytes) {
+  const ord = mkdtempSync(join(tmpdir(), "reiniger-fremd-")); writeFileSync(join(ord, "s.zip"), zipBytes);
+  const py = spawnSync("python3", ["-I", join(WURZEL, "tests/muster-pruefen.py"), join(ord, "s.zip")], { encoding: "utf8" });
+  rmSync(ord, { recursive: true });
+  if (py.error) return null;
+  try { return JSON.parse(py.stdout); } catch { return { kaputt: (py.stdout + py.stderr).slice(0, 300) }; }
+}
+{
+  const ein = await Kern.einwerfen([{ pfad: "mix.zip", bytes: muster("mix.zip") }]);
+  const p = ein.dateien.map((d) => d.pfad);
+  ok("Auspacken: ZIP in ZIP, tar, tar.gz und .gz werden ausgepackt (von Python gebaut)",
+    p.includes("app/vorlagen.zip/notiz.txt") && p.includes("app/alt.tar.gz/alt/info.txt") && p.includes("app/notiz.txt.gz/notiz.txt") && p.includes("app/daten.tar/kontakt.txt") &&
+    p.some((x) => /^app\/alt\.tar\.gz\/alt\/(langer-ordnername-){6}\/x\.txt$/.test(x)), p.join(", "));
+  ok("Auspacken: jede ausgepackte Datei kennt ihr Archiv", ein.dateien.find((d) => d.pfad === "app/vorlagen.zip/notiz.txt").archiv === "app/vorlagen.zip");
+  const r = await Kern.pruefe(ein.dateien);
+  const inv = (x) => r.inventur.find((e) => e.pfad === x) || {};
+  ok("Prüfen: Funde in Dateien im inneren ZIP und im tar.gz", r.buendel.some((b) => b.art === "MAIL" && b.stellen.some((s) => s.pfad === "app/vorlagen.zip/notiz.txt")) &&
+    r.buendel.some((b) => b.art === "TELEFON" && b.stellen.some((s) => s.pfad === "app/alt.tar.gz/alt/info.txt")) &&
+    r.buendel.some((b) => b.art === "IBAN" && b.stellen.some((s) => /langer-ordnername/.test(s.pfad))));
+  ok("Inventur: das Archiv steht als „ausgepackt“ da", inv("app/vorlagen.zip").art === "archiv" && inv("app/vorlagen.zip").ausgepackt === 2 && inv("app/alt.tar.gz").ausgepackt === 2);
+  ok("Ein Archiv, das nicht ausgepackt wird (.jar), heißt ungeprüft", /Archiv nicht ausgepackt/.test(inv("app/werkzeug.jar").ungeprueft || ""), JSON.stringify(inv("app/werkzeug.jar")));
+  const e = Kern.vorschlag(r);
+  ok("Vorschlag: Archive neu packen, PNG ohne Metadaten, .jar weg",
+    e.dateien["app/vorlagen.zip"].wie === "reinigen" && e.dateien["app/bild.png"].wie === "metadaten" && e.dateien["app/werkzeug.jar"].wie === "weglassen");
+  const rein = await Kern.reinige(ein.dateien, e), nach = await Kern.nachpruefe(rein, e);
+  ok("Saubere Kopie: Archive neu gepackt, ihr Inhalt steht nicht lose daneben",
+    rein.sauber.some((x) => x.pfad === "app/vorlagen.zip" && x.neuGepackt === 2) && rein.sauber.some((x) => x.pfad === "app/alt.tar.gz" && x.neuGepackt === 2) &&
+    !rein.sauber.some((x) => /\.(zip|gz)\//.test(x.pfad)), rein.sauber.map((x) => x.pfad).join(", "));
+  ok("Zählung: Dateien in Archiven zählen mit (9 Dateien, 4 Archive neu gepackt, .jar weg)", rein.zahlen.dateien === 9 && rein.zahlen.archive === 4 && rein.weg.length === 1, JSON.stringify(rein.zahlen));
+  ok("Stellenplan: Stellen im Archiv mit Pfad „archiv.zip/datei“", rein.stellenplan.some((x) => x.pfad === "app/vorlagen.zip/notiz.txt" && x.zeile === 1));
+  ok("Nachprüfung packt die Kopie wieder aus: kein Rest, nur „Text im Bild ungeprüft“",
+    nach.offen.length === 1 && nach.offen[0].grund === "ungeprueft" && nach.offen[0].pfad === "app/bild.png", JSON.stringify(nach.offen).slice(0, 300));
+  const e3 = Kern.vorschlag(r); e3.dateien["app/vorlagen.zip/notiz.txt"].wie = "uebernehmen";
+  const r3 = await Kern.reinige(ein.dateien, e3), n3 = await Kern.nachpruefe(r3, e3);
+  ok("Nachprüfung findet einen Rest auch in einem neu gepackten Archiv", n3.offen.some((o) => o.grund === "rest" && o.pfad === "app/vorlagen.zip/notiz.txt"), JSON.stringify(n3.offen).slice(0, 300));
+  const f = fremdPruefen((await Kern.ausgabe(rein, nach)).zip);
+  if (!f) console.log("  ⊘ fremder Leser nicht da (python3 fehlt) — nicht gemessen");
+  else {
+    ok("Fremder Leser (Python): ZIP, inneres ZIP, tar.gz und .gz öffnen sich", f.testzip === null && f.dateien.includes("app/vorlagen.zip/notiz.txt") && f.dateien.includes("app/alt.tar.gz/alt/info.txt") && f.dateien.includes("app/notiz.txt.gz/"), JSON.stringify(f).slice(0, 300));
+    ok("Fremder Leser: kein alter Wert in irgendeiner Datei, auch nicht im Archiv oder im Bild", f.rest.length === 0, f.rest.join(", "));
+    if (f.bilder) ok("Fremder Leser (Pillow): das PNG öffnet sich, ohne Text-Metadaten", f.bilder["app/bild.png"] && f.bilder["app/bild.png"].format === "PNG" && f.bilder["app/bild.png"].info.length === 0, JSON.stringify(f.bilder));
+  }
+  const e2 = Kern.vorschlag(r); e2.dateien["app/vorlagen.zip"].wie = "weglassen";
+  const r2 = await Kern.reinige(ein.dateien, e2);
+  ok("Archiv weglassen: sein Inhalt kommt auch nicht mit, der Stellenplan nennt ihn nicht",
+    !r2.sauber.some((x) => /vorlagen/.test(x.pfad)) && !r2.stellenplan.some((x) => /vorlagen/.test(x.pfad)) && r2.weg.some((w) => w.pfad === "app/vorlagen.zip"));
+}
+{
+  const ein = await Kern.einwerfen([{ pfad: "tief.zip", bytes: muster("tief.zip") }]);
+  ok("Archiv in Archiv: bis Tiefe " + Kern.ARCHIV_TIEFE_MAX + " ausgepackt, darunter benannt und ungeprüft",
+    ein.dateien.some((d) => /ebene\d\.zip$/.test(d.pfad) && d.bytes && !d.ausgepackt) && ein.hinweise.some((h) => /tiefer als 4 Ebenen/.test(h)), ein.dateien.map((d) => d.pfad).join(", "));
+}
+{
+  for (const [n, art] of [["foto.jpg", "JPEG"], ["progressiv.jpg", "JPEG"], ["bild.webp", "WebP"]]) {
+    const vor = muster(n), m = Kern.ohneMetadaten(vor);
+    const t = m ? D8(m.bytes).toLowerCase() : "";
+    ok("Ohne Metadaten (" + n + "): EXIF, Kommentar, XMP und Anhängsel weg", !!m && m.bytes.length < vor.length && !/erika|anna@|kamera/.test(t) && /EXIF/.test(m.entfernt), m && m.entfernt);
+  }
+  const ord = mkdtempSync(join(tmpdir(), "reiniger-bild-"));
+  for (const n of ["foto.jpg", "progressiv.jpg", "bild.webp"]) writeFileSync(join(ord, n), Kern.ohneMetadaten(muster(n)).bytes);
+  const py = spawnSync("python3", ["-I", "-W", "ignore", "-c", "import sys,json\nfrom PIL import Image\nd=sys.argv[1]; m=sys.argv[2]\nout={}\nfor n in ['foto.jpg','progressiv.jpg','bild.webp']:\n a=Image.open(d+'/'+n); a.load(); b=Image.open(m+'/'+n).convert('RGB')\n out[n]=[len(a.getexif()), list(a.convert('RGB').getdata())==list(b.getdata())]\nprint(json.dumps(out))", ord, MUSTER], { encoding: "utf8" });
+  rmSync(ord, { recursive: true });
+  if (py.error || /No module named/.test(py.stderr)) console.log("  ⊘ Pillow fehlt — Pixelvergleich nicht gemessen");
+  else ok("Pillow: die Bilder öffnen sich, ohne EXIF, mit denselben Bildpunkten", py.status === 0 && Object.values(JSON.parse(py.stdout)).every(([ex, gleich]) => ex === 0 && gleich), (py.stdout + py.stderr).slice(0, 300));
+}
+
 /* ── B · im Browser ─────────────────────────────────────────────── */
 console.log("B · im Browser");
 let pw; try { pw = req("playwright-core"); } catch { try { pw = req("playwright"); } catch { pw = null; } }
@@ -345,6 +415,32 @@ if (fertig) {
   }));
 }
 await alleGroessen("Ergebnis");
+/* Alle Dateiarten über das echte Dateifeld: ZIP mit Archiven und Bildern, dazu JPEG und WebP einzeln */
+await seite.setViewportSize({ width: 1280, height: 800 });
+await seite.click("#neu");
+await seite.setInputFiles("#wahl-dateien", ["mix.zip", "foto.jpg", "bild.webp"].map((n) => join(WURZEL, "tests/muster", n)));
+let gemischt = true;
+try { await seite.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden && document.querySelector("#bauen"), null, { timeout: 60000 }); } catch { gemischt = false; }
+ok("Dateifeld: ZIP, JPEG und WebP zusammen geladen, Archive darin ausgepackt", gemischt && await seite.evaluate(() => {
+  const p = window.__reiniger.ergebnis().inventur.map((e) => e.pfad);
+  return p.includes("mix.zip/app/vorlagen.zip/notiz.txt") && p.includes("mix.zip/app/alt.tar.gz/alt/info.txt") && p.includes("foto.jpg") && p.includes("bild.webp");
+}));
+ok("Inventur: Bilder stehen auf „Ohne Metadaten übernehmen“", gemischt && await seite.evaluate(() =>
+  ["foto.jpg", "bild.webp", "mix.zip/app/bild.png"].every((p) => (document.querySelector('select[data-datei="' + p + '"]') || {}).value === "metadaten")));
+if (gemischt) {
+  await seite.click("#bauen");
+  await seite.waitForFunction(() => window.__reiniger.gebaut() && document.querySelector("[data-nachpruefung]"), null, { timeout: 60000 });
+  ok("Nachprüfung: nichts offen, Bilder als „ungeprüft“ (Text im Bild) benannt", await seite.evaluate(() =>
+    document.querySelector("[data-nachpruefung]").dataset.nachpruefung === "ungeprueft" && /ungeprüft/.test(document.querySelector("#nachpruefung h2").textContent)));
+  const [dl] = await Promise.all([seite.waitForEvent("download", { timeout: 10000 }), seite.click("#laden-zip")]);
+  const f = fremdPruefen(new Uint8Array(readFileSync(await dl.path())));
+  if (!f) console.log("  ⊘ fremder Leser nicht da — nicht gemessen");
+  else ok("Download, fremd geprüft: alles öffnet sich, kein alter Wert, Bilder ohne EXIF",
+    f.testzip === null && f.rest.length === 0 && f.dateien.includes("mix.zip/app/vorlagen.zip/notiz.txt") &&
+    (!f.bilder || ["foto.jpg", "bild.webp", "mix.zip/app/bild.png"].every((k) => f.bilder[k] && f.bilder[k].exif === 0)), JSON.stringify(f).slice(0, 400));
+  await alleGroessen("Gemischt");
+}
+
 
 await seite.setViewportSize({ width: 360, height: 740 });
 await seite.click('[data-reiter="inventur"]');

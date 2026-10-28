@@ -173,6 +173,7 @@ select:focus-visible, input[type="text"]:focus-visible { outline: 3px solid var(
 .leiste-satz { margin: 0; flex: 1 1 100%; min-width: 0; font-size: .9rem; color: var(--schrift); overflow-wrap: anywhere; }
 .leiste-satz.rot { color: var(--rot); font-weight: 700; }
 .leiste-satz.gut { color: #1d6b43; font-weight: 600; }
+.leiste-satz.warn { color: var(--warn); font-weight: 600; }
 .wahl-legende { margin: 0 0 14px; font-size: .88rem; color: var(--leise); overflow-wrap: anywhere; }
 .wahl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 6px 0 4px; }
 .wahl label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .88rem; color: var(--leise); min-width: 0; }
@@ -186,6 +187,8 @@ select:focus-visible, input[type="text"]:focus-visible { outline: 3px solid var(
 .nachpruefung.rot { border-color: #f2b8b8; background: var(--rot-grund); }
 .nachpruefung h2 { margin: 0 0 4px; font-size: 1.05rem; color: #1d6b43; }
 .nachpruefung.rot h2 { color: var(--rot); }
+.nachpruefung.warn { border-color: #f0c98a; background: var(--warn-grund); }
+.nachpruefung.warn h2 { color: var(--warn); }
 .nachpruefung p, .nachpruefung li { margin: 0 0 6px; font-size: .9rem; overflow-wrap: anywhere; }
 .nachpruefung ul { margin: 6px 0; padding-left: 1.2em; }
 .nachpruefung .klein { font-size: .82rem; color: var(--leise); }

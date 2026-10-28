@@ -385,6 +385,33 @@ Am Ende: Brief nachziehen und wieder so einen Kurzauftrag ausgeben.
 - ⚠ **Bekannte Lücke bis Stufe 3:** Straße, PLZ, Ort, Firma werden noch nicht gefunden — im Beispiel bleibt
   „Musterweg 1“ im Impressum stehen. Deshalb bleibt der eigene Blick Pflicht.
 
+## Jede Dateiart: Archive auspacken, Bilder ohne Metadaten (2026-10-28, nach Stufe 2)
+
+Klaus: *„Wichtig ist, dass man da auch ZIPs entpacken kann und PNGs laden, SVGs und alle Dateien, Typen.“*
+
+- **Gemessen vorher (echter Browser, Dateifeld):** ein ZIP **im** Projekt wurde nicht ausgepackt — und stand ohne
+  Fund auf „unverändert übernehmen“. Eine Mail-Adresse darin wäre ungesehen in die saubere Kopie gegangen. tar.gz
+  wurde nur nach Zeichenketten durchsucht, ein PNG mit Metadaten konnte nur weggelassen werden. SVG ging schon.
+- **Jetzt:** ZIP, tar, tar.gz/.tgz und .gz werden **in jeder Tiefe** ausgepackt (bis 4 Ebenen, darunter benannt
+  und ungeprüft) und jede Datei darin einzeln geprüft und entschieden. Die saubere Kopie packt jedes Archiv
+  **von innen nach außen neu**, in seiner Art; ein weggelassenes Archiv nimmt seinen Inhalt mit. Die Nachprüfung
+  packt die Kopie wieder aus. Andere Archive (.jar, .apk, .7z, .rar) heißen **ungeprüft** und sind standardmäßig weg.
+- **PNG, JPEG (auch progressiv), WebP:** neue Wahl **„Ohne Metadaten übernehmen“** (Vorgabe, solange im Bild keine
+  harten Angaben gefunden wurden). Entfernt werden EXIF mit GPS, XMP, Text-Felder, Kommentare, Zeitstempel und
+  alles hinter dem Bildende (z. B. ein angehängtes ZIP). Die **Bildpunkte bleiben gleich** — Pillow vergleicht sie.
+  ⚠ Sichtbarer Text im Bild und Botschaften in den untersten Bits bleiben; deshalb nennt die Nachprüfung jedes
+  Bild „ungeprüft“ (gelb, nicht rot). Das Neuzeichnen mit grauen Kästen bleibt Stufe 4.
+- **Jede andere Datei** wird geladen und mindestens nach Zeichenketten durchsucht (Stufe 1). PDF, Office, GIF und
+  Unbekanntes: übernehmen (nur ohne Funde) oder weglassen, bis Stufe 4.
+- **Proben:** Testdateien in `tests/muster/`, gebaut mit Python und Pillow (`tools/muster-bauen.py`), damit der
+  eigene Leser nicht am eigenen Schreiber gemessen wird. Die saubere Kopie liest ein fremder Leser
+  (`tests/muster-pruefen.py`: zipfile, tarfile, Pillow). Im Browser über das echte Dateifeld: ZIP + JPEG + WebP
+  zusammen, bauen, herunterladen, fremd prüfen. `npm test` **164 grün · 0 ROT**; `npm run gegenprobe`
+  **37 gefangen · 0 blind** (12 neue Fälle; erster Lauf 2 blind — kein reines .tar in den Testdateien, und die Probe
+  verlangte keinen Rest-Fund im Archiv; beide geschärft).
+- ⚠ **Nicht gemessen:** echte Kamerafotos (Samsung-Bewegungsfoto, HEIC — HEIC wird nur benannt), große Archive
+  am Tablet, Archive mit Namen in anderen Zeichensätzen als UTF-8.
+
 ## Grenzen (vorab benannt)
 
 - Die Suche arbeitet mit Mustern und Listen. Sie findet viel, aber **nicht garantiert alles**.

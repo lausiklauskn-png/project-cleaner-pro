@@ -11,7 +11,14 @@ export interface Datei {
   unlesbar?: string;
   /** Platzhalter für einen übersprungenen Ordner, der gar nicht geöffnet wurde. */
   nichtGeoeffnet?: boolean;
+  /** Pfad des Archivs, aus dem die Datei ausgepackt wurde (die Kopie packt es neu). */
+  archiv?: string;
+  /** Nur am Archiv selbst: so viele Einträge wurden ausgepackt. */
+  ausgepackt?: number;
+  archivArt?: ArchivArt;
 }
+
+export type ArchivArt = "zip" | "tar" | "tgz" | "gz";
 
 export type Schicht = "hart" | "meta" | "auffaellig";
 
@@ -72,7 +79,15 @@ export const MARKE_NAME: Record<string, string>;
 export const STUFE_NAME: Record<number, string>;
 
 export function pruefe(dateien: Datei[], optionen?: { werkzeuge?: Werkzeuge; fortschritt?: (nr: number, gesamt: number, pfad: string) => void }): Promise<Ergebnis>;
-export function einwerfen(liste: Datei[]): Promise<{ dateien: Datei[]; hinweise: string[] }>;
+export const ARCHIV_TIEFE_MAX: number;
+export const ARCHIV_DATEIEN_MAX: number;
+/** Packt ZIP, tar, tar.gz und .gz in jeder Tiefe aus (bis ARCHIV_TIEFE_MAX). */
+export function einwerfen(liste: Datei[], optionen?: { wurzelZip?: boolean }): Promise<{ dateien: Datei[]; hinweise: string[] }>;
+export function archivArtVon(pfad: string, kopf?: Uint8Array): ArchivArt | null;
+export function tarDateien(bytes: Uint8Array, vorsilbe?: string): { dateien: Datei[]; hinweise: string[] };
+export function archivBauen(art: ArchivArt, dateien: Array<{ pfad: string; bytes: Uint8Array }>): Promise<Uint8Array>;
+/** PNG, JPEG, WebP ohne Metadaten und ohne Daten hinter dem Bildende; null, wenn das Format nicht sicher lesbar ist. */
+export function ohneMetadaten(bytes: Uint8Array): { bytes: Uint8Array; entfernt: string } | null;
 export function zipDateien(bytes: Uint8Array, vorsilbe?: string): { dateien: Datei[]; hinweise: string[]; kaputt?: boolean };
 export function einordnen(pfad: string, art?: string): { stufe: 1 | 2 | 3; stufeName: string; marken: Marke[] };
 export function uebersprungen(pfad: string): string | null;
@@ -82,7 +97,7 @@ export function buendeln(befunde: Befund[]): Buendel[];
 
 /* ── Stufe 2 ── */
 export type Wie = "entfernen" | "muster" | "eigen" | "behalten";
-export type DateiWie = "reinigen" | "uebernehmen" | "weglassen";
+export type DateiWie = "reinigen" | "metadaten" | "uebernehmen" | "weglassen";
 export type MarkeArt = "NAME" | "MAIL" | "TELEFON" | "IBAN" | "DATUM" | "SCHLUESSEL" | "BENUTZER" | "ADRESSE" | "WERT";
 
 export interface WertEntscheidung {
@@ -102,13 +117,13 @@ export interface Stelle {
   ersatz: string; art: MarkeArt; wie: "marke" | "muster" | "eigen";
 }
 export interface Gereinigt {
-  sauber: Array<{ pfad: string; bytes: Uint8Array; gereinigt: boolean }>;
+  sauber: Array<{ pfad: string; bytes: Uint8Array; gereinigt: boolean; archiv?: string; neuGepackt?: number; ohneMetadaten?: string }>;
   stellenplan: Stelle[];
   /** Marke → alter Wert. NUR im Speicher; abgelegt erst im Tresor (Stufe 5). */
   zuordnung: Array<{ marke: string; code: string; art: MarkeArt; wie: Wie; wert: string }>;
   weg: Array<{ pfad: string; grund: string }>;
   hinweise: string[];
-  zahlen: { dateien: number; gereinigt: number; weg: number; git: number; uebersprungen: number; stellen: number; umbenannt: number };
+  zahlen: { dateien: number; gereinigt: number; weg: number; git: number; uebersprungen: number; stellen: number; umbenannt: number; bilder: number; archive: number };
 }
 export interface Offen {
   grund: "rest" | "fund" | "ungeprueft"; pfad?: string; art?: string; artName?: string; wert?: string;
