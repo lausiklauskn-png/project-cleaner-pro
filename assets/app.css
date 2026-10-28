@@ -1,0 +1,162 @@
+/* Projekt-Reiniger Pro — Farben aus der Familienakte (app/globals.css dort).
+   Vollbild auf jeder Breite: 100dvh, keine Höchstbreite, nichts läuft quer (Klaus 2026-10-28). */
+:root {
+  --navy: #0b3154; --navy2: #164f7d; --schrift: #15283a; --grund: #f2f7fa; --papier: #ffffff;
+  --petrol: #087f7a; --k1: #0C79D8; --k2: #2E9EFF; --k3: #68C4FF;
+  --linie: #d5e1ea; --leise: #4d6274; --warn: #8a4b00; --warn-grund: #fff4e0; --rot: #a3262a; --rot-grund: #fdecec;
+  --rund: 12px; --abstand: 16px;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--grund); color: var(--schrift);
+  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  overflow: hidden;
+}
+code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .92em; }
+[hidden] { display: none !important; }
+
+.app { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100vh; height: 100dvh; width: 100%; }
+
+/* Kopf: Verlauf Navy → #124e7f → #0d7775 */
+.kopf {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+  padding: 8px var(--abstand); padding-top: max(8px, env(safe-area-inset-top));
+  background: linear-gradient(90deg, var(--navy), #124e7f 55%, #0d7775); color: #fff;
+}
+.marke { display: flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; flex: none; }
+.marke img { width: 40px; height: 40px; border-radius: 10px; flex: none; }
+.marke span { font-weight: 700; font-size: 1.12rem; white-space: nowrap; }
+.name-kurz { display: none; }
+.nurlesen { flex: none; font-size: .78rem; font-weight: 600; padding: 3px 9px; border-radius: 99px; background: rgb(255 255 255 / .16); border: 1px solid rgb(255 255 255 / .35); white-space: nowrap; }
+.luecke { flex: 1 1 0; min-width: 0; }
+
+.knopf {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 44px; padding: 8px 16px; border-radius: 10px; cursor: pointer;
+  font: inherit; font-weight: 600; white-space: nowrap;
+  color: var(--navy); background: var(--papier); border: 1px solid var(--linie);
+  box-shadow: 0 1px 2px rgb(11 49 84 / .08);
+}
+.knopf:hover { border-color: var(--k2); }
+.knopf:focus-visible, .reiter-knopf:focus-visible, summary:focus-visible { outline: 3px solid var(--k3); outline-offset: 2px; }
+.haupt-knopf { background: var(--petrol); color: #fff; border-color: var(--petrol); }
+.knopf.hell { min-height: 38px; background: rgb(255 255 255 / .14); color: #fff; border-color: rgb(255 255 255 / .4); }
+
+.haupt { min-height: 0; overflow: hidden; display: grid; }
+
+/* Einwurf: die leere Fläche — Kristall mit „CLEANER“ darunter (Klaus 2026-10-28) */
+.einwurf {
+  min-height: 0; overflow: auto; display: grid; grid-template-columns: minmax(0, 1fr); align-content: center; justify-items: center;
+  gap: 8px; padding: var(--abstand);
+  background: radial-gradient(120% 90% at 50% 30%, #0f3f6c, var(--navy) 55%, #071f36); color: #fff;
+}
+.buehne { display: grid; justify-items: center; min-width: 0; }
+.kristall { width: min(46vmin, 420px); height: auto; aspect-ratio: 1; border-radius: 22px; box-shadow: 0 18px 50px rgb(0 0 0 / .45); }
+.wort {
+  margin: 14px 0 0; color: #fff; font-weight: 800; letter-spacing: .14em; line-height: 1;
+  font-size: clamp(2.2rem, 9vmin, 5.2rem); text-shadow: 0 0 24px rgb(104 196 255 / .55);
+  padding-left: .14em; /* gleicht den Buchstabenabstand am Ende aus */
+}
+.einwurf-text { display: grid; justify-items: center; text-align: center; gap: 10px; min-width: 0; width: 100%; max-width: 100%; }
+.einwurf-text h1 { margin: 6px 0 0; font-size: 1.35rem; }
+.einwurf-text p { margin: 0; color: #dbe9f5; }
+.einwurf-text strong { color: #fff; }
+.einwurf .klein { font-size: .88rem; color: #b8cfe3; }
+.einwurf code { color: #fff; }
+.knoepfe { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+
+/* Handy quer: Bild links, Text rechts */
+@media (orientation: landscape) and (max-height: 560px) {
+  .einwurf { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 24px; }
+  .kristall { width: min(52vh, 300px); }
+  .wort { font-size: clamp(1.6rem, 9vh, 3rem); margin-top: 8px; }
+}
+
+/* Arbeit: Zahlen, Hinweise, zwei Flächen */
+.arbeit { min-height: 0; display: grid; grid-template-rows: auto auto auto auto minmax(0, 1fr); }
+.fortschritt { display: grid; gap: 6px; padding: 10px var(--abstand); background: var(--papier); border-bottom: 1px solid var(--linie); }
+.fortschritt span { overflow-wrap: anywhere; font-size: .9rem; color: var(--leise); }
+.fortschritt progress { width: 100%; height: 8px; accent-color: var(--petrol); }
+.zahlen { list-style: none; margin: 0; padding: 10px var(--abstand); display: flex; flex-wrap: wrap; gap: 8px; background: var(--papier); border-bottom: 1px solid var(--linie); }
+.zahlen li { display: flex; align-items: baseline; gap: 6px; padding: 4px 10px; border-radius: 99px; background: var(--grund); border: 1px solid var(--linie); font-size: .9rem; white-space: nowrap; }
+.zahlen b { font-size: 1.05rem; color: var(--navy); }
+.zahlen li.warn { background: var(--warn-grund); border-color: #f0c98a; }
+.hinweise:empty { display: none; }
+.hinweise { padding: 8px var(--abstand); display: grid; gap: 6px; background: var(--warn-grund); border-bottom: 1px solid #f0c98a; color: var(--warn); font-size: .92rem; }
+.hinweise p { margin: 0; overflow-wrap: anywhere; }
+
+.reiter { display: none; gap: 6px; padding: 8px var(--abstand) 0; background: var(--grund); }
+.reiter-knopf { flex: 1 1 0; min-width: 0; min-height: 42px; font: inherit; font-weight: 600; border: 1px solid var(--linie); border-bottom: 0; border-radius: 10px 10px 0 0; background: #e3edf4; color: var(--leise); cursor: pointer; }
+.reiter-knopf[aria-pressed="true"] { background: var(--papier); color: var(--navy); }
+
+.spalten { min-height: 0; display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+.flaeche { min-height: 0; min-width: 0; overflow: auto; padding: var(--abstand); padding-bottom: max(var(--abstand), env(safe-area-inset-bottom)); }
+#befunde { border-right: 1px solid var(--linie); }
+#inventur { background: #f8fbfd; }
+
+@media (max-width: 899px) {
+  .reiter { display: flex; }
+  .spalten { grid-template-columns: minmax(0, 1fr); background: var(--papier); }
+  .spalten[data-zeige="befunde"] #inventur, .spalten[data-zeige="inventur"] #befunde { display: none; }
+  #befunde { border-right: 0; }
+}
+@media (max-width: 420px) {
+  :root { --abstand: 12px; }
+  .name-lang { display: none; }
+  .name-kurz { display: inline; }
+  .kopf { gap: 8px; }
+}
+@media (max-width: 380px) {
+  .kopf { gap: 6px; }
+  .marke { gap: 7px; }
+  .nurlesen { padding: 3px 7px; font-size: .74rem; }
+  .knopf.hell { padding: 6px 10px; }
+}
+@media (max-width: 340px) {
+  .marke img { width: 34px; height: 34px; }
+  .marke span { font-size: 1rem; }
+}
+
+/* Funde */
+.gruppe { margin: 0 0 22px; }
+.gruppe h2 { font-size: 1.05rem; margin: 0 0 4px; color: var(--navy); }
+.gruppe > p { margin: 0 0 10px; color: var(--leise); font-size: .9rem; }
+.buendel { background: var(--papier); border: 1px solid var(--linie); border-left: 4px solid var(--k2); border-radius: var(--rund); padding: 10px 12px; margin: 0 0 8px; }
+.buendel[data-schicht="meta"] { border-left-color: var(--petrol); }
+.buendel[data-schicht="auffaellig"] { border-left-color: #d08a1a; }
+.buendel-kopf { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.art { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--leise); }
+.vorschlag { font-size: .75rem; padding: 1px 7px; border-radius: 99px; background: #eef4ff; color: #2a5ca8; border: 1px solid #c9dafa; }
+.wert { display: block; margin: 4px 0; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .95rem; overflow-wrap: anywhere; color: var(--schrift); }
+.anzahl { font-weight: 700; color: var(--navy); }
+.satz { margin: 2px 0 4px; font-size: .88rem; color: var(--leise); overflow-wrap: anywhere; }
+details.stellen summary { cursor: pointer; font-size: .88rem; color: var(--navy2); }
+details.stellen ol { margin: 6px 0 0; padding-left: 1.3em; font-size: .86rem; }
+details.stellen li { overflow-wrap: anywhere; }
+.leer { display: grid; justify-items: center; text-align: center; gap: 8px; padding: 24px var(--abstand); border-radius: var(--rund);
+  background: radial-gradient(120% 90% at 50% 30%, #0f3f6c, var(--navy) 60%, #071f36); color: #dbe9f5; }
+.leer img { width: min(40vmin, 220px); height: auto; aspect-ratio: 1; border-radius: 16px; }
+.leer .wort { font-size: clamp(1.6rem, 6vmin, 2.6rem); margin: 4px 0 0; }
+.leer p { margin: 0; overflow-wrap: anywhere; }
+
+/* Inventur */
+.inventur-kopf { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; margin: 0 0 8px; }
+.inventur-kopf h2 { font-size: 1.05rem; margin: 0; color: var(--navy); }
+.inventur-kopf label { font-size: .9rem; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; cursor: pointer; }
+.stufen-legende { margin: 0 0 10px; font-size: .84rem; color: var(--leise); }
+.datei { list-style: none; margin: 0; padding: 0; }
+.datei li { padding: 8px 0; border-bottom: 1px solid var(--linie); min-width: 0; }
+.pfad { display: block; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .88rem; overflow-wrap: anywhere; }
+.zeile2 { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 3px; font-size: .8rem; color: var(--leise); align-items: center; }
+.chip { padding: 1px 7px; border-radius: 99px; border: 1px solid var(--linie); background: var(--papier); white-space: nowrap; }
+.chip.stufe1 { border-color: #9fd3b8; background: #ecf8f1; color: #1d6b43; }
+.chip.stufe2 { border-color: #bcd6f5; background: #eef5fd; color: #1f5b9a; }
+.chip.stufe3 { border-color: #f0c98a; background: var(--warn-grund); color: var(--warn); }
+.chip.marke { border-color: #f2b8b8; background: var(--rot-grund); color: var(--rot); font-weight: 600; }
+.chip.funde { background: var(--navy); color: #fff; border-color: var(--navy); }
+.offen { display: block; margin-top: 3px; font-size: .8rem; color: var(--warn); overflow-wrap: anywhere; }
+
+.ziehen { position: fixed; inset: 10px; display: grid; place-items: center; border: 3px dashed var(--k3); border-radius: 18px;
+  background: rgb(11 49 84 / .82); color: #fff; font-size: 1.4rem; font-weight: 700; pointer-events: none; z-index: 10; text-align: center; padding: 16px; }

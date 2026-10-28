@@ -1,0 +1,11 @@
+{
+  "name": "project-cleaner-pro",
+  "private": true,
+  "description": "Projekt-Reiniger Pro: persönliche Daten in einem Projekt finden, bevor es an eine KI oder nach GitHub geht",
+  "scripts": {
+    "test": "node tests/probe.mjs",
+    "gegenprobe": "node tests/gegenprobe.mjs",
+    "icons": "node tools/icons-bauen.mjs"
+  },
+  "devDependencies": { "playwright-core": "^1.62.1" }
+}
