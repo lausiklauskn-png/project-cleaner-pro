@@ -1,13 +1,14 @@
 # Brief: Projekt-Reiniger Pro
 
-Stand 2026-10-29, **Stufen 1–4 gebaut** (Abschnitte „Stufe 1/2/3/4 · gebaut“ unten). Die App reinigt jetzt:
-einwerfen → Funde ansehen (antippen = Datei an der Stelle) → je Fund entscheiden → saubere Kopie als ZIP
-mit Stellenplan und Bericht → Nachprüfung. PDF und Bilder werden **neu gezeichnet** (graue Kästen, ohne Metadaten),
-Word/Excel/PowerPoint als reiner Text neu gebaut, dazu die **Mustermappe**. Hell/Dunkel-Schalter im Kopf.
-**Testfassungen** (Stufe 8 vorgezogen, Klaus 2026-10-29: „zum Testen … ob unser Vorhaben im Groben funktioniert“): Android-APK
-und Windows-Setup liegen in der Vorab-Veröffentlichung **testfassung**. Nächster Schritt: Klaus' Befund aus dem Test
-einarbeiten, danach Stufe 5 (Tresor und Gäste-Sperre). Der Brief lebt seitdem **hier**
-im Repo `project-cleaner-pro`; die Fassung im Sende-Prüfer ist eingefroren und zeigt hierher.
+Stand 2026-10-29 (Abend), **Stufen 1–5 gebaut** (Abschnitte „Stufe 1/2/3/4/5 · gebaut“ unten). Die App reinigt:
+einwerfen → Funde ansehen (antippen = Datei an der Stelle) → je Fund entscheiden (mit **Vorschau**, was aus der Zeile wird)
+→ saubere Kopie als ZIP mit Stellenplan und Bericht → Nachprüfung → auf Wunsch **Tresor** (verschlüsselte Datei mit
+Zuordnung und Originalen). Die **Gäste-Sperre** im Kopf schließt die App sofort. PDF und Bilder werden neu gezeichnet,
+Word/Excel/PowerPoint als reiner Text neu gebaut, dazu die Mustermappe. Hell/Dunkel-Schalter im Kopf.
+**Testfassungen** (Android-APK, Windows-Setup) liegen in der Vorab-Veröffentlichung **testfassung**; Klaus' erster
+Befund (2026-10-29, Tablet) ist eingearbeitet (Abschnitt „Befund aus dem Test“). Nächster Schritt: Klaus testet
+Fassung 8 (Tresor, Sperre, geteilte Ansicht), danach **Stufe 6** (Zurückbauen, mit eigenen Werten füllen). Der Brief
+lebt **hier** im Repo `project-cleaner-pro`; die Fassung im Sende-Prüfer ist eingefroren und zeigt hierher.
 
 ## Anlass
 
@@ -303,11 +304,14 @@ ungereinigte ZIP, gilt:
 | 2 ✅ | Entscheiden, Marken und Musterwerte, saubere Kopie, Stellenplan, Nachprüfung — gebaut 2026-10-28 |
 | 3 ✅ | Gefühlte Metadaten (Wortlisten, Eigennamen, Pfade) — gebaut 2026-10-28 (vor Stufe 2, nur lesen) |
 | 4 ✅ | Neu gezeichnete Blätter, Mustermappe — gebaut 2026-10-29 |
-| 5 | Tresor und Gäste-Sperre |
+| 5 ✅ | Tresor und Gäste-Sperre — gebaut 2026-10-29 (Ersatzschlüssel 3 aus 5 noch offen) |
 | 6 | Zurückbauen, mit eigenen Werten füllen |
 | 7 | Git-Wächter und Sperrliste |
 | 8 (Test) | APK, danach Windows — **Testfassungen** gebaut 2026-10-29 (Debug-APK, Windows unsigniert); eigener Schlüssel, Signatur, Updates offen |
 | 9 | Einbau in die Familienakte |
+
+Abschlussbriefe: [Stufe 4 und Testfassungen](BRIEF_ABSCHLUSS_2026-10-29_stufe-4-und-testfassungen.md) ·
+[Befund und Stufe 5](BRIEF_ABSCHLUSS_2026-10-29_befund-und-stufe-5.md).
 
 ## Am Ende jeder Sitzung: Kurzauftrag zum Kopieren (Klaus 2026-10-28)
 
@@ -559,6 +563,64 @@ Schrift.“*
 - ⚠ **Nicht gemessen:** echtes Android-Gerät und echter Windows-Rechner; ob Texterkennung (WebAssembly-Worker) und pdf.js in
   der Android-WebView und in WebView2 laufen; ob WebView2 den Download der sauberen Kopie ohne Rückfrage ablegt.
 
+## Befund aus dem Test (Klaus 2026-10-29, Tablet)
+
+Klaus hat die PWA am Tablet getestet (geteilter Bildschirm, hell). Seine Punkte und was daraus wurde:
+
+| Klaus | umgesetzt |
+|---|---|
+| *„Erklärungen hinter einem i-Button verstecken“* | Die Sätze unter den Gruppen, beim Dateiplan, bei „Saubere Kopie bauen“, bei der Mustermappe, der Inventur-Legende, auf der Startfläche und unter der Kopie stehen jetzt hinter einem **ⓘ-Knopf** (zu, bis jemand tippt; der Tipp klappt nur die Erklärung, nicht die Gruppe). „Lokal“ im Kopf ist ein echter Knopf mit Erklärung. |
+| *„Geprüft … 13 Dateien, Funde … nicht in einem Button-Container … kleiner schreiben … verleitet zum Draufklicken“* | Die Zählzeile ist eine **schlichte, kleine Textzeile** mit „·“ dazwischen, ohne Kästchen. |
+| *„Bei Inventur das Gleiche … nur in der entsprechenden Farbe, fett … keinen Container“* | Stufe, Marke und Funde stehen nur **farbig und fett**; Größe und Art als bloßer Text. „Vorschlag“ an Namen ebenso. „1 Fund“ statt „1 Funde“. |
+| *„Vorher-Nachher … geteilter Bildschirm … einstellen, Einzelansicht und geteilte Ansicht“* | Knopf **„Geteilt“ / „Einzeln“** in der Datei-Ansicht: Original links, saubere Kopie rechts (am schmalen Hochformat übereinander), jede Seite scrollt für sich. Gemerkt wird nur diese Wahl (`localStorage` „reiniger-ansicht“). |
+| *„Sobald ich eigener Wert anklicke … Cursor sofort in das Eingabefeld“* | Bei „Eigener Wert …“ steht der Cursor sofort im Feld. |
+| *„Das dunkle Design darf gern leicht heller sein … dezenter“* | Dunkel-Satz heller: Grund `#1a2b3d` statt `#0a1724`, Papier `#233a52`, Linien und getönte Flächen mit. Kontrast-Probe in beiden Modi grün. |
+| *„Entfernen (Marke) … Musterwert … eigener Wert lalala … die Änderung gleich sehen, während ich das anklicke“* | Unter jeder Wahl steht **„Wird zu:“** mit der echten Zeile aus der Datei, der Ersatz grün hervorgehoben — ändert sich sofort beim Wählen und beim Tippen. Der Kern rechnet es (`vorschau`), dieselbe Regel und Nummer wie beim Reinigen. |
+| (Bildschirmfoto) „Originalwerte in der Kopie: 6 — in MUSTERMAPPE/…mustertabelle“ | **Fehler gefunden:** die erfundenen Werte der Mustertabelle (`erika.mustermann@beispiel.example`) waren dieselben wie im Beispielprojekt — die Nachprüfung hatte recht. Jetzt: eigene Musterwerte (`mia.musterfrau@muster.example`), und eine Mustermappe-Datei, die **zufällig einen entfernten Wert** enthält, geht nicht mit (Grund im Bericht). |
+
+Kopf am Handy: unter 900 px nur Symbole, unter 420 px kein Schriftzug neben dem Logo, unter 380 px kein „Lokal“ (derselbe
+Satz steht auf der Startfläche) — damit der Sperr-Knopf immer Platz hat. ⚠ Zu APK und Windows kam noch kein Befund.
+
+## Stufe 5 · gebaut (2026-10-29)
+
+- **Das Schloss** `assets/schluesseltresor.js` ist **byte-1:1** aus dem Sende-Prüfer übernommen (dort aus kim-hub-company `1a4528d`,
+  `TRESOR_SHA` `eaed30e8…`), hier in `PINS` gepinnt: AES-256-GCM, PBKDF2-SHA256 600 000 Runden. ⚠ Direkt aus kim-hub-company zu
+  holen wurde in dieser Sitzung abgelehnt (Zugriff); der SHA ist derselbe, den der Sende-Prüfer gegen kim-hub-company pinnt.
+  Der Kern lädt es nicht selbst: `werkzeuge.WERKSTATT_SCHLUESSEL` bzw. globalThis — kein zweites Schloss.
+- **Kern** (ohne DOM, Typen in `.d.ts`): `verschliesse(zuordnung, originale, code, { ablaufTage, quelle })` → Tresor-Datei,
+  `oeffne(datei, code)` → `{ zuordnung, originale, quelle, erstellt, ablauf, abgelaufen }`, `tresorKopf` (ohne Code lesbar),
+  `istTresor`, `codeGuete`, `sperrWartezeit`, `sperrPaket`/`sperrAuf`, `vorschau`. Fehler heißen „code“, „fassung“, „kein-tresor“,
+  „zu-gross“, „schloss-fehlt“ — nie „falscher Code“, wenn es eine andere Fassung ist.
+- **Tresor-Datei** `<projekt>-tresor-JJJJ-MM-TT.rtresor`: eine JSON-Datei. Lesbar ohne Code nur Kennung
+  `PROJEKT-REINIGER-TRESOR`, Fassung, Erstell- und **Ablaufdatum** (Vorgabe 30 Tage, wählbar 7/30/90). Zuordnung, Originale und der
+  Name der Quelle liegen im verschlüsselten Paket. Originale höchstens 256 MB; `node_modules` und Build-Ordner nie.
+- **Oberfläche:** nach dem Reinigen die Karte **„Tresor (auf Wunsch)“**: Zuordnung immer, „Originaldateien mitnehmen“ angehakt nur
+  auf Wunsch, Code zweimal, Hinweis sichtbar am Feld („Ein kurzer Code lässt sich durchprobieren …“, ab 12 Zeichen grün),
+  „Verschließen und speichern“ (Download bzw. Android „Speichern unter“). Die Felder sind danach leer.
+  Auf der Startfläche **„Tresor öffnen“** (oder eine `.rtresor` einwerfen): erst Ablauf ohne Code; abgelaufen → gelb „Es sind fremde
+  Daten: löschen oder an den Absender zurückgeben“ (die App kann die Datei nicht selbst löschen). Mit Code: die Zuordnung (Wert erst
+  auf „zeigen“) und die Originale als Ordner (ansehen wie in der Datei-Ansicht). „Schließen“, „Sperren“ und „Neu“ werfen den Inhalt
+  aus dem Speicher.
+- **Gäste-Sperre** (Knopf mit Schloss, immer im Kopf): der erste Tipp fragt einen Code (zweimal, mindestens 4 Zeichen; gilt bis die
+  Seite zu ist, gespeichert nirgends). Danach schließt jeder Tipp **sofort**: die Sperrfläche deckt alles, Funde, Inventur, Ansicht,
+  Tresor und Meldung werden aus der Seite genommen, alles dahinter ist `inert`; Dateien und Entscheidungen werden mit dem Code
+  verschlüsselt (**nur im Speicher**, dasselbe Schloss), der Klartext und der Code selbst werden vergessen. Mit dem Code: dieselben
+  Dateien und Entscheidungen, neu geprüft (und die Kopie neu gebaut, wenn es eine gab). **Falsche Versuche:** drei frei, dann 30 s,
+  1, 2, 4 … Minuten, höchstens 30 min. „Code vergessen: alles verwerfen“ leert die App; neu laden ebenso — es liegt nirgends sonst.
+- **BookLedger:** BookLedgerPro ist privat und war in dieser Sitzung nicht lesbar; gelesen wurde **BookLedger-Basic** (öffentlich,
+  `src/core/vault.js`, `src/ui/shell.js`): „Jetzt sperren“ = Sitzungsschlüssel aus dem Speicher (`lockVault`), dann Neustart auf den
+  Sperrbildschirm. Dieselbe Idee hier; eine wachsende Wartezeit hat BookLedger-Basic **nicht** — sie ist hier neu (Brief verlangt sie).
+  ⚠ Ob BookLedgerPro eine hat, ist ungeprüft.
+- **Proben:** `npm test` 266 grün · 0 ROT (darunter: Tresor ohne Code ohne Wert, Originale Byte für Byte, falscher Code, Ablauf,
+  Sperre leert Seite und Speicher, Code vergessen, Wartezeit nach drei Fehlversuchen, Wiederherstellen mit Entscheidung, Vollbild in
+  Sperre/Tresor/geteilter Ansicht). `npm run gegenprobe`: 17 neue Fälle (Befund und Stufe 5) und 11 berührte alte voll gefahren,
+  28 gefangen · 0 blind; alle 65 Anker leben. Dabei gefunden: die Schrift-über-Schrift-Messung zählte Text in **zugeklappten**
+  Bereichen mit (Chromium verbirgt ihn ohne `display: none`) — die Probe ist nachgebessert.
+- ⚠ **Nicht gemessen:** große Projekte im Tresor/in der Sperre (alles als Base64 im Speicher — bei Hunderten MB am Tablet kann es
+  knapp werden), echte Geräte (APK, Windows: ob „Speichern unter“ die `.rtresor` sauber ablegt), Sperre während einer laufenden
+  Prüfung (dann sagt die App „erst abwarten“). **Offen für später:** Ersatzschlüssel in 5 Teilen (3 genügen) wie Private Brain Pro;
+  Zurückbauen (Stufe 6).
+
 ## Grenzen (vorab benannt)
 
 - Die Suche arbeitet mit Mustern und Listen. Sie findet viel, aber **nicht garantiert alles**.
@@ -572,7 +634,8 @@ Schrift.“*
 - ✅ Das Repo gibt es: `project-cleaner-pro` (Klaus 2026-10-28). Stufe 1 liegt darin.
 - ✅ GitHub Pages ist an (Klaus testete am 2026-10-28 auf lausiklauskn-png.github.io).
 - Soll „Datum“ in Doku-Dateien standardmäßig „Behalten“ sein (sehr viele Funde, selten persönlich)?
-- Soll die Anzeige die gefundenen Werte im Klartext zeigen (so jetzt, nur auf dem Gerät) oder erst auf Tipp?
+- Soll die Anzeige die gefundenen Werte im Klartext zeigen (so jetzt, nur auf dem Gerät) oder erst auf Tipp? (Im Tresor: erst auf Tipp.)
+- Ersatzschlüssel für den Tresor (5 Teile, 3 genügen), wie Private Brain Pro — Stufe 5 hat nur den Code.
 - Was geschieht mit dem Original-Branch in Meine-Familienakte (Fund oben)?
 - Pinsel zum Abdecken von Hand (Gesichter, Kennzeichen ohne lesbare Schrift) — in Stufe 4 nicht gebaut.
 - ODT/ODS/ODP und alte .doc/.xls neu bauen — bisher nur weglassen oder Muster.

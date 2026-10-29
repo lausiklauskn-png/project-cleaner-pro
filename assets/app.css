@@ -13,18 +13,18 @@
 /* Dunkel: wenn das Gerät dunkel eingestellt ist (Thema „Automatisch“) oder über den Schalter im Kopf. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-thema="hell"]) {
-    --schrift: #e4edf5; --grund: #0a1724; --papier: #112436; --flaeche2: #0e1f30; --titel: #9fd0ff; --titel2: #8cc4f5;
-    --linie: #29445c; --leise: #a9bccc; --warn: #ffcf87; --warn-grund: #33240c; --warn-linie: #7a5a25; --rot: #ffaaa8; --rot-grund: #3a1719; --rot-linie: #7d3a3c;
-    --gut: #8fe0b4; --gut-grund: #102c20; --gut-linie: #2f6b4b; --blau: #a9cdf5; --blau-grund: #12283f; --blau-linie: #33557a;
-    --petrol-grund: #0e2b2c; --petrol-linie: #24605e; --reiter: #0e1f30; --ziel: #3d3410; --ziel-linie: #a08a2c; --schatten: rgb(0 0 0 / .3);
+    --schrift: #e8eff6; --grund: #1a2b3d; --papier: #233a52; --flaeche2: #1f3449; --titel: #9fd0ff; --titel2: #8cc4f5;
+    --linie: #3d5a76; --leise: #a9bccc; --warn: #ffcf87; --warn-grund: #3d2f17; --warn-linie: #7a5a25; --rot: #ffaaa8; --rot-grund: #452427; --rot-linie: #7d3a3c;
+    --gut: #8fe0b4; --gut-grund: #1b3a2d; --gut-linie: #2f6b4b; --blau: #a9cdf5; --blau-grund: #213a55; --blau-linie: #33557a;
+    --petrol-grund: #1c3e42; --petrol-linie: #2f6f6c; --reiter: #1d3043; --ziel: #4a4019; --ziel-linie: #a08a2c; --schatten: rgb(0 0 0 / .3);
     color-scheme: dark;
   }
 }
 :root[data-thema="dunkel"] {
-  --schrift: #e4edf5; --grund: #0a1724; --papier: #112436; --flaeche2: #0e1f30; --titel: #9fd0ff; --titel2: #8cc4f5;
-  --linie: #29445c; --leise: #a9bccc; --warn: #ffcf87; --warn-grund: #33240c; --warn-linie: #7a5a25; --rot: #ffaaa8; --rot-grund: #3a1719; --rot-linie: #7d3a3c;
-  --gut: #8fe0b4; --gut-grund: #102c20; --gut-linie: #2f6b4b; --blau: #a9cdf5; --blau-grund: #12283f; --blau-linie: #33557a;
-  --petrol-grund: #0e2b2c; --petrol-linie: #24605e; --reiter: #0e1f30; --ziel: #3d3410; --ziel-linie: #a08a2c; --schatten: rgb(0 0 0 / .3);
+  --schrift: #e8eff6; --grund: #1a2b3d; --papier: #233a52; --flaeche2: #1f3449; --titel: #9fd0ff; --titel2: #8cc4f5;
+  --linie: #3d5a76; --leise: #a9bccc; --warn: #ffcf87; --warn-grund: #3d2f17; --warn-linie: #7a5a25; --rot: #ffaaa8; --rot-grund: #452427; --rot-linie: #7d3a3c;
+  --gut: #8fe0b4; --gut-grund: #1b3a2d; --gut-linie: #2f6b4b; --blau: #a9cdf5; --blau-grund: #213a55; --blau-linie: #33557a;
+  --petrol-grund: #1c3e42; --petrol-linie: #2f6f6c; --reiter: #1d3043; --ziel: #4a4019; --ziel-linie: #a08a2c; --schatten: rgb(0 0 0 / .3);
   color-scheme: dark;
 }
 :root[data-thema="hell"] { color-scheme: light; }
@@ -306,8 +306,67 @@ mark { background: #ffe08a; color: #1d1d1d; border-radius: 3px; padding: 0 1px; 
 /* Handy: im Kopf nur Logo und Symbole — der Sperr-Knopf muss immer Platz haben (Stufe 5). */
 @media (max-width: 420px) { .marke span { display: none; } }
 @media (max-width: 380px) { #lokal { display: none; } }
-/* Inventur: Angaben, keine Knöpfe (Klaus 2026-10-29) — ohne Rand und ohne Pillenform; Größe und Art als bloßer Text. */
-.zeile2 .chip { border: 0; border-radius: 4px; padding: 0 5px; }
-.zeile2 .chip:not(.stufe1):not(.stufe2):not(.stufe3):not(.marke):not(.funde):not(.begriff) { background: none; padding: 0; color: var(--leise); }
-.zeile2 .chip.funde { background: none; color: var(--titel); font-weight: 700; padding: 0; }
-.zeile2 .chip.begriff { border: 1px solid var(--linie); border-radius: 99px; padding: 1px 7px; }
+/* Inventur: Angaben, keine Knöpfe (Klaus 2026-10-29: „nur in der entsprechenden Farbe, fett, ohne Container“). */
+.zeile2 .chip { border: 0; border-radius: 0; padding: 0; background: none; white-space: nowrap; }
+.zeile2 .chip:not(.stufe1):not(.stufe2):not(.stufe3):not(.marke):not(.funde) { color: var(--leise); }
+.zeile2 .chip.stufe1, .zeile2 .chip.stufe2, .zeile2 .chip.stufe3, .zeile2 .chip.marke { background: none; font-weight: 700; }
+.zeile2 .chip.funde { background: none; color: var(--titel); font-weight: 700; }
+.zeile2 .chip.begriff { border: 1px solid var(--linie); border-radius: 99px; padding: 1px 7px; background: var(--papier); }
+.zeile2 { column-gap: 12px; }
+/* „Vorschlag“ ist Auskunft: farbig, ohne Kasten */
+.vorschlag { background: none; border: 0; padding: 0; font-weight: 700; color: var(--blau); }
+/* Vorschau der Wahl je Fund */
+.weg-block { display: grid; gap: 4px; margin: 8px 0 2px; min-width: 0; }
+.weg-block .weg-zeile { margin: 0; }
+.wahl-vorschau { display: grid; gap: 2px; min-width: 0; }
+.vorschau-titel { font-size: .78rem; color: var(--leise); }
+mark.ersatz { background: var(--gut-grund); color: var(--gut); outline: 1px solid var(--gut-linie); font-weight: 600; }
+@media (max-width: 899px) { #neu .t, #sperren .t, #installieren .t, #aktualisieren .t { display: none; } #neu, #sperren, #installieren, #aktualisieren { padding: 3px 8px; } }
+
+/* Stufe 5: Gäste-Sperre — deckt alles ab, Kristall wie die leere Fläche */
+.sperre { position: absolute; inset: 0; z-index: 60; display: grid; place-items: center; overflow: auto; padding: var(--abstand);
+  background: radial-gradient(120% 90% at 50% 30%, #0f3f6c, var(--navy) 55%, #071f36); color: #fff; }
+.sperre[hidden] { display: none; }
+.sperre-karte { display: grid; justify-items: center; gap: 10px; width: min(380px, 100%); text-align: center; min-width: 0; }
+.sperre-bild { width: min(30vmin, 160px); height: auto; aspect-ratio: 1; border-radius: 18px; box-shadow: 0 12px 36px rgb(0 0 0 / .45); }
+.sperre h1 { margin: 4px 0 0; font-size: 1.3rem; }
+.sperre-form { display: grid; gap: 6px; width: 100%; text-align: left; }
+.sperre-form label { font-size: .9rem; color: #dbe9f5; }
+.sperre-form input, .code-feld { font: inherit; font-size: 1rem; min-height: 38px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--linie); background: var(--papier); color: var(--schrift); min-width: 0; width: 100%; }
+.sperre-form .knoepfe { justify-content: flex-start; margin-top: 4px; }
+.sperre-meldung { margin: 0; min-height: 1.3em; font-size: .9rem; color: #ffd38a; overflow-wrap: anywhere; }
+.sperre-klein { margin: 0; font-size: .82rem; color: #b8cfe3; overflow-wrap: anywhere; }
+.knopf.sperre-verwerfen { background: transparent; color: #dbe9f5; border-color: rgb(255 255 255 / .35); }
+@media (orientation: landscape) and (max-height: 560px) { .sperre-bild { width: 22vh; } .sperre-karte { gap: 6px; } }
+
+/* Stufe 5: Tresor */
+.tresor-karte { display: grid; gap: 8px; padding: 10px 12px; border-radius: var(--rund); background: var(--flaeche2); border: 1px solid var(--linie); min-width: 0; }
+.tresor-karte h3 { margin: 0; font-size: 1rem; color: var(--titel); display: flex; gap: 6px; align-items: center; }
+.tresor-karte .weg { max-width: 22em; }
+.tresor-karte .code-feld { flex: 1 1 10em; width: auto; font-size: .9rem; min-height: 30px; padding: 3px 8px; }
+.code-hinweis { margin: 0; display: flex; gap: 6px; align-items: flex-start; font-size: .84rem; color: var(--warn); overflow-wrap: anywhere; }
+.code-hinweis .ikon { margin-top: .15em; }
+.code-hinweis[data-guete="gut"] { color: var(--gut); }
+.tresor-auf { display: grid; gap: 8px; max-width: 34em; }
+.tresor-auf p { margin: 0; }
+.tresor-auf .code-feld { flex: 1 1 10em; width: auto; }
+.tresor-auf .sperre-meldung { color: var(--warn); }
+.tresor-abgelaufen { display: flex; gap: 6px; align-items: flex-start; margin: 0 0 12px; padding: 8px 10px; border-radius: 8px; background: var(--warn-grund); border: 1px solid var(--warn-linie); color: var(--warn); overflow-wrap: anywhere; }
+#tresor .ansicht-kopf .satz { flex: 1 1 100%; margin: 0; font-size: .84rem; color: var(--leise); }
+#tresor-zuordnung code { font-weight: 600; color: var(--titel); }
+.tresor-datei:empty { display: none; }
+.tresor-datei { margin-top: 12px; border-top: 1px solid var(--linie); padding-top: 8px; min-width: 0; }
+.tresor-datei h3 { margin: 0 0 6px; font-size: .95rem; }
+/* Geteilte Ansicht: Original | Saubere Kopie, jede Seite scrollt für sich; am schmalen Hochformat übereinander */
+.geteilt { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); min-height: 0; }
+.geteilt > .ansicht-koerper + .ansicht-koerper { border-left: 1px solid var(--linie); }
+.geteilt-titel { position: sticky; top: -8px; z-index: 1; margin: -8px 0 6px; padding: 6px 0; font-size: .86rem; color: var(--titel); background: var(--papier); border-bottom: 1px solid var(--linie); overflow-wrap: anywhere; }
+@media (max-width: 699px) and (orientation: portrait) {
+  .geteilt { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+  .geteilt > .ansicht-koerper + .ansicht-koerper { border-left: 0; border-top: 2px solid var(--linie); }
+}
+#ansicht-geteilt[aria-pressed="true"] { border-color: var(--petrol); }
+.knopf:disabled { opacity: .55; cursor: default; }
+.vorschau-zeile { display: block; padding: 4px 8px; background: var(--grund); border-radius: 6px; font-size: .82rem; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--schrift); }
+.tresor-karte { grid-template-columns: minmax(0, 1fr); }
+.tresor-karte > * { min-width: 0; }

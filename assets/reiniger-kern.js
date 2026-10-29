@@ -13,7 +13,8 @@
  * Metadaten (Orte, Hochschulen, Firmen, Adressen, Kennzeichen, Vornamen, Rechner,
  * Ordnerpfade) über Wortlisten. Stufe 2 = Entscheiden, Reinigen, Stellenplan,
  * Nachprüfung. Stufe 4 = neu gezeichnete Blätter (PDF, Bild, Office) und Mustermappe
- * — das Zeichnen selbst bringt der Aufrufer mit (`werkzeuge.Zeichner`). Tresor folgt.
+ * — das Zeichnen selbst bringt der Aufrufer mit (`werkzeuge.Zeichner`). Stufe 5 = Tresor und Gäste-Sperre
+ * (das Schloss `schluesseltresor.js` bringt der Aufrufer mit: `werkzeuge.WERKSTATT_SCHLUESSEL`).
  * `pruefe` ändert keine Datei; `reinige` ändert nur die Kopie.
  *
  * Grundsatz: was nicht gelesen werden konnte, heißt „ungeprüft“, nie „sauber“.
@@ -1013,6 +1014,17 @@ async function nachfinden(text, posten, optionen) {
   return neu.size;
 }
 
+/**
+ * Vorschau einer Wahl (Klaus 2026-10-29: „die Änderung gleich sehen, während ich das anklicke“): eine Zeile so,
+ * wie sie nach dem Reinigen aussähe — nur dieses Bündel ersetzt, dieselbe Regel und dieselbe Nummer wie in `reinige`.
+ * @returns {{ text: string, ersatz: string | null }}
+ */
+export function vorschau(ergebnis, wahl, schluessel, pfad, zeile) {
+  const p = ersetzungen(ergebnis, wahl).find((x) => x.schluessel === schluessel);
+  if (!p) return { text: String(zeile), ersatz: null };
+  return { text: ersetzeAlles(String(zeile), [p], pfad).text, ersatz: ersatzFuer(p, pfad) };
+}
+
 function ersatzFuer(p, pfad, imPfad, doku) {
   if (p.weg === "behalten") return null;
   if (p.weg === "eigen") return String(p.eigen);
@@ -1142,7 +1154,16 @@ export async function reinige(dateien, entscheidungen, optionen = {}) {
     }
     weggelassen.push({ pfad: ziel, grund: e ? (pp && pp.blatt ? (e.artName || "Datei") + " — bewusst weggelassen (neu zeichnen war möglich)" : e.ungeprueft || (e.artName || "Datei") + " lässt sich nicht Stelle für Stelle reinigen") : "nicht geprüft" });
   }
-  if (entscheidungen.mustermappe) for (const m of await mustermappe()) sauber.push({ pfad: MUSTERMAPPE_ORDNER + "/" + m.pfad, bytes: m.bytes, mappe: true });
+  /* Mustermappe: alles erfunden. Steht ein entfernter Wert zufällig auch darin (Klaus' Test 2026-10-29: das Beispielprojekt
+     nutzte dieselbe erfundene Mail wie die Mustertabelle), geht die Datei nicht mit — sonst stünde der Wert wieder in der Kopie. */
+  if (entscheidungen.mustermappe) {
+    const weg = posten.filter((p) => p.weg !== "behalten").flatMap((p) => p.werte).map((w) => String(w).toLowerCase()).filter((w) => w.length >= 3);
+    for (const m of await mustermappe()) {
+      const ziel = MUSTERMAPPE_ORDNER + "/" + m.pfad, t = new TextDecoder().decode(m.bytes).toLowerCase();
+      if (weg.some((w) => t.includes(w))) { weggelassen.push({ pfad: ziel, grund: "Mustermappe — enthält zufällig einen entfernten Wert aus dem Projekt, deshalb weggelassen" }); continue; }
+      sauber.push({ pfad: ziel, bytes: m.bytes, mappe: true });
+    }
+  }
   const zuordnung = {};                                  // NUR im Speicher, nie in der Kopie
   for (const p of posten) if (p.weg !== "behalten") zuordnung[p.marke] = { art: p.art, werte: p.werte.slice(), muster: p.muster, eigen: p.weg === "eigen" ? p.eigen : undefined };
   const uebersprungenOrdner = ergebnis.inventur.filter((e) => e.art === "ordner").map((e) => e.pfad);
@@ -1843,9 +1864,9 @@ export async function pngBauen(w, h, rgba) {
    Telefonnummern oder Kontonummern (die zählen auch als Muster sonst als Fund). */
 const LEER_JPG = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgsKCA0LCgsODg0PEyAVExISEyccHhcgLikxMC4pLSwzOko+MzZGNywtQFdBRkxOUlNSMj5aYVpQYEpRUk//2wBDAQ4ODhMREyYVFSZPNS01T09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0//wAARCAB4AKADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD06iiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA//9k=";
 function ausB64(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
-const BRIEF = ["Max Mustermann", "Musterstraße 1", "12345 Musterstadt", "", "An Erika Mustermann", "Musterfirma GmbH", "",
-  "Betreff: Musterprojekt", "", "Hallo Erika Mustermann,", "dies ist ein erfundener Musterbrief. Er zeigt, wie ein Dokument aussieht,",
-  "nachdem der Projekt-Reiniger es neu gezeichnet hat.", "", "Viele Grüße", "Max Mustermann", "max.mustermann@beispiel.example"];
+const BRIEF = ["Max Mustermann", "Musterstraße 1", "12345 Musterstadt", "", "An Mia Musterfrau", "Musterfirma GmbH", "",
+  "Betreff: Musterprojekt", "", "Hallo Mia Musterfrau,", "dies ist ein erfundener Musterbrief. Er zeigt, wie ein Dokument aussieht,",
+  "nachdem der Projekt-Reiniger es neu gezeichnet hat.", "", "Viele Grüße", "Max Mustermann", "max.mustermann@muster.example"];
 let MAPPE = null;
 /** Die Mustermappe als Liste { pfad (relativ), bytes }. */
 export async function mustermappe() {
@@ -1866,7 +1887,7 @@ export async function mustermappe() {
     { x: 72, y: 90 + BRIEF.length * 17 + 30, text: "So sieht eine entfernte Stelle aus:", groesse: 10 },
     { kasten: [72, 90 + BRIEF.length * 17 + 40, 160, 22] }, { x: 80, y: 90 + BRIEF.length * 17 + 55, text: "Name entfernt", groesse: 10 },
   ]) }]);
-  const tabelle = [["Name", "Ort", "E-Mail"], ["Max Mustermann", "Musterstadt", "max.mustermann@beispiel.example"], ["Erika Mustermann", "Musterdorf", "erika.mustermann@beispiel.example"]];
+  const tabelle = [["Name", "Ort", "E-Mail"], ["Max Mustermann", "Musterstadt", "max.mustermann@muster.example"], ["Mia Musterfrau", "Musterdorf", "mia.musterfrau@muster.example"]];
   const zellen = (z) => z.flatMap((r, i) => r.map((wert, k) => ({ r: String.fromCharCode(65 + k) + (i + 1), wert, zahl: false })));
   MAPPE = [
     { pfad: "LIESMICH.txt", bytes: T.encode("Mustermappe — Projekt-Reiniger Pro\n\nvorlagen/   leere Dateien je Art (PDF, Word, Excel, PowerPoint, Bild, Tabelle, JSON, Datenbank).\n" +
@@ -1896,3 +1917,137 @@ const MUSTER_JE_ENDUNG = { pdf: "vorlagen/leer.pdf", docx: "vorlagen/leer.docx",
   json: "vorlagen/leer.json", db: "vorlagen/leer.sqlite", sqlite: "vorlagen/leer.sqlite", sqlite3: "vorlagen/leer.sqlite", db3: "vorlagen/leer.sqlite" };
 /** Welche Vorlage der Mustermappe passt zu dieser Datei? (Pfad in der Mappe oder null) */
 export function musterFuer(pfad) { return MUSTER_JE_ENDUNG[endungVon(pfad)] || null; }
+
+/* ══ Stufe 5 · Tresor und Gäste-Sperre ═══════════════════════════════════════════════════════════════════
+ *
+ * Das Schloss ist `schluesseltresor.js`, byte-1:1 aus kim-hub-company (über den Sende-Prüfer, dort
+ * TRESOR_SHA), AES-256-GCM mit PBKDF2-SHA256 600 000 Runden. Der Kern lädt es nicht selbst: der Aufrufer
+ * bringt es mit (`werkzeuge.WERKSTATT_SCHLUESSEL`), sonst liest der Kern es von globalThis — wie die
+ * anderen Prüfkerne. Kein zweites Schloss (Brief: Familienakte nutzt dasselbe).
+ *
+ * Eine Tresor-Datei ist EINE Datei (UTF-8, JSON). Lesbar ohne Code stehen nur Kennung, Fassung,
+ * Erstell- und Ablaufdatum — damit die App erinnern kann, ohne aufzuschließen. Alles andere (Zuordnung,
+ * Originale, Name der Quelle) liegt im verschlüsselten Paket. Der Git-Wächter (Stufe 7) hält jede Datei
+ * mit der Kennung an.
+ */
+export const TRESOR_KENNUNG = "PROJEKT-REINIGER-TRESOR";
+export const TRESOR_FASSUNG = 1;
+export const TRESOR_ENDUNG = ".rtresor";
+export const TRESOR_TAGE = 30;                          // Vorschlag aus dem Brief
+export const TRESOR_ORIGINALE_MAX = 256 * 1024 * 1024;   // mehr Originale passen nicht sicher in den Speicher
+export const CODE_MIN = 4;
+
+function schloss(optionen) {
+  const S = (optionen && optionen.werkzeuge || globalThis).WERKSTATT_SCHLUESSEL;
+  if (!S || typeof S.zu !== "function" || typeof S.auf !== "function") throw new Error("schloss-fehlt");
+  return S;
+}
+function tag(d) { return new Date(d).toISOString().slice(0, 10); }
+function alsB64(bytes) { let s = ""; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); }
+
+/** Wie gut ist der Code? Nur eine Auskunft — ein kurzer Code lässt sich durchprobieren, wenn jemand die Datei hat. */
+export function codeGuete(code) {
+  const c = String(code || "");
+  if (c.length < CODE_MIN) return { ok: false, stufe: "zu-kurz", satz: "Der Code braucht mindestens " + CODE_MIN + " Zeichen." };
+  if (c.length < 12) return { ok: true, stufe: "schwach", satz: "Kurz: lässt sich durchprobieren, wenn jemand die Datei bekommt. Besser 12 Zeichen oder mehr." };
+  return { ok: true, stufe: "gut", satz: "Lang genug." };
+}
+
+/**
+ * Zuordnung und (auf Wunsch) Originale verschließen → eine Tresor-Datei.
+ * @param zuordnung  Marke → { art, werte, muster, eigen? } (aus `reinige`)
+ * @param originale  Datei[] (mit bytes oder lesen) oder null — nur auf Wunsch
+ * @param code       Code (mindestens CODE_MIN Zeichen)
+ * @param optionen   { werkzeuge?, ablaufTage?, jetzt?, quelle? }
+ */
+export async function verschliesse(zuordnung, originale, code, optionen = {}) {
+  const S = schloss(optionen);
+  if (!codeGuete(code).ok) throw new Error("code-zu-kurz");
+  const jetzt = optionen.jetzt ? new Date(optionen.jetzt) : new Date();
+  const tage = Math.max(1, Math.min(365, Math.round(optionen.ablaufTage || TRESOR_TAGE)));
+  const ablauf = new Date(jetzt.getTime() + tage * 86400000);
+  const liste = [];
+  let summe = 0;
+  for (const d of originale || []) {
+    if (!d || d.nichtGeoeffnet || uebersprungen(d.pfad)) continue;
+    const bytes = d.bytes || (d.lesen ? await d.lesen() : null);
+    if (!bytes) continue;
+    summe += bytes.length;
+    if (summe > TRESOR_ORIGINALE_MAX) throw new Error("zu-gross");
+    liste.push({ pfad: d.pfad, b64: alsB64(bytes) });
+  }
+  const inhalt = JSON.stringify({ zuordnung: zuordnung || {}, originale: liste, quelle: optionen.quelle || "" });
+  const paket = await S.zu(code, inhalt);
+  const kopf = { kennung: TRESOR_KENNUNG, fassung: TRESOR_FASSUNG, erstellt: tag(jetzt), ablauf: tag(ablauf), paket };
+  return new TextEncoder().encode(JSON.stringify(kopf));
+}
+
+/** Was ohne Code lesbar ist: Kennung, Erstell- und Ablaufdatum. null = keine Tresor-Datei. */
+export function tresorKopf(bytes, jetzt) {
+  let k;
+  try {
+    const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    if (b.length < 30 || b.length > 1024 * 1024 * 1024) return null;
+    const anfang = new TextDecoder().decode(b.subarray(0, 64));
+    if (!anfang.includes('"kennung":"' + TRESOR_KENNUNG + '"')) return null;
+    k = JSON.parse(new TextDecoder().decode(b));
+  } catch { return null; }
+  if (!k || k.kennung !== TRESOR_KENNUNG) return null;
+  const heute = tag(jetzt ? new Date(jetzt) : new Date());
+  return { kennung: k.kennung, fassung: k.fassung, erstellt: k.erstellt, ablauf: k.ablauf, abgelaufen: !!k.ablauf && heute > k.ablauf, paket: k.paket };
+}
+
+/**
+ * Tresor-Datei mit dem Code öffnen → { zuordnung, originale: [{ pfad, bytes }], quelle, erstellt, ablauf, abgelaufen }.
+ * Fehler (Error.message): „kein-tresor“, „fassung“ (neuer als diese App), „code“ (passt nicht), „schloss-fehlt“.
+ * Das Ergebnis liegt nur im Speicher; der Aufrufer legt es nie offen ab.
+ */
+export async function oeffne(tresorDatei, code, optionen = {}) {
+  const S = schloss(optionen);
+  const k = tresorKopf(tresorDatei, optionen.jetzt);
+  if (!k) throw new Error("kein-tresor");
+  if (k.fassung !== TRESOR_FASSUNG || !S.istPaketForm(k.paket)) throw new Error("fassung");
+  if (k.paket.v !== S.FASSUNG) throw new Error("fassung");
+  let klar;
+  try { klar = await S.auf(String(code || ""), k.paket); } catch { throw new Error("code"); }
+  const i = JSON.parse(klar);
+  return { zuordnung: i.zuordnung || {}, originale: (i.originale || []).map((o) => ({ pfad: o.pfad, bytes: ausB64(o.b64) })), quelle: i.quelle || "",
+    erstellt: k.erstellt, ablauf: k.ablauf, abgelaufen: k.abgelaufen };
+}
+
+/** Ist das eine Tresor-Datei? (Name oder Inhalt) — für Einwurf und Git-Wächter. */
+export function istTresor(pfad, bytes) { return (pfad && String(pfad).toLowerCase().endsWith(TRESOR_ENDUNG)) || (!!bytes && !!tresorKopf(bytes)); }
+
+/**
+ * Gäste-Sperre: Wartezeit nach falschen Versuchen, wächst mit jedem weiteren.
+ * Drei Versuche frei, dann 30 s, 1, 2, 4, 8 … Minuten, höchstens 30 Minuten. Zählt nur im Speicher —
+ * neu laden setzt sie zurück, aber dann ist auch alles Offene weg (es liegt nirgends sonst).
+ */
+export const SPERRE_FREI = 3;
+export function sperrWartezeit(fehlversuche) {
+  const n = Math.max(0, Math.floor(fehlversuche || 0)) - SPERRE_FREI;
+  if (n < 0) return 0;
+  return Math.min(30 * 60 * 1000, 30 * 1000 * Math.pow(2, n));
+}
+
+/** Gäste-Sperre: alles Offene mit dem Code in ein Paket (nur im Speicher), und wieder heraus. Dasselbe Schloss. */
+export async function sperrPaket(zustand, code, optionen = {}) {
+  const S = schloss(optionen);
+  const dateien = [];
+  for (const d of zustand.dateien || []) {
+    if (d.nichtGeoeffnet) { dateien.push({ pfad: d.pfad, nichtGeoeffnet: true }); continue; }
+    let bytes = d.bytes || null;
+    if (!bytes && d.lesen) { try { bytes = await d.lesen(); } catch { bytes = null; } }
+    dateien.push(bytes ? { pfad: d.pfad, b64: alsB64(bytes), groesse: d.groesse } : { pfad: d.pfad, unlesbar: d.unlesbar || "nicht lesbar" });
+  }
+  const rest = Object.assign({}, zustand, { dateien });
+  return S.zu(String(code), JSON.stringify(rest));
+}
+export async function sperrAuf(paket, code, optionen = {}) {
+  const S = schloss(optionen);
+  let klar;
+  try { klar = await S.auf(String(code || ""), paket); } catch (e) { throw new Error(e && e.message === "fassung" ? "fassung" : "code"); }
+  const z = JSON.parse(klar);
+  z.dateien = (z.dateien || []).map((d) => d.b64 != null ? Object.assign({}, d, { b64: undefined, bytes: ausB64(d.b64) }) : d);
+  return z;
+}

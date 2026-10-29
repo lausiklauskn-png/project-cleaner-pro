@@ -3,7 +3,7 @@
 const CACHE_VERSION = "reiniger-v8";
 const CORE = [
   "./", "index.html", "manifest.json", "assets/app.css", "assets/app.js", "assets/beispiel.js", "assets/reiniger-kern.js", "assets/reiniger-listen.js",
-  "modules/25_pseudonym.js", "assets/pruefer-formate.js", "assets/pruefer-mail.js", "assets/pruefer.js", "assets/pruefer-anhang.js", "assets/reinigung.js", "assets/thema.js",
+  "modules/25_pseudonym.js", "assets/pruefer-formate.js", "assets/pruefer-mail.js", "assets/pruefer.js", "assets/pruefer-anhang.js", "assets/reinigung.js", "assets/schluesseltresor.js", "assets/thema.js",
   "icons/logo-96.png", "icons/favicon-32.png", "icons/favicon-48.png", "icons/icon-192.png", "icons/kristall.webp",
 ];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE_VERSION).then((c) => c.addAll(CORE)).then(() => self.skipWaiting())); });

@@ -61,6 +61,23 @@ const FAELLE = [
   /* Befund Klaus 2026-10-29 */
   ["AUSKUNFT", "assets/app.css", ".zahlen li { display: inline; white-space: nowrap; }", ".zahlen li { display: inline; white-space: nowrap; border: 1px solid var(--linie); border-radius: 99px; }", /ist Auskunft/],
   ["ERKLAERUNG", "assets/app.js", "const p = el(\"p\", { class: \"erklaerung\", id, hidden: true,", "const p = el(\"p\", { class: \"erklaerung\", id, hidden: false,", /hinter ⓘ/],
+  /* Befund Klaus 2026-10-29, zweite Runde */
+  ["MAPPEZUFALL", "assets/reiniger-kern.js", "      if (weg.some((w) => t.includes(w))) {", "      if (false) {", /Mustermappe: kein entfernter Wert|Mustermappe: steht ein entfernter Wert/],
+  ["INVENTURKASTEN", "assets/app.css", ".zeile2 .chip { border: 0; border-radius: 0; padding: 0; background: none;", ".zeile2 .chip { border: 1px solid; border-radius: 0; padding: 0; background: none;", /ohne Kasten/],
+  ["FOKUS", "assets/app.js", "if (sel.value === \"eigen\") { eigen.focus(); eigen.select(); }", "", /Cursor steht sofort/],
+  ["VORSCHAU", "assets/app.js", "  malen();\n  return el(\"div\", { class: \"weg-block\" }", "  return el(\"div\", { class: \"weg-block\" }", /Vorschau zeigt sofort/],
+  ["GETEILT", "assets/app.js", "  const geteilt = ansichtGeteilt && !!sauber;", "  const geteilt = false;", /geteilt/],
+  ["DUNKELHELL", "assets/app.css", ":root:not([data-thema=\"hell\"]) {\n    --schrift: #e8eff6; --grund: #1a2b3d;", ":root:not([data-thema=\"hell\"]) {\n    --schrift: #e8eff6; --grund: #0a1724;", /Dunkel: heller/],
+  /* Stufe 5 */
+  ["SCHLOSSPIN", "assets/schluesseltresor.js", "  var RUNDEN = 600000;", "  var RUNDEN = 1000;", /Pin assets\/schluesseltresor\.js/],
+  ["TRESORKLAR", "assets/reiniger-kern.js", "  const kopf = { kennung: TRESOR_KENNUNG, fassung: TRESOR_FASSUNG, erstellt: tag(jetzt), ablauf: tag(ablauf), paket };", "  const kopf = { kennung: TRESOR_KENNUNG, fassung: TRESOR_FASSUNG, erstellt: tag(jetzt), ablauf: tag(ablauf), paket, quelle: optionen.quelle };", /ohne Code steht darin nur/],
+  ["ABLAUF", "assets/reiniger-kern.js", "abgelaufen: !!k.ablauf && heute > k.ablauf,", "abgelaufen: false,", /abgelaufen/],
+  ["ORIGINALE", "assets/reiniger-kern.js", "    liste.push({ pfad: d.pfad, b64: alsB64(bytes) });", "    liste.push({ pfad: d.pfad, b64: alsB64(bytes.subarray(1)) });", /Byte für Byte/],
+  ["WARTEZEIT", "assets/reiniger-kern.js", "  if (n < 0) return 0;", "  return 0;", /Wartezeit/],
+  ["SPERREDOM", "assets/app.js", "  for (const id of [\"#befunde\", \"#inventur\", \"#zahlen\", \"#hinweise\", \"#ansicht\", \"#meldung-text\"]) $(id).replaceChildren();", "", /Anzeige sofort weg/],
+  ["SPERRECODE", "assets/app.js", "  const code = sperrCode; sperrCode = null;", "  const code = sperrCode;", /Code selbst ist vergessen/],
+  ["SPERREWIEDER", "assets/app.js", "  quelle = z.quelle; Object.assign(wahl, z.wahl);", "  quelle = z.quelle;", /Entscheidung ist noch da/],
+  ["TRESORZU", "assets/app.js", "  tresorOffen = null; tresorBytes = null; tresorName = \"\";\n  const t = $(\"#tresor\"); if (t) { t.replaceChildren(); t.hidden = true; }", "  const t = $(\"#tresor\"); if (t) { t.hidden = true; }", /Tresor schließen/],
 ];
 const nur = process.env.NUR_FALL;
 let gefangen = 0, schlecht = 0;

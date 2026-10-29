@@ -22,6 +22,8 @@
 <script src="assets/pruefer.js" defer></script>
 <script src="assets/pruefer-anhang.js" defer></script>
 <script src="assets/reinigung.js" defer></script>
+<!-- Das Schloss: byte-1:1 aus kim-hub-company (über den Sende-Prüfer, TRESOR_SHA), gepinnt. Nie hier abwandeln. -->
+<script src="assets/schluesseltresor.js" defer></script>
 <script type="module" src="assets/app.js"></script>
 </head>
 <body>
@@ -37,6 +39,7 @@
     <button type="button" class="knopf hell" id="installieren" aria-label="Als App installieren" title="Als App installieren"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M12 6v7 M9 10l3 3 3-3 M11 18h2"/></svg><span class="t">Installieren</span></button>
     <button type="button" class="knopf hell" id="aktualisieren" aria-label="Neue Fassung holen" title="Neue Fassung holen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8 M4 4v4h4 M4 13a8 8 0 0 0 14.3 4.9L20 16 M20 20v-4h-4"/></svg><span class="t">Aktualisieren</span></button>
     <button type="button" class="knopf hell" id="neu" aria-label="Neu anfangen" title="Neu anfangen" hidden><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z M14 3v4h4 M12 11v6 M9 14h6"/></svg><span class="t">Neu</span></button>
+    <button type="button" class="knopf hell" id="sperren" aria-label="Sperren: App sofort schließen (Gäste-Sperre)" title="Sperren: App sofort schließen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 11h12v10H6z M8.5 11V8a3.5 3.5 0 0 1 7 0v3 M12 15v2"/></svg><span class="t">Sperren</span></button>
   </header>
 
   <main class="haupt" id="haupt">
@@ -51,10 +54,12 @@
         <div class="knoepfe">
           <label class="knopf haupt-knopf" for="wahl-dateien"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v13H3z M3 7l2-4h14l2 4 M10 11h4"/></svg>ZIP oder Dateien</label>
           <label class="knopf" for="wahl-ordner"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/></svg>Ordner</label>
+          <label class="knopf" for="wahl-tresor"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z M4 19v2 M20 19v2 M13 12a2 2 0 1 0-4 0a2 2 0 1 0 4 0z M13 12h3"/></svg>Tresor öffnen</label>
           <button type="button" class="knopf" id="beispiel"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6 M10 3v6l-5 9a1 1 0 0 0 1 2h12a1 1 0 0 0 1-2l-5-9V3 M7.5 14h9"/></svg>Beispielprojekt</button>
         </div>
         <input type="file" id="wahl-dateien" multiple hidden>
         <input type="file" id="wahl-ordner" webkitdirectory multiple hidden>
+        <input type="file" id="wahl-tresor" hidden>
         <p class="klein titel-zeile">Oder hierher ziehen. <button type="button" class="knopf info-knopf auf-dunkel" id="einwurf-info" aria-expanded="false" aria-controls="einwurf-erklaerung" aria-label="Erklärung: was sich einwerfen lässt" title="Erklärung"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 11v6 M12 7.5v.5"/></svg></button></p>
         <p class="klein erklaerung" id="einwurf-erklaerung" hidden>Auch Apps (APK, JAR), TAR/GZ und gespeicherte Internetseiten (HTML mit Ordner). <code>node_modules</code> und Build-Ordner werden nicht gelesen.</p>
         <p class="klein" id="kern-fehlt" hidden></p>
@@ -77,6 +82,26 @@
   </main>
   <section class="ansicht" id="ansicht" hidden aria-label="Datei ansehen"></section>
   <div class="meldung" id="meldung" role="status" hidden><button type="button" class="knopf" id="meldung-zu" aria-label="Meldung schließen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12 M18 6L6 18"/></svg></button><div id="meldung-text"></div></div>
+  <section class="ansicht" id="tresor" hidden aria-label="Tresor"></section>
+  <section class="sperre" id="sperre" hidden aria-label="Gesperrt" aria-modal="true" role="dialog">
+    <div class="sperre-karte">
+      <img class="sperre-bild" src="icons/kristall.webp" width="640" height="640" alt="">
+      <h1 id="sperre-titel">Gesperrt</h1>
+      <form id="sperre-form" class="sperre-form" autocomplete="off">
+        <label for="sperre-code" id="sperre-label">Code</label>
+        <input type="password" id="sperre-code" autocomplete="off" spellcheck="false" enterkeyhint="go">
+        <label for="sperre-code2" id="sperre-label2" hidden>Code wiederholen</label>
+        <input type="password" id="sperre-code2" autocomplete="off" spellcheck="false" enterkeyhint="go" hidden>
+        <p class="sperre-meldung" id="sperre-meldung" role="alert"></p>
+        <div class="knoepfe">
+          <button type="submit" class="knopf haupt-knopf" id="sperre-ok">Öffnen</button>
+          <button type="button" class="knopf" id="sperre-abbrechen" hidden>Abbrechen</button>
+        </div>
+      </form>
+      <p class="sperre-klein" id="sperre-klein"></p>
+      <button type="button" class="knopf sperre-verwerfen" id="sperre-verwerfen" hidden>Code vergessen: alles verwerfen</button>
+    </div>
+  </section>
   <div class="ziehen" id="ziehen" hidden>Loslassen zum Prüfen</div>
 </div>
 </body>
