@@ -2365,7 +2365,8 @@ export function sperrlisteBauen(werte, optionen = {}) {
     gesehen.add(f.raum); aufgenommen++;
     merke(f.raum);
     if (f.dicht) merke(f.dicht);
-    woerterMax = Math.max(woerterMax, f.woerter);
+    /* Nur Ziffern-Wörter (IBAN, Telefon): im Text oft anders zerteilt („+4930 12345678“ ↔ „+49 30 1234 5678“) — dort bis zur Höchstzahl suchen. */
+    woerterMax = Math.max(woerterMax, f.raum.split(" ").every(mitZiffer) ? SPERR_WOERTER_MAX : f.woerter);
   }
   const liste = { kennung: SPERRLISTE_KENNUNG, fassung: SPERRLISTE_FASSUNG, erstellt: optionen.datum || new Date().toISOString().slice(0, 10),
     hinweis: "Nur Fingerabdrücke (SHA-256 mit Salz), keine Werte. Nicht in ein öffentliches Repo legen: kurze Werte lassen sich durchprobieren.",

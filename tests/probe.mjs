@@ -472,9 +472,10 @@ const { beispielProjekt } = await import(pathToFileURL(join(WURZEL, "assets/beis
     !/quirin|zapf|hamburg|DE02|de021203|post\.example/i.test(roh) && b1.liste.gruppen[0].salz !== b2.liste.gruppen[0].salz && b1.liste.gruppen[0].abdruecke[0] !== b2.liste.gruppen[0].abdruecke[0], roh.slice(0, 200));
   ok("Sperrliste: zu kurze und zu lange Werte werden nicht aufgenommen, sondern gezählt", b1.aufgenommen === 4 && b1.zuKurz === 1 && b1.zuLang === 1, JSON.stringify([b1.aufgenommen, b1.zuKurz, b1.zuLang]));
   const L1 = b1.liste, tr = (t) => Kern.sperrTreffer(t, L1).map((x) => x.wert);
-  ok("Sperrliste findet Schreibweisen: GROSS, doppelte Leerzeichen, Zeilenumbruch, IBAN mit und ohne Leerzeichen, Mail",
+  ok("Sperrliste findet Schreibweisen: GROSS, doppelte Leerzeichen, Zeilenumbruch, IBAN mit und ohne Leerzeichen, Telefon anders getrennt als in der Liste, Mail",
     tr("Hallo QUIRIN  Zapf!").join() === "QUIRIN  Zapf" && tr("Quirin\nZapf").length === 1 && tr("IBAN DE02120300000000202051.").join() === "DE02120300000000202051" &&
-    tr("iban: de02 1203 0000 0000 2020 51").length === 1 && tr("<quirin.zapf@post.example>").join() === "quirin.zapf@post.example", JSON.stringify([tr("Hallo QUIRIN  Zapf!"), tr("IBAN DE02120300000000202051.")]));
+    tr("iban: de02 1203 0000 0000 2020 51").length === 1 && tr("<quirin.zapf@post.example>").join() === "quirin.zapf@post.example" &&
+    Kern.sperrTreffer("Tel. +49 30 1234 5678", Kern.sperrlisteBauen(["+4930 12345678"]).liste).length === 1, JSON.stringify([tr("Hallo QUIRIN  Zapf!"), tr("IBAN DE02120300000000202051.")]));
   ok("Sperrliste: nur ganze Wörter — „Hamburger“, „Quirin Zapfen“ und „Quirin“ allein sind kein Treffer",
     tr("Hamburger Hafen").length === 0 && tr("Quirin Zapfen").length === 0 && tr("Quirin kommt").length === 0 && tr("in Hamburg.").join() === "Hamburg");
   ok("Sperrliste lesen: falsche Kennung, kaputter Fingerabdruck, kaputter Vorfilter → abgelehnt; Zusammenlegen zählt richtig",

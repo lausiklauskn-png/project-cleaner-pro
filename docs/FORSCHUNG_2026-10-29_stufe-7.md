@@ -13,6 +13,9 @@ Was beim Bau gelernt und gemessen wurde. Plan und Stand: [Brief](BRIEF_2026-10-2
   Mail (`erika.mustermann@beispiel.example` → 4 Wörter), Name in Großbuchstaben, doppelte Leerzeichen und Zeilenumbrüche dasselbe.
   IBAN und Telefon stehen mal mit, mal ohne Leerzeichen: sind **alle** Wörter mit Ziffern, zählt zusätzlich die Form ohne Leerzeichen
   (in der Liste und im Text). Wörter ohne Ziffern werden nie zusammengeschoben — sonst wäre „an na“ = „Anna“.
+- **Von der Gegenprobe gefunden (SPDICHT, erst blind):** „+4930 12345678“ in der Liste (2 Wörter), „+49 30 1234 5678“ im Text
+  (4 Wörter) — die Suche hörte bei der Wortzahl der Liste auf und fand nichts. Jetzt sucht sie bei Ziffern-Werten bis 12 Wörter;
+  die Probe prüft genau diesen Fall.
 - An jeder Stelle gewinnt die **längste** Wortfolge, danach geht die Suche hinter ihr weiter (kein doppelter Treffer im Treffer).
 
 ## Tempo
