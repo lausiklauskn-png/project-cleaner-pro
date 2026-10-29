@@ -12,3 +12,9 @@ Die Lizenzköpfe in den Dateien bleiben erhalten. Lizenztext: <https://www.apach
 ⚠ pdf.js 3.x konnte mit einer präparierten Schrift eigenen Code ausführen (CVE-2024-4367). Der
 Anhang-Prüfer (`assets/pruefer-anhang.js`, byte-1:1, SHA-gepinnt) betreibt es mit `isEvalSupported: false`,
 und die Seite verbietet `unsafe-eval` in ihrer CSP.
+
+## Eigene Kerne aus Klaus' Repos (byte-1:1, SHA-gepinnt in `tests/probe.mjs`)
+
+| Datei | Herkunft |
+|---|---|
+| `assets/reinigung.js` | Workflow PDF (`assets/reinigung.js`, Commit `a2cfdf1`): versteckten PDF-Text erkennen und zudecken, JPEG ohne Metadaten. Dort pflegen, hier neu kopieren. |

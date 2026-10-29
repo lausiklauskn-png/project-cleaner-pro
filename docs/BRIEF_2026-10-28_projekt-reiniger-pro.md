@@ -1,8 +1,11 @@
 # Brief: Projekt-Reiniger Pro
 
-Stand 2026-10-28, **Stufen 1, 2 und 3 gebaut** (Abschnitte „Stufe 1/2/3 · gebaut“ unten). Die App reinigt jetzt:
+Stand 2026-10-29, **Stufen 1–4 gebaut** (Abschnitte „Stufe 1/2/3/4 · gebaut“ unten). Die App reinigt jetzt:
 einwerfen → Funde ansehen (antippen = Datei an der Stelle) → je Fund entscheiden → saubere Kopie als ZIP
-mit Stellenplan und Bericht → Nachprüfung. Nächster Schritt: Stufe 4 (neu gezeichnete Blätter mit `reinigung.js` aus Workflow PDF, Mustermappe). Der Brief lebt seitdem **hier**
+mit Stellenplan und Bericht → Nachprüfung. PDF und Bilder werden **neu gezeichnet** (graue Kästen, ohne Metadaten),
+Word/Excel/PowerPoint als reiner Text neu gebaut, dazu die **Mustermappe**. Hell/Dunkel-Schalter im Kopf.
+Nächster Schritt: **Stufe 8 vorgezogen — Test-APK und Windows-Fassung** (Klaus 2026-10-29: „zum Testen … ob unser
+Vorhaben im Groben funktioniert“), danach Stufe 5 (Tresor und Gäste-Sperre). Der Brief lebt seitdem **hier**
 im Repo `project-cleaner-pro`; die Fassung im Sende-Prüfer ist eingefroren und zeigt hierher.
 
 ## Anlass
@@ -298,7 +301,7 @@ ungereinigte ZIP, gilt:
 | 1 ✅ | Einwerfen, Inventur, harte Angaben und Metadaten, Anzeige (nur lesen) — gebaut 2026-10-28 |
 | 2 ✅ | Entscheiden, Marken und Musterwerte, saubere Kopie, Stellenplan, Nachprüfung — gebaut 2026-10-28 |
 | 3 ✅ | Gefühlte Metadaten (Wortlisten, Eigennamen, Pfade) — gebaut 2026-10-28 (vor Stufe 2, nur lesen) |
-| 4 | Neu gezeichnete Blätter, Mustermappe |
+| 4 ✅ | Neu gezeichnete Blätter, Mustermappe — gebaut 2026-10-29 |
 | 5 | Tresor und Gäste-Sperre |
 | 6 | Zurückbauen, mit eigenen Werten füllen |
 | 7 | Git-Wächter und Sperrliste |
@@ -471,6 +474,70 @@ müssen den Browser anstoßen … für Handys, damit ich nicht eine Kompi machen
   Beide bei jeder Änderung an einer Datei aus `CORE` erhöhen. Heute: 5. Proben: `npm test` 154 grün, `npm run gegenprobe` 29 gefangen · 0 blind.
 - Am Handy (< 640 px) nur Symbole; „Neu“ hat ein eigenes Symbol (Blatt mit Plus), damit es nicht wie „Aktualisieren“ aussieht.
 
+## Stufe 4 · gebaut (2026-10-29)
+
+- **`assets/reinigung.js`** byte-1:1 aus Workflow PDF (`a2cfdf1`), SHA-gepinnt: erkennt versteckten PDF-Text (`versteckt`:
+  winzig, außerhalb der Seite, ohne Tinte an seiner Stelle) und deckt ihn zu (`zudecken`), nimmt JPEG-Metadaten heraus
+  (`jpegOhneMeta`). Der Kern liest es über `werkzeuge.WFP.Reinigung` (wie die anderen Prüfkerne).
+- **Teilung der Arbeit, damit der Kern ohne DOM bleibt:** die App bringt einen **Zeichner** mit (`window.Zeichner` in
+  `app.js`: Seite/Bild öffnen → Bildpunkte, Etiketten schreiben, als PNG/JPEG kodieren). Der Kern entscheidet alles andere:
+  `blattKaesten` (wo Kästen hin), `kastenMalen`, `rauschen`, `pdfBauen` (eigene PDF ohne Verfasser/Programm/Datum),
+  `docxBauen`/`xlsxBauen`/`pptxBauen`, `pngBauen`, `mustermappe`, `musterFuer`. Typen in `reiniger-kern.d.ts` (jetzt auch Stufe 2).
+- **PDF:** jede Seite wird als Bild neu gezeichnet (bis 2400 px lange Kante, ≈ 200 dpi bei A4), gleiche Seitengröße, **keine
+  Textebene** mehr. Wo ein Fund stand: grauer Kasten mit dunklem Rand und Etikett („E-Mail entfernt“, „Name entfernt“ —
+  nie der Wert; bei „Musterwert“/„Eigener Wert“ steht dieser darin). Kastenbreite **gerundet** (verrät die Länge nicht).
+  Zeichenbreiten **gemessen** (Schrift aus pdf.js, `measureText`, auf die Stückbreite geeicht) — geschätzt lag der Kasten
+  in „Mail: anna@…“ um ein Zeichen daneben (Probe misst ab dem ersten Bildpunkt). Ein Wert über einen Zeilenumbruch
+  bekommt je Zeile einen Kasten; überlappende Funde werden **ein** Kasten mit **einem** Etikett (keine Schrift über Schrift).
+  Gedrehter Text: Kasten um das ganze Stück. Seiten ohne Textebene bekommen Kästen nur mit Texterkennung.
+- **Bilder** (PNG, JPEG, WebP, GIF): gleiche Größe, ohne Metadaten, Kästen aus der Texterkennung (Wörter mit Kästen),
+  **Rauschen über das unterste Bit** (gemessen: eine Botschaft darin ist danach weg). JPEG bleibt JPEG, PNG bleibt PNG; GIF
+  wird PNG (neuer Name steht im Stellenplan). Ohne Texterkennung: Vorgabe „Weglassen“, „Neu zeichnen“ wählbar — dann sagt
+  der Bericht „sichtbarer Text ungeprüft“.
+- **Office** (Word, Excel, PowerPoint): als **reiner Text** neu gebaut — Kopf-/Fußzeilen, Tabellen, Fußnoten, Zellen
+  (Zahlen bleiben Zahlen, Formeln nur mit letztem Wert), Folien in Reihenfolge. **Weg:** Verfasser, Kommentare, gelöschter
+  Text (Änderungsverlauf), Notizen, Bilder, Formatierung. Marken mit **grauem Grund**. Ungepackt gespeichert, damit die
+  Nachprüfung jeden Originalwert Byte für Byte findet. Geprüft mit LibreOffice, python-docx/openpyxl/python-pptx.
+- **Nachfinden (Fund bei der Probe):** der Anhang-Prüfer klebt gelöschten Word-Text an den Absatz („…example**Geheimwort**“) —
+  der gefundene Wert hieß anders als der Text im Neubau, die Mail blieb stehen (die Nachprüfung meldete es). Jetzt wird beim
+  Neubau der **eigene** gelesene Text (Office, PDF-Seite, Texterkennung) noch einmal durchsucht; Zusätzliches wird mit
+  ersetzt, der Bericht sagt „beim Neubau zusätzlich gefunden“. Dabei auch: die Straßen-Regel (Stufe 3) griff über einen
+  Zeilenumbruch („Anna Beispiel⏎Kastanienallee 7“) — jetzt nur innerhalb einer Zeile.
+- **Je Datei wählbar:** Neu zeichnen · Durch Muster ersetzen · Weglassen · Unverändert (NICHT gereinigt); „Für alle wählen“.
+  Vorgabe „neu“ für PDF mit Textebene (auch ohne Gegenlesen — das Neuzeichnen beseitigt versteckten Text ohnehin), Bilder
+  mit gelesenem Text und Office. Fehlschlag = weggelassen mit Grund, nie still übernommen.
+- **Mustermappe** (`MUSTERMAPPE/`, ankreuzbar): Vorlagen leer.pdf/.docx/.xlsx/.pptx/.png/.jpg/.csv/.json/.sqlite und Beispiele
+  (Musterbrief PDF/Word, Mustertabelle Excel/CSV, Musterfolien, Musterbild). Alles trägt „Muster“, nichts davon meldet die
+  Nachprüfung. „Durch Muster ersetzen“ legt die passende Vorlage unter den alten Namen (z. B. eine Datenbank → leere SQLite).
+- **Stellenplan:** „rechnung.pdf · Seite 1 · Kasten oben links · grauer Kasten „E-Mail entfernt“ ⟦MAIL-1⟧“, im JSON mit
+  `kasten: {seite, x, y, w, h}` (Seiteneinheiten) — damit kann Stufe 6 eigene Werte an genau diese Stelle setzen.
+- **Vorher / nachher:** die neu gezeichnete Seite bzw. das Bild wird in der Ansicht gezeigt (pdf.js, bis 5 Seiten).
+- **Proben:** `npm test` 221 grün · 0 ROT; `npm run gegenprobe` siehe CLAUDE.md (14 neue Fälle: Pin, DOM, Kasten, Rauschen,
+  versteckter Text, Kommentar, Nachfinden, Zeilenumbruch, Zeichenbreite, Muster, Kontrast, Dunkel, Schrift über Schrift,
+  Leerzeile).
+- ⚠ **Nicht gemessen:** große PDFs (Hunderte Seiten; Deckel 100) und große Fotos am Handy (Speicher), echte fremde
+  Office-Dateien mit Textfeldern/SmartArt (Text darin kann fehlen — lieber zu wenig als zu viel), ODT/ODS/ODP und alte
+  .doc/.xls (nicht neu gebaut: weglassen oder Muster), HEIC/TIFF (der Browser zeichnet sie nicht). Gesichter und Schrift,
+  die die Texterkennung nicht liest, findet niemand — der **Pinsel zum Abdecken von Hand** fehlt noch.
+
+## Hell und dunkel, Kontrast (Klaus 2026-10-29)
+
+Klaus: *„… der Hell-Dunkel-Modus, dass es besser zu sehen ist, dabei auf weiße Schrift achten und hellem Hintergrund. Das
+passt nicht.“* · *„… immer Zeilenumbrüche und vernünftige Spationierung … keine doppelten Zeilenumbrüche oder Schrift über
+Schrift.“*
+
+- **Gemessen statt geraten:** eine Kontrast-Probe (`tests/kontrast.mjs`, WCAG AA 4,5 : 1, große Schrift 3 : 1, auch über
+  Verläufe und halbdurchsichtige Flächen — der schlechteste Ton zählt) fand genau die weiße Schrift auf hellem Grund: die
+  Kopf-Knöpfe „Installieren“, „Aktualisieren“, „Neu“ und „Lokal“ (weiß auf halbdurchsichtigem Weiß über dem Petrol-Ende des
+  Verlaufs, 3,95–4,11 : 1). Jetzt: dunkler Grund unter den Kopf-Knöpfen, Verlaufsende `#0a6664` statt `#0d7775`.
+- **Schalter im Kopf** (Halbkreis-Symbol): Automatisch (wie das Gerät) → Hell → Dunkel. Gemerkt wird **nur diese Wahl**
+  (`localStorage` „reiniger-thema“, keine Inhalte), gesetzt vor dem ersten Zeichnen (`assets/thema.js`, kein Aufblitzen).
+  `<meta name="color-scheme" content="light dark">`: Browser, die Seiten selbst abdunkeln, lassen sie in Ruhe.
+- Alle Farben als Variablen mit Hell- und Dunkel-Satz; die Kristall-Flächen bleiben dunkelblau (Bild von Klaus).
+- **Schrift-Probe** in jeder Größe und jedem Zustand: keine sichtbaren Textzeilen übereinander, keine doppelten Leerzeilen
+  (die Installier-Meldung ist jetzt in Absätzen statt mit Leerzeilen).
+- ⚠ Nicht gemessen: am echten Handy im Dunkelmodus (Samsung Internet dunkelt Seiten teils selbst ab).
+
 ## Grenzen (vorab benannt)
 
 - Die Suche arbeitet mit Mustern und Listen. Sie findet viel, aber **nicht garantiert alles**.
@@ -486,3 +553,5 @@ müssen den Browser anstoßen … für Handys, damit ich nicht eine Kompi machen
 - Soll „Datum“ in Doku-Dateien standardmäßig „Behalten“ sein (sehr viele Funde, selten persönlich)?
 - Soll die Anzeige die gefundenen Werte im Klartext zeigen (so jetzt, nur auf dem Gerät) oder erst auf Tipp?
 - Was geschieht mit dem Original-Branch in Meine-Familienakte (Fund oben)?
+- Pinsel zum Abdecken von Hand (Gesichter, Kennzeichen ohne lesbare Schrift) — in Stufe 4 nicht gebaut.
+- ODT/ODS/ODP und alte .doc/.xls neu bauen — bisher nur weglassen oder Muster.
