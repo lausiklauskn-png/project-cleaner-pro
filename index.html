@@ -55,12 +55,13 @@
           <label class="knopf haupt-knopf" for="wahl-dateien"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v13H3z M3 7l2-4h14l2 4 M10 11h4"/></svg>ZIP oder Dateien</label>
           <label class="knopf" for="wahl-ordner"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/></svg>Ordner</label>
           <label class="knopf" for="wahl-tresor"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z M4 19v2 M20 19v2 M13 12a2 2 0 1 0-4 0a2 2 0 1 0 4 0z M13 12h3"/></svg>Tresor öffnen</label>
+          <button type="button" class="knopf" id="text-einfuegen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v3H9z M7 5H5v16h14V5h-2 M8 12h8 M8 16h5"/></svg>Text einfügen</button>
           <button type="button" class="knopf" id="beispiel"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6 M10 3v6l-5 9a1 1 0 0 0 1 2h12a1 1 0 0 0 1-2l-5-9V3 M7.5 14h9"/></svg>Beispielprojekt</button>
         </div>
         <input type="file" id="wahl-dateien" multiple hidden>
         <input type="file" id="wahl-ordner" webkitdirectory multiple hidden>
         <input type="file" id="wahl-tresor" hidden>
-        <p class="klein titel-zeile">Oder hierher ziehen. <button type="button" class="knopf info-knopf auf-dunkel" id="einwurf-info" aria-expanded="false" aria-controls="einwurf-erklaerung" aria-label="Erklärung: was sich einwerfen lässt" title="Erklärung"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 11v6 M12 7.5v.5"/></svg></button></p>
+        <p class="klein titel-zeile">Oder hierher ziehen oder einfügen (Strg+V). <button type="button" class="knopf info-knopf auf-dunkel" id="einwurf-info" aria-expanded="false" aria-controls="einwurf-erklaerung" aria-label="Erklärung: was sich einwerfen lässt" title="Erklärung"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 11v6 M12 7.5v.5"/></svg></button></p>
         <p class="klein erklaerung" id="einwurf-erklaerung" hidden>Auch Apps (APK, JAR), TAR/GZ und gespeicherte Internetseiten (HTML mit Ordner). <code>node_modules</code> und Build-Ordner werden nicht gelesen.</p>
         <p class="klein" id="kern-fehlt" hidden></p>
       </div>
@@ -69,6 +70,11 @@
     <section class="arbeit" id="arbeit" hidden aria-live="polite">
       <div class="fortschritt" id="fortschritt" hidden><span id="fortschritt-text">Lese …</span><progress id="fortschritt-balken" max="1" value="0"></progress></div>
       <ul class="zahlen" id="zahlen"></ul>
+      <div class="ein-aus" id="ein-aus">
+        <button type="button" class="knopf haupt-knopf" id="hereinladen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4 M7 9l5-5 5 5 M5 14v6h14v-6"/></svg>Dateien hereinladen</button>
+        <button type="button" class="knopf" id="herausladen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11 M7 10l5 5 5-5 M5 20h14"/></svg>Saubere Kopie herausladen</button>
+        <span class="ein-aus-satz">Auch: Datei hierher ziehen oder einfügen (Strg+V)</span>
+      </div>
       <div class="hinweise" id="hinweise"></div>
       <nav class="reiter" id="reiter" aria-label="Ansicht">
         <button type="button" class="reiter-knopf" data-reiter="befunde" aria-pressed="true">Funde</button>
@@ -100,6 +106,45 @@
       </form>
       <p class="sperre-klein" id="sperre-klein"></p>
       <button type="button" class="knopf sperre-verwerfen" id="sperre-verwerfen" hidden>Code vergessen: alles verwerfen</button>
+    </div>
+  </section>
+  <section class="fenster-grund" id="import" hidden>
+    <div class="fenster" role="dialog" aria-modal="true" aria-labelledby="import-titel">
+      <div class="fenster-kopf">
+        <h2 id="import-titel">Dateien hereinladen</h2>
+        <button type="button" class="knopf" id="import-zu" aria-label="Fenster schließen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12 M18 6L6 18"/></svg>Schließen</button>
+      </div>
+      <nav class="ansicht-reiter" aria-label="Wie hereinladen">
+        <button type="button" class="reiter-knopf" id="import-reiter-datei" aria-pressed="true">Datei</button>
+        <button type="button" class="reiter-knopf" id="import-reiter-text" aria-pressed="false">Text einfügen</button>
+      </nav>
+      <div class="fenster-koerper">
+        <div class="ablage" id="import-ablage" data-teil="datei">
+          <p class="ablage-satz"><span class="nur-maus">Hierher ziehen, </span>einfügen (Strg+V) oder wählen:</p>
+          <div class="knoepfe">
+            <label class="knopf" for="import-dateien"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4 M7 9l5-5 5 5 M5 14v6h14v-6"/></svg>Dateien wählen</label>
+            <label class="knopf" for="import-ordner"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/></svg>Ordner wählen</label>
+          </div>
+          <p class="klein">ZIP, einzelne Dateien, Bilder, PDF, Office, SVG, Apps (APK) … Nichts verlässt das Gerät.</p>
+          <input type="file" id="import-dateien" multiple hidden>
+          <input type="file" id="import-ordner" webkitdirectory multiple hidden>
+        </div>
+        <div class="einfuegen" id="import-text-teil" data-teil="text" hidden>
+          <label for="import-text">Text, Code, HTML oder SVG</label>
+          <textarea id="import-text" spellcheck="false" placeholder="Hier einfügen …"></textarea>
+          <div class="begriff-zeile">
+            <input type="text" id="import-name" placeholder="Dateiname (frei lassen: wird erkannt)" aria-label="Dateiname">
+            <button type="button" class="knopf" id="import-text-dazu"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14 M5 12h14"/></svg>Als Datei dazu</button>
+          </div>
+        </div>
+        <h3 class="import-liste-titel" id="import-liste-titel" hidden>Bereit zum Prüfen</h3>
+        <ul class="datei-plan" id="import-liste"></ul>
+        <label class="wahl" id="import-dazu-wahl" hidden><input type="checkbox" id="import-dazu" checked><span>Zum jetzigen Projekt dazunehmen (sonst neu prüfen)</span></label>
+      </div>
+      <div class="fenster-fuss knoepfe">
+        <button type="button" class="knopf haupt-knopf" id="import-pruefen" disabled><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7V4h3 M17 4h3v3 M20 17v3h-3 M7 20H4v-3 M8 9h8 M8 12h8 M8 15h5"/></svg>Prüfen</button>
+        <button type="button" class="knopf" id="import-leeren">Leeren</button>
+      </div>
     </div>
   </section>
   <div class="ziehen" id="ziehen" hidden>Loslassen zum Prüfen</div>

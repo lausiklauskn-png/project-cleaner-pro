@@ -78,6 +78,11 @@ const FAELLE = [
   ["SPERRECODE", "assets/app.js", "  const code = sperrCode; sperrCode = null;", "  const code = sperrCode;", /Code selbst ist vergessen/],
   ["SPERREWIEDER", "assets/app.js", "  quelle = z.quelle; Object.assign(wahl, z.wahl);", "  quelle = z.quelle;", /Entscheidung ist noch da/],
   ["TRESORZU", "assets/app.js", "  tresorOffen = null; tresorBytes = null; tresorName = \"\";\n  const t = $(\"#tresor\"); if (t) { t.replaceChildren(); t.hidden = true; }", "  const t = $(\"#tresor\"); if (t) { t.hidden = true; }", /Tresor schließen/],
+  /* Hereinladen (Klaus 2026-10-29) */
+  ["IMPORTFENSTER", "assets/app.js", "  $(\"#import\").hidden = false; importReiter(teil || \"datei\"); importMalen();", "  importMalen();", /öffnet ein Fenster/],
+  ["EINFUEGEN", "assets/app.js", "addEventListener(\"paste\", (e) => {\n  if (gesperrt || laeuft) return;", "addEventListener(\"paste\", (e) => {\n  return;", /Einfügen/],
+  ["ABLEGEN", "assets/app.js", "  if ($(\"#arbeit\").hidden && $(\"#import\").hidden) return starte(liste);", "  return starte(liste);", /Ablegen im Arbeitsbildschirm/],
+  ["DAZU", "assets/app.js", "  return starte([...alte, ...neu], {", "  return starte([...neu], {", /Dazugenommen/],
 ];
 const nur = process.env.NUR_FALL;
 let gefangen = 0, schlecht = 0;

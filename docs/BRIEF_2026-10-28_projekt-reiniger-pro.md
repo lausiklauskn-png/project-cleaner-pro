@@ -1,14 +1,14 @@
 # Brief: Projekt-Reiniger Pro
 
-Stand 2026-10-29 (Abend), **Stufen 1–5 gebaut** (Abschnitte „Stufe 1/2/3/4/5 · gebaut“ unten). Die App reinigt:
-einwerfen → Funde ansehen (antippen = Datei an der Stelle) → je Fund entscheiden (mit **Vorschau**, was aus der Zeile wird)
-→ saubere Kopie als ZIP mit Stellenplan und Bericht → Nachprüfung → auf Wunsch **Tresor** (verschlüsselte Datei mit
-Zuordnung und Originalen). Die **Gäste-Sperre** im Kopf schließt die App sofort. PDF und Bilder werden neu gezeichnet,
-Word/Excel/PowerPoint als reiner Text neu gebaut, dazu die Mustermappe. Hell/Dunkel-Schalter im Kopf.
-**Testfassungen** (Android-APK, Windows-Setup) liegen in der Vorab-Veröffentlichung **testfassung**; Klaus' erster
-Befund (2026-10-29, Tablet) ist eingearbeitet (Abschnitt „Befund aus dem Test“). Nächster Schritt: Klaus testet
-Fassung 8 (Tresor, Sperre, geteilte Ansicht), danach **Stufe 6** (Zurückbauen, mit eigenen Werten füllen). Der Brief
-lebt **hier** im Repo `project-cleaner-pro`; die Fassung im Sende-Prüfer ist eingefroren und zeigt hierher.
+Stand 2026-10-29 (Morgen), **Stufen 1–5 gebaut**, Fassung 9 (Abschnitte „Stufe 1/2/3/4/5 · gebaut“ unten). Die App reinigt:
+einwerfen oder **hereinladen** (Fenster: wählen, ablegen, einfügen) → Funde ansehen (antippen = Datei an der Stelle) → je Fund
+entscheiden (mit **Vorschau**, was aus der Zeile wird) → saubere Kopie als ZIP mit Stellenplan und Bericht → Nachprüfung →
+**herausladen** → auf Wunsch **Tresor** (verschlüsselte Datei mit Zuordnung und Originalen). Die **Gäste-Sperre** im Kopf schließt
+die App sofort. PDF und Bilder werden neu gezeichnet, Word/Excel/PowerPoint als reiner Text neu gebaut, dazu die Mustermappe.
+**Testfassungen** (Android-APK, Windows-Setup) liegen in der Vorab-Veröffentlichung **testfassung**. Klaus' Befund vom Tablet ist
+eingearbeitet. Nächster Schritt: Klaus testet Fassung 9 (Tresor, Sperre, geteilte Ansicht, Hereinladen), danach **Stufe 6**
+(Zurückbauen, mit eigenen Werten füllen). Der Brief lebt **hier** im Repo `project-cleaner-pro`; die Fassung im Sende-Prüfer ist
+eingefroren und zeigt hierher.
 
 ## Anlass
 
@@ -311,7 +311,8 @@ ungereinigte ZIP, gilt:
 | 9 | Einbau in die Familienakte |
 
 Abschlussbriefe: [Stufe 4 und Testfassungen](BRIEF_ABSCHLUSS_2026-10-29_stufe-4-und-testfassungen.md) ·
-[Befund und Stufe 5](BRIEF_ABSCHLUSS_2026-10-29_befund-und-stufe-5.md).
+[Befund und Stufe 5](BRIEF_ABSCHLUSS_2026-10-29_befund-und-stufe-5.md) ·
+Forschung: [Stufe 4](FORSCHUNG_2026-10-29_stufe-4.md) · [Stufe 5](FORSCHUNG_2026-10-29_stufe-5.md).
 
 ## Am Ende jeder Sitzung: Kurzauftrag zum Kopieren (Klaus 2026-10-28)
 
@@ -620,6 +621,29 @@ Satz steht auf der Startfläche) — damit der Sperr-Knopf immer Platz hat. ⚠ 
   knapp werden), echte Geräte (APK, Windows: ob „Speichern unter“ die `.rtresor` sauber ablegt), Sperre während einer laufenden
   Prüfung (dann sagt die App „erst abwarten“). **Offen für später:** Ersatzschlüssel in 5 Teilen (3 genügen) wie Private Brain Pro;
   Zurückbauen (Stufe 6).
+
+## Hereinladen und herausladen (Klaus 2026-10-29)
+
+Klaus: *„… von der Bedienansicht die Möglichkeit, einen Dateiimport zu machen und einen Export … leicht zu finden … per Drag and
+Drop oder per Copy Paste … Datei ablegen und dann scannen … da kann es ruhig ein Fenster geben.“* · *„Nimm dir Auslieferungsprüfer
+zum Vorbild.“*
+
+- **Leiste oben im Arbeitsbildschirm**, immer sichtbar, auch am Handy mit Wort: **„Dateien hereinladen“** (petrol) und
+  **„Saubere Kopie herausladen“** (baut die Kopie mit Nachprüfung, falls noch nicht geschehen, und lädt das ZIP; Android: „Speichern unter“).
+- **Fenster „Dateien hereinladen“** (Vorbild Auslieferungsprüfer): Reiter **Datei** (gestrichelte Ablagefläche, „Dateien wählen“,
+  „Ordner wählen“) und **Text einfügen** (Feld für Text, Code, HTML, SVG; Dateiname frei oder erkannt). Darunter die Liste „Bereit zum
+  Prüfen“ (einzeln wieder herausnehmbar), „Zum jetzigen Projekt dazunehmen“ (vorgewählt; sonst neu prüfen), **Prüfen** und **Leeren**.
+  Esc oder „Schließen“ schließt.
+- **Ablegen** (Maus): auf der Startfläche sofort prüfen (wie bisher); im Arbeitsbildschirm ins Fenster — nichts wird still ersetzt.
+  **Einfügen** (Strg+V bzw. „Einfügen“ am Tablet): Dateien und Bilder aus der Zwischenablage, sonst Text als Datei. Auf der Startfläche
+  neu: „Text einfügen“.
+- Dazugenommen: Entscheidungen, eigene Namen und Texterkennung bleiben; einzelne Dateien landen im Projektordner; oben steht
+  „Geprüft: musterapp + 1 Datei“.
+- **APK und Windows** nutzen denselben Code (eine Codebasis); dort gibt es kein Ziehen am Tablet — Wählen und Einfügen gehen.
+- **Proben:** `npm test` 281 grün · 0 ROT (15 neue: Fenster, Vollbild 320/740/1280, Dateiwahl, Dazunehmen in den Ordner, SVG- und
+  Bild-Einfügen, Text-Feld, Neu prüfen, Ablegen ins Fenster, Leeren, Esc, Herausladen). Gegenproben IMPORTFENSTER, EINFUEGEN, ABLEGEN,
+  DAZU gefangen.
+- ⚠ Nicht gemessen: Einfügen eines Bildes in Android-WebView und WebView2.
 
 ## Grenzen (vorab benannt)
 
