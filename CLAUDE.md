@@ -6,13 +6,14 @@ oder nach GitHub gehen. Kein Build-Schritt. Der Plan steht im Brief:
 er ist die Quelle, diese Datei ist nur der Anker. Am Ende jeder Sitzung: Brief nachziehen und einen
 Kurzauftrag zum Kopieren ausgeben.
 
-## Stand: Stufen 1–4 (2026-10-29) — prüfen, entscheiden, saubere Kopie, neu gezeichnete Blätter · nächster Schritt: Test-APK/Windows, dann Stufe 5
+## Stand: Stufen 1–4 + Testfassungen APK/Windows (2026-10-29) · nächster Schritt: Klaus' Test-Befund, dann Stufe 5
 
 | Datei | Rolle |
 |---|---|
 | `assets/reiniger-kern.js` + `.d.ts` | **Der Kern ohne Oberfläche** (ES-Modul). Kein DOM, keine IndexedDB, kein Netz — die Probe prüft das. Wandert später byte-1:1 in die Familienakte. Heute: `einwerfen`, `zipDateien`, `einordnen`, `pruefe`, `buendeln`, `gefuehlt`, `reinige`, `nachpruefe`, `saubereKopie`, `zipBauen`; Stufe 4: `dateiPlan` (Wege je Datei), `blattNeu`, `blattKaesten`, `kastenMalen`, `rauschen`, `pdfBauen`, `pngBauen`, `docxBauen`/`xlsxBauen`/`pptxBauen`, `mustermappe`, `musterFuer`. Zeichnen bringt der Aufrufer mit (`werkzeuge.Zeichner`, im Browser `app.js`). |
 | `assets/reiniger-listen.js` | **Wortlisten** für die gefühlten Metadaten (Städte, Stadtteile, Hochschulen, Firmenformen, Straßenendungen, Kfz-Zeichen, Vornamen). Einziger Import des Kerns — wandert mit ihm. Neue Wörter: erst `npm test` (Fallen-Probe), mehrdeutige Wörter nach `STAEDTE_MEHRDEUTIG`. |
 | `assets/app.js`, `assets/app.css`, `index.html`, `assets/thema.js` | Oberfläche. Fremdes nur über `textContent`. `app.js` enthält den **Zeichner** (pdf.js, Leinwand, Texterkennung mit Wortkästen, gemessene Zeichenbreiten). Farben nur als Variablen mit Hell- und Dunkel-Satz; `thema.js` setzt die gemerkte Wahl vor dem ersten Zeichnen. |
+| `tools/native/prepare-web.mjs`, `capacitor.config.json`, `android/`, `windows/`, `.github/workflows/testfassungen.yml` | **App-Hüllen** (wie Private Brain Pro): Android über Capacitor 8.5.3 (Plugin `Speichern` für „Speichern unter“), Windows über Tauri 2. Gebaut nur auf GitHub; auf `main` → Vorab-Veröffentlichung `testfassung`. `www/`, `windows/dist`, Build-Ordner nie einchecken. In der Hülle (`HUELLE` in app.js) kein Installieren/Aktualisieren/Service-Worker. |
 | `assets/beispiel.js` | Erfundenes Beispielprojekt (Knopf „🧪 Beispielprojekt“ und Proben). |
 | `modules/25_pseudonym.js`, `assets/pruefer-anhang.js`, `pruefer-formate.js`, `pruefer-mail.js`, `pruefer.js`, `reinigung.js`, `vendor/pdfjs/`, `vendor/tesseract/` | **byte-1:1** aus Sende-Prüfer (`d8a8c54`) bzw. Sage/Auslieferungsprüfer, `reinigung.js` aus Workflow PDF (`a2cfdf1`), Tesseract aus Workflow PDF Pro, per SHA-256 in `tests/probe.mjs` gepinnt (`PINS`). **Nie hier abwandeln** — dort pflegen, neu kopieren, Pin nachziehen, `CACHE_VERSION` in `sw.js` erhöhen. |
 
@@ -45,7 +46,7 @@ Kurzauftrag zum Kopieren ausgeben.
 ## Prüfen
 
 ```bash
-npm test             # 222 grün · 0 ROT (2026-10-29, Stufe 4, Hell/Dunkel)
+npm test             # 225 grün · 0 ROT (2026-10-29, Stufe 4, Hell/Dunkel, Android-Hülle nachgestellt)
 npm run gegenprobe   # 48 gefangen · 0 blind · 0 falsch · 0 tot (2026-10-29)
 ```
 

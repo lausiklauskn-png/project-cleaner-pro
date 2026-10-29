@@ -4,8 +4,9 @@ Stand 2026-10-29, **Stufen 1–4 gebaut** (Abschnitte „Stufe 1/2/3/4 · gebaut
 einwerfen → Funde ansehen (antippen = Datei an der Stelle) → je Fund entscheiden → saubere Kopie als ZIP
 mit Stellenplan und Bericht → Nachprüfung. PDF und Bilder werden **neu gezeichnet** (graue Kästen, ohne Metadaten),
 Word/Excel/PowerPoint als reiner Text neu gebaut, dazu die **Mustermappe**. Hell/Dunkel-Schalter im Kopf.
-Nächster Schritt: **Stufe 8 vorgezogen — Test-APK und Windows-Fassung** (Klaus 2026-10-29: „zum Testen … ob unser
-Vorhaben im Groben funktioniert“), danach Stufe 5 (Tresor und Gäste-Sperre). Der Brief lebt seitdem **hier**
+**Testfassungen** (Stufe 8 vorgezogen, Klaus 2026-10-29: „zum Testen … ob unser Vorhaben im Groben funktioniert“): Android-APK
+und Windows-Setup liegen in der Vorab-Veröffentlichung **testfassung**. Nächster Schritt: Klaus' Befund aus dem Test
+einarbeiten, danach Stufe 5 (Tresor und Gäste-Sperre). Der Brief lebt seitdem **hier**
 im Repo `project-cleaner-pro`; die Fassung im Sende-Prüfer ist eingefroren und zeigt hierher.
 
 ## Anlass
@@ -305,7 +306,7 @@ ungereinigte ZIP, gilt:
 | 5 | Tresor und Gäste-Sperre |
 | 6 | Zurückbauen, mit eigenen Werten füllen |
 | 7 | Git-Wächter und Sperrliste |
-| 8 | APK, danach Windows |
+| 8 (Test) | APK, danach Windows — **Testfassungen** gebaut 2026-10-29 (Debug-APK, Windows unsigniert); eigener Schlüssel, Signatur, Updates offen |
 | 9 | Einbau in die Familienakte |
 
 ## Am Ende jeder Sitzung: Kurzauftrag zum Kopieren (Klaus 2026-10-28)
@@ -537,6 +538,26 @@ Schrift.“*
 - **Schrift-Probe** in jeder Größe und jedem Zustand: keine sichtbaren Textzeilen übereinander, keine doppelten Leerzeilen
   (die Installier-Meldung ist jetzt in Absätzen statt mit Leerzeilen).
 - ⚠ Nicht gemessen: am echten Handy im Dunkelmodus (Samsung Internet dunkelt Seiten teils selbst ab).
+
+## Testfassungen Android und Windows (2026-10-29)
+
+- **Gebaut wie Private Brain Pro, eine Codebasis:** `tools/native/prepare-web.mjs` legt die Seite (feste Liste: index.html,
+  manifest, sw.js, assets, modules, vendor, icons) nach `www/` bzw. `windows/dist`. **Android:** Capacitor 8.5.3, `android/`
+  eingecheckt (erzeugt mit `npx cap add android`), App-Kennung `de.familyprojekt.projektreiniger.pro`, Seite unter
+  `https://localhost`. **Windows:** Tauri 2.12 (WebView2), NSIS-Setup nur für den eigenen Benutzer, keine Befehle für die Seite.
+- **Bau auf GitHub** (`.github/workflows/testfassungen.yml`): bei jedem Push auf `main` und `claude/**`; auf `main` ersetzt der
+  Lauf die Vorab-Veröffentlichung **testfassung** (APK und Setup mit SHA-256). Erster Lauf grün: APK in 1,5 min, Windows in 5 min.
+  Hier im Behälter gibt es kein Android-SDK und kein Windows.
+- **Android kennt keinen Browser-Download:** Plugin `Speichern` (`android/…/SpeichernPlugin.java`) öffnet „Speichern unter“
+  (Storage Access Framework), ohne Speicherberechtigung. Die Probe stellt die Brücke nach und prüft, dass die übergebene ZIP gültig ist.
+- **In den Hüllen** keine Knöpfe „Installieren“/„Aktualisieren“, kein Service-Worker (eine neue Fassung kommt als neue App;
+  Pro-Leitfaden: je Fassung nur die Knöpfe, die dort funktionieren).
+- Icons, Android-Startbild (Kristall mit „CLEANER“) und Windows-Icon baut `tools/icons-bauen.mjs` aus derselben Quelle.
+- ⚠ **Testfassungen, nicht das Produkt:** APK mit Debug-Schlüssel (vor einer neueren die alte deinstallieren), Windows
+  unsigniert (SmartScreen: „Weitere Informationen → Trotzdem ausführen“). Offen für Stufe 8: eigener Schlüssel (verschlüsselt,
+  wie `signing/` in Private Brain Pro), Updates über die alte App, Windows-Signatur.
+- ⚠ **Nicht gemessen:** echtes Android-Gerät und echter Windows-Rechner; ob Texterkennung (WebAssembly-Worker) und pdf.js in
+  der Android-WebView und in WebView2 laufen; ob WebView2 den Download der sauberen Kopie ohne Rückfrage ablegt.
 
 ## Grenzen (vorab benannt)
 
