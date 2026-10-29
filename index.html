@@ -31,7 +31,7 @@
       <img src="icons/logo-96.png" width="40" height="40" alt="">
       <span class="name-lang">Projekt-Reiniger Pro</span><span class="name-kurz">Reiniger Pro</span>
     </a>
-    <span class="nurlesen" title="Alles bleibt auf diesem Gerät. Das Original wird nie verändert; die saubere Kopie geht nur als Download hinaus.">Lokal</span>
+    <button type="button" class="knopf hell nurlesen" id="lokal" aria-label="Lokal — was heißt das?" title="Lokal — was heißt das?"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 11v6 M12 7.5v.5"/></svg><span class="t">Lokal</span></button>
     <span class="luecke"></span>
     <button type="button" class="knopf hell" id="thema" aria-label="Hell oder dunkel" title="Hell oder dunkel"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18z M12 3a9 9 0 0 1 0 18"/></svg><span class="t">Automatisch</span></button>
     <button type="button" class="knopf hell" id="installieren" aria-label="Als App installieren" title="Als App installieren"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M12 6v7 M9 10l3 3 3-3 M11 18h2"/></svg><span class="t">Installieren</span></button>
@@ -55,7 +55,8 @@
         </div>
         <input type="file" id="wahl-dateien" multiple hidden>
         <input type="file" id="wahl-ordner" webkitdirectory multiple hidden>
-        <p class="klein">Oder hierher ziehen. Auch Apps (APK, JAR), TAR/GZ und gespeicherte Internetseiten (HTML mit Ordner). <code>node_modules</code> und Build-Ordner werden nicht gelesen.</p>
+        <p class="klein titel-zeile">Oder hierher ziehen. <button type="button" class="knopf info-knopf auf-dunkel" id="einwurf-info" aria-expanded="false" aria-controls="einwurf-erklaerung" aria-label="Erklärung: was sich einwerfen lässt" title="Erklärung"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 11v6 M12 7.5v.5"/></svg></button></p>
+        <p class="klein erklaerung" id="einwurf-erklaerung" hidden>Auch Apps (APK, JAR), TAR/GZ und gespeicherte Internetseiten (HTML mit Ordner). <code>node_modules</code> und Build-Ordner werden nicht gelesen.</p>
         <p class="klein" id="kern-fehlt" hidden></p>
       </div>
     </section>

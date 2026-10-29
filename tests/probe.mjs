@@ -527,6 +527,18 @@ await seite.setViewportSize({ width: 1280, height: 800 });
 await seite.click("#beispiel");
 await seite.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden, null, { timeout: 30000 });
 ok("Beispielprojekt: Funde gebündelt angezeigt", await seite.evaluate(() => document.querySelectorAll(".buendel").length > 5 && !!document.querySelector('.buendel[data-art="MAIL"] [data-wert]')));
+/* Befund Klaus 2026-10-29: Auskunft sieht nicht aus wie ein Knopf, Erklärungen erst hinter ⓘ. */
+ok("Kopfzeile „Geprüft · Dateien · Funde“ ist Auskunft: kein Rand, kein Grund, kleine Schrift", await seite.evaluate(() => {
+  const li = Array.from(document.querySelectorAll("#zahlen li"));
+  return li.length >= 5 && li.every((e) => { const s = getComputedStyle(e); return parseFloat(s.borderTopWidth) === 0 && /rgba\(0, 0, 0, 0\)|transparent/.test(s.backgroundColor) && parseFloat(s.fontSize) <= 13 && e.tagName !== "BUTTON"; });
+}));
+ok("Erklärungen stehen hinter ⓘ: zu, bis jemand tippt; der Tipp klappt nur die Erklärung, nicht die Gruppe", await seite.evaluate(() => {
+  const alle = Array.from(document.querySelectorAll("[data-erklaerung]"));
+  const zu = alle.length >= 4 && alle.every((p) => p.hidden);
+  const g = document.querySelector('details.gruppe[data-gruppe="hart"]'), k = g.querySelector("summary .info-knopf"), p = document.getElementById(k.getAttribute("aria-controls"));
+  k.click(); const offen = !p.hidden && k.getAttribute("aria-expanded") === "true" && g.open;
+  k.click(); return zu && offen && p.hidden && g.open;
+}));
 ok("Beispielprojekt: Inventur zeigt Marken und Stufen", await seite.evaluate(() => !!document.querySelector('[data-marke="GIT"]') && !!document.querySelector('[data-marke="ENV"]') && !!document.querySelector('[data-stufe="1"]')));
 ok("Beispielprojekt: node_modules steht als „nicht gelesen“ da", await seite.evaluate(() => /nicht gelesen/.test((document.querySelector('[data-pfad="musterapp/node_modules/"]') || {}).textContent || "")));
 ok("Beispielprojekt: Gruppe „Gefühlte Metadaten“ mit Kennzeichen und Ordnerpfad", await seite.evaluate(() => {

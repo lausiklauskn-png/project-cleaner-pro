@@ -50,7 +50,7 @@ code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-si
 .marke img { width: 40px; height: 40px; border-radius: 10px; flex: none; }
 .marke span { font-weight: 700; font-size: 1.12rem; white-space: nowrap; }
 .name-kurz { display: none; }
-.nurlesen { flex: none; font-size: .78rem; font-weight: 600; padding: 3px 9px; border-radius: 99px; background: rgb(0 20 40 / .35); border: 1px solid rgb(255 255 255 / .45); white-space: nowrap; }
+.nurlesen { flex: none; }
 .luecke { flex: 1 1 0; min-width: 0; }
 
 .knopf {
@@ -101,10 +101,12 @@ code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-si
 .fortschritt { display: grid; gap: 6px; padding: 10px var(--abstand); background: var(--papier); border-bottom: 1px solid var(--linie); }
 .fortschritt span { overflow-wrap: anywhere; font-size: .9rem; color: var(--leise); }
 .fortschritt progress { width: 100%; height: 8px; accent-color: var(--petrol); }
-.zahlen { list-style: none; margin: 0; padding: 10px var(--abstand); display: flex; flex-wrap: wrap; gap: 8px; background: var(--papier); border-bottom: 1px solid var(--linie); }
-.zahlen li { display: flex; align-items: baseline; gap: 6px; padding: 4px 10px; border-radius: 99px; background: var(--grund); border: 1px solid var(--linie); font-size: .9rem; white-space: nowrap; }
-.zahlen b { font-size: 1.05rem; color: var(--titel); }
-.zahlen li.warn { background: var(--warn-grund); border-color: var(--warn-linie); }
+/* Auskunft, kein Knopf (Klaus 2026-10-29): kleine, schlichte Zeile — keine Kästchen, kein Rand, nichts lädt zum Tippen ein. */
+.zahlen { list-style: none; margin: 0; padding: 5px var(--abstand); display: flex; flex-wrap: wrap; column-gap: 0; row-gap: 2px; background: var(--papier); border-bottom: 1px solid var(--linie); color: var(--leise); font-size: .78rem; line-height: 1.35; }
+.zahlen li { display: inline; white-space: nowrap; }
+.zahlen li + li::before { content: "·"; padding: 0 .45em; color: var(--leise); }
+.zahlen b { font-weight: 600; color: var(--leise); }
+.zahlen li.warn, .zahlen li.warn b { color: var(--warn); }
 .hinweise:empty { display: none; }
 .hinweise { padding: 8px var(--abstand); display: grid; gap: 6px; background: var(--warn-grund); border-bottom: 1px solid var(--warn-linie); color: var(--warn); font-size: .92rem; }
 .hinweise p { margin: 0; overflow-wrap: anywhere; }
@@ -133,7 +135,6 @@ code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-si
 @media (max-width: 380px) {
   .kopf { gap: 6px; }
   .marke { gap: 7px; }
-  .nurlesen { padding: 3px 7px; font-size: .74rem; }
   .knopf.hell { padding: 6px 10px; }
 }
 @media (max-width: 340px) {
@@ -244,7 +245,8 @@ mark { background: #ffe08a; color: #1d1d1d; border-radius: 3px; padding: 0 1px; 
 .quelltext li::marker { color: var(--leise); font-size: .75rem; }
 .quelltext li.ziel { background: var(--ziel); outline: 2px solid var(--ziel-linie); border-radius: 4px; }
 .ansicht-leer { font-size: .92rem; }
-.zahlen li.quelle { background: var(--petrol-grund); border-color: var(--petrol-linie); font-weight: 600; white-space: normal; overflow-wrap: anywhere; min-width: 0; max-width: 100%; }
+.zahlen li.quelle { white-space: normal; overflow-wrap: anywhere; min-width: 0; max-width: 100%; }
+.zahlen li.quelle .ikon { margin: 0 .25em; }
 
 /* Flache, schmale Knöpfe wie in Private Brain Pro (Klaus 2026-10-28: „nicht höher als bei Private Brain Pro,
    eher niedriger, eher flacher“). Sichtbar etwa 28 px; die Tippfläche reicht unsichtbar 7 px über und unter den Knopf. */
@@ -256,12 +258,9 @@ mark { background: #ffe08a; color: #1d1d1d; border-radius: 3px; padding: 0 1px; 
 .haupt-knopf { font-weight: 600; }
 .reiter-knopf { min-height: 30px; font-size: .88rem; font-weight: 500; }
 .weg, .eigen, #begriff { min-height: 30px; padding: 3px 8px; font-size: .86rem; border-radius: 7px; }
-.zahlen li { padding: 2px 9px; font-size: .84rem; }
-.zahlen b { font-size: .95rem; }
 
 /* Strich-Symbole */
 .ikon { width: 1.05em; height: 1.05em; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.15em; }
-.zahlen li.quelle { align-items: center; gap: 5px; }
 .hinweise p, .offen { display: flex; gap: 6px; align-items: flex-start; }
 .hinweise p .ikon, .offen .ikon { margin-top: .15em; }
 .kopie h3 { display: flex; gap: 6px; align-items: center; }
@@ -280,7 +279,6 @@ mark { background: #ffe08a; color: #1d1d1d; border-radius: 3px; padding: 0 1px; 
 .meldung p:last-child { margin-bottom: 0; }
 #meldung-zu { float: right; margin: -2px -2px 4px 8px; padding: 3px 6px; }
 @media (max-width: 420px) { #neu .t { display: none; } #neu { padding: 3px 8px; } .kopf { gap: 6px; } }
-@media (max-width: 350px) { .nurlesen { display: none; } }
 
 /* Stufe 4: Vorschau neu gezeichneter Blätter, Wahl je Datei */
 .vorschau { display: grid; gap: 12px; justify-items: center; padding: 8px 0; min-width: 0; }
@@ -291,4 +289,25 @@ mark { background: #ffe08a; color: #1d1d1d; border-radius: 3px; padding: 0 1px; 
 .datei-plan .weg-zeile { margin: 4px 0 0; }
 #alle-dateien { flex: 0 1 22em; }
 @media (max-width: 1099px) { #thema .t { display: none; } #thema { padding: 3px 8px; } }
-@media (max-width: 440px) { .nurlesen { display: none; } }
+@media (max-width: 640px) { #lokal .t { display: none; } #lokal { padding: 3px 8px; } }
+
+/* ⓘ-Knopf: Erklärungen erst auf Tipp (Klaus 2026-10-29) */
+.titel-zeile { display: flex; align-items: center; gap: 6px; min-width: 0; flex-wrap: wrap; }
+.titel-zeile > h2, .titel-zeile > p { margin: 0; min-width: 0; }
+.knopf.info-knopf { min-height: 24px; width: 24px; padding: 0; border-radius: 99px; flex: none; color: var(--titel2); background: transparent; border-color: transparent; }
+.knopf.info-knopf:hover, .knopf.info-knopf[aria-expanded="true"] { border-color: var(--linie); background: var(--papier); }
+.knopf.info-knopf .ikon { width: 1.15em; height: 1.15em; }
+.knopf.info-knopf.auf-dunkel { color: #fff; }
+.knopf.info-knopf.auf-dunkel:hover, .knopf.info-knopf.auf-dunkel[aria-expanded="true"] { background: rgb(0 20 40 / .35); border-color: rgb(255 255 255 / .45); }
+.einwurf .titel-zeile { justify-content: center; }
+.erklaerung { margin: 4px 0 10px; padding: 8px 10px; border-radius: 8px; background: var(--flaeche2); border: 1px solid var(--linie); color: var(--schrift); font-size: .86rem; overflow-wrap: anywhere; }
+.einwurf .erklaerung { background: rgb(0 20 40 / .35); border-color: rgb(255 255 255 / .3); color: #dbe9f5; }
+.reinigen .titel-zeile > p { font-size: .92rem; }
+/* Handy: im Kopf nur Logo und Symbole — der Sperr-Knopf muss immer Platz haben (Stufe 5). */
+@media (max-width: 420px) { .marke span { display: none; } }
+@media (max-width: 380px) { #lokal { display: none; } }
+/* Inventur: Angaben, keine Knöpfe (Klaus 2026-10-29) — ohne Rand und ohne Pillenform; Größe und Art als bloßer Text. */
+.zeile2 .chip { border: 0; border-radius: 4px; padding: 0 5px; }
+.zeile2 .chip:not(.stufe1):not(.stufe2):not(.stufe3):not(.marke):not(.funde):not(.begriff) { background: none; padding: 0; color: var(--leise); }
+.zeile2 .chip.funde { background: none; color: var(--titel); font-weight: 700; padding: 0; }
+.zeile2 .chip.begriff { border: 1px solid var(--linie); border-radius: 99px; padding: 1px 7px; }

@@ -36,6 +36,7 @@ const IKONEN = {
   hell: "M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4",
   dunkel: "M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z",
   auto: "M12 3a9 9 0 1 0 0 18z M12 3a9 9 0 0 1 0 18",
+  info: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 11v6 M12 7.5v.5",
 };
 function ikon(name) {
   const NS = "http://www.w3.org/2000/svg", s = document.createElementNS(NS, "svg"), p = document.createElementNS(NS, "path");
@@ -46,6 +47,16 @@ function ikon(name) {
 /* Knopf mit Symbol und Wort */
 function knopfMit(attr, name, wort) { return el("button", Object.assign({ type: "button" }, attr), ikon(name), wort); }
 const warnZeile = (attr, satz) => el(attr.tag || "p", Object.assign({}, attr, { tag: null }), ikon("warn"), el("span", { text: satz }));
+/* Erklärungen hinter einem ⓘ-Knopf (Klaus 2026-10-29: „Erklärungen hinter einem i-Button verstecken“).
+   Gibt [Knopf, Absatz] zurück; der Absatz ist zu, bis jemand tippt. Im Kopf einer aufklappbaren Gruppe klappt der Knopf nur die Erklärung. */
+let infoNr = 0;
+function info(text, wofuer) {
+  const id = "info-" + (++infoNr);
+  const p = el("p", { class: "erklaerung", id, hidden: true, "data-erklaerung": "" }, text);
+  const k = el("button", { type: "button", class: "knopf info-knopf", "aria-expanded": "false", "aria-controls": id, "aria-label": "Erklärung" + (wofuer ? " zu " + wofuer : ""), title: "Erklärung" }, ikon("info"));
+  k.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); p.hidden = !p.hidden; k.setAttribute("aria-expanded", String(!p.hidden)); });
+  return [k, p];
+}
 const anzahl = (n, eins, viele) => n + " " + (n === 1 ? eins : viele);
 const gross = (n) => n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(1).replace(".", ",") + " KB" : (n / 1048576).toFixed(1).replace(".", ",") + " MB";
 
@@ -187,9 +198,10 @@ function leerBild(satz) {
 
 function zeigen() {
   const z = ergebnis.zahlen;
-  const chip = (zahl, wort, warn) => el("li", { class: warn ? "warn" : null }, el("b", { text: String(zahl) }), el("span", { text: wort }));
+  /* Nur Auskunft, kein Knopf (Klaus 2026-10-29): schlichte, kleine Zeile ohne Kästchen, damit niemand draufklickt. */
+  const chip = (zahl, wort, warn) => el("li", { class: warn ? "warn" : null }, el("b", { text: String(zahl) }), " ", el("span", { text: wort }));
   $("#zahlen").replaceChildren(
-    el("li", { class: "quelle", "data-quelle": "", title: "Das wurde geprüft. Das Original bleibt unverändert." }, el("span", { text: "Geprüft:" }), ikon(quelle.ikon), el("span", { "data-quelle-name": "", text: quelle.name })),
+    el("li", { class: "quelle", "data-quelle": "" }, el("span", { text: "Geprüft:" }), ikon(quelle.ikon), el("span", { "data-quelle-name": "", text: quelle.name })),
     chip(z.dateien, "Dateien"), chip(z.befunde, "Funde"), chip(z.markiert, "markiert", z.markiert > 0),
     chip(z.uebersprungen, "nicht gelesen"), chip(z.ungeprueft, "ungeprüft", z.ungeprueft > 0));
   $("#hinweise").replaceChildren(...ergebnis.hinweise.map((h) => warnZeile({}, h)));
@@ -207,9 +219,10 @@ function zeigen() {
     bef.replaceChildren(leiste, werkzeugLeiste(), ...SCHICHTEN.map(([s, titel, satz]) => {
       const liste = ergebnis.buendel.filter((b) => b.schicht === s);
       if (!liste.length) return null;
+      const [ik, erkl] = info(satz, titel);
       return el("details", { class: "gruppe", "data-gruppe": s, open: true },
-        el("summary", {}, el("h2", { text: titel + " (" + liste.reduce((n, b) => n + b.anzahl, 0) + ")" })),
-        el("p", { text: satz }),
+        el("summary", {}, el("h2", { text: titel + " (" + liste.reduce((n, b) => n + b.anzahl, 0) + ")" }), ik),
+        erkl,
         ...liste.map(buendelKarte));
     }), plan.length ? dateiPlanKarte(plan) : null);
   }
@@ -555,11 +568,11 @@ function dateiPlanKarte(plan) {
     alle.value = "";
   });
   const neu = plan.filter((p) => p.vorgabe === "neu").length;
-  return el("section", { class: "gruppe", "data-gruppe": "dateien" },
-    el("h2", { text: "Dateien, die nicht Stelle für Stelle gereinigt werden (" + plan.length + ")" }),
-    el("p", { text: "PDF und Bilder werden neu gezeichnet: gleiche Größe, gleicher Name, ohne Metadaten; wo ein Fund stand, sitzt ein grauer Kasten mit Etikett. Word, Excel und PowerPoint kommen als reiner Text neu (ohne Bilder und Formatierung). " +
+  const [ik, erkl] = info("PDF und Bilder werden neu gezeichnet: gleiche Größe, gleicher Name, ohne Metadaten; wo ein Fund stand, sitzt ein grauer Kasten mit Etikett. Word, Excel und PowerPoint kommen als reiner Text neu (ohne Bilder und Formatierung). " +
       "Was sich nicht neu bauen lässt, bleibt weg oder bekommt eine leere Vorlage aus der Mustermappe. „Unverändert“ geht ungereinigt mit und steht so im Bericht." +
-      (neu ? " Vorgabe: " + neu + "× neu zeichnen." : "") }),
+      (neu ? " Vorgabe: " + neu + "× neu zeichnen." : ""), "Dateien");
+  return el("section", { class: "gruppe", "data-gruppe": "dateien" },
+    el("div", { class: "titel-zeile" }, el("h2", { text: "Dateien, die nicht Stelle für Stelle gereinigt werden (" + plan.length + ")" }), ik), erkl,
     el("div", { class: "weg-zeile" }, alle),
     el("ul", { class: "datei-plan" }, ...zeilen));
 }
@@ -571,10 +584,12 @@ function reinigenLeiste(ersetzbare, plan) {
   mappe.checked = mappeBeilegen;
   mappe.addEventListener("change", () => { mappeBeilegen = mappe.checked; gereinigt = null; const e = $("#kopie-ergebnis"); if (e) e.replaceChildren(); });
   const neu = plan.filter((p) => (dateiWahl[p.pfad] || p.vorgabe) === "neu").length, weg = plan.filter((p) => (dateiWahl[p.pfad] || p.vorgabe) === "weg").length;
+  const [ik, erkl] = info("Je Fund wählbar: „Automatisch“ setzt in Texten eine Marke (⟦NAME-1⟧) und im Code einen Musterwert, damit das Programm weiterläuft. .git geht nie mit. " +
+    "Danach wird die Kopie noch einmal ganz durchsucht. Das Original bleibt unverändert.", "Saubere Kopie");
   return el("section", { class: "reinigen", "data-reinigen": "" },
-    el("p", { text: ersetzbare + " Werte werden ersetzt. Je Fund wählbar: „Automatisch“ setzt in Texten eine Marke (⟦NAME-1⟧) und im Code einen Musterwert, damit das Programm weiterläuft. .git geht nie mit. " +
-      (neu ? anzahl(neu, "Datei wird", "Dateien werden") + " neu gezeichnet. " : "") + (weg ? anzahl(weg, "Datei bleibt", "Dateien bleiben") + " weg. " : "") + "Danach wird die Kopie noch einmal ganz durchsucht. Das Original bleibt unverändert." }),
-    el("label", { class: "wahl" }, mappe, el("span", { text: "Mustermappe beilegen (leere Vorlagen und erfundene Beispiele, Ordner MUSTERMAPPE/)" })),
+    el("div", { class: "titel-zeile" }, el("p", { text: anzahl(ersetzbare, "Wert wird", "Werte werden") + " ersetzt. " +
+      (neu ? anzahl(neu, "Datei wird", "Dateien werden") + " neu gezeichnet. " : "") + (weg ? anzahl(weg, "Datei bleibt", "Dateien bleiben") + " weg." : "") }), ik), erkl,
+    (([mk, me]) => [el("div", { class: "titel-zeile" }, el("label", { class: "wahl" }, mappe, el("span", { text: "Mustermappe beilegen" })), mk), me])(info("Leere Vorlagen und erfundene Beispiele (PDF, Word, Excel, PowerPoint, Bilder, CSV, JSON, Datenbank) im Ordner MUSTERMAPPE/. Alles trägt „Muster“, nichts davon ist echt.", "Mustermappe")),
     knopf, el("div", { id: "kopie-ergebnis", "aria-live": "polite" }));
 }
 
@@ -624,7 +639,7 @@ async function reinigen() {
       laden("Saubere Kopie (ZIP)", zipName, gereinigt.zip, "application/zip"), teilen,
       laden("Stellenplan", Kern.STELLENPLAN_DATEI, beilage(Kern.STELLENPLAN_DATEI), "text/plain"),
       laden("Bericht", Kern.BERICHT_DATEI, beilage(Kern.BERICHT_DATEI), "text/plain")),
-    el("p", { class: "klein", text: "Stellenplan und Bericht liegen auch im ZIP (dort stehen die Kästen der neu gezeichneten Blätter mit Seite und Lage). Sie nennen keine Werte. Die Zuordnung (welche Marke für welchen Wert steht) bleibt nur hier im Speicher — sie verschwindet mit „Neu“ (Tresor: Stufe 5)." })));
+    ...(([ik, erkl]) => [el("div", { class: "titel-zeile" }, el("span", { class: "klein", text: "Was liegt im ZIP?" }), ik), erkl])(info("Stellenplan und Bericht liegen auch im ZIP (dort stehen die Kästen der neu gezeichneten Blätter mit Seite und Lage). Sie nennen keine Werte. Die Zuordnung (welche Marke für welchen Wert steht) bleibt nur hier im Speicher — sie verschwindet mit „Neu“ (Tresor: Stufe 5).", "Stellenplan und Bericht"))));
 }
 
 function zeigeInventur() {
@@ -641,7 +656,7 @@ function zeigeInventur() {
       chips.push(el("span", { class: "chip stufe" + e.stufe, "data-stufe": String(e.stufe), text: "Stufe " + e.stufe + " · " + e.stufeName }));
     }
     for (const m of e.marken) chips.push(el("span", { class: "chip marke", "data-marke": m.kennung, title: m.satz, text: Kern.MARKE_NAME[m.kennung] || m.kennung }));
-    if (e.befunde) chips.push(el("span", { class: "chip funde", text: e.befunde + " Funde" }));
+    if (e.befunde) chips.push(el("span", { class: "chip funde", text: anzahl(e.befunde, "Fund", "Funde") }));
     let name;
     if (e.art !== "ordner") { name = el("button", { type: "button", class: "pfad pfad-knopf", text: e.pfad }); name.addEventListener("click", () => oeffneAnsicht(e.pfad)); }
     else name = el("span", { class: "pfad", text: e.pfad });
@@ -650,10 +665,11 @@ function zeigeInventur() {
       el("div", { class: "zeile2" }, ...chips),
       e.ungeprueft ? warnZeile({ tag: "span", class: "offen" }, e.ungeprueft) : null);
   });
+  const [ik, erkl] = info("Stufe 1 voll reinigen · Stufe 2 neu bauen (PDF und Bilder neu gezeichnet, Office als reiner Text) · Stufe 3 nur prüfen (weglassen, durch ein Muster ersetzen oder unverändert übernehmen).", "Stufen");
   $("#inventur").replaceChildren(
-    el("div", { class: "inventur-kopf" }, el("h2", { text: "Inventur (" + ergebnis.inventur.length + ")" }),
+    el("div", { class: "inventur-kopf" }, el("div", { class: "titel-zeile" }, el("h2", { text: "Inventur (" + ergebnis.inventur.length + ")" }), ik),
       el("label", {}, box, "nur Auffälliges")),
-    el("p", { class: "stufen-legende", text: "Stufe 1 voll reinigen · Stufe 2 neu bauen (PDF und Bilder neu gezeichnet, Office als reiner Text) · Stufe 3 nur prüfen (weglassen, durch ein Muster ersetzen oder unverändert übernehmen)." }),
+    erkl,
     el("ul", { class: "datei" }, ...zeilen));
 }
 
@@ -665,7 +681,7 @@ for (const k of document.querySelectorAll(".reiter-knopf")) k.addEventListener("
 /* ── Installieren und Aktualisieren (Klaus 2026-10-28) ─────────────────────
    Ablauf und Texte übernommen aus dem Auslieferungsprüfer (assets/installieren.js, dort seit 2026-09-30
    am Tablet getragen), hier mit Strich-Symbolen und ohne Inline-Stile (CSP). */
-export const APP_FASSUNG = "7";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
+export const APP_FASSUNG = "8";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
 let installEreignis = null;
 function alsApp() {
   try { return matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: window-controls-overlay)").matches || matchMedia("(display-mode: minimal-ui)").matches || navigator.standalone === true; }
@@ -673,6 +689,8 @@ function alsApp() {
 }
 /* Meldung in Absätzen (Leerzeile im Text = neuer Absatz), nie als Text mit doppelten Zeilenumbrüchen. */
 function melde(text) { $("#meldung-text").replaceChildren(...String(text).split(/\n\s*\n/).map((t) => el("p", { text: t.trim() }))); $("#meldung").hidden = false; }
+$("#lokal").addEventListener("click", () => melde("Lokal: alles bleibt auf diesem Gerät. Nichts geht ins Netz, nichts wird ausgeführt, nichts gespeichert.\n\nDas Original wird nie verändert. Die saubere Kopie geht nur als Download hinaus."));
+$("#einwurf-info").addEventListener("click", () => { const p = $("#einwurf-erklaerung"); p.hidden = !p.hidden; $("#einwurf-info").setAttribute("aria-expanded", String(!p.hidden)); });
 $("#meldung-zu").addEventListener("click", () => { $("#meldung").hidden = true; });
 function installKnopf() { const k = $("#installieren"); k.hidden = alsApp() || !!HUELLE; k.dataset.lage = alsApp() ? "app" : installEreignis ? "angeboten" : "nicht-angeboten"; }
 addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEreignis = e; installKnopf(); });

@@ -58,6 +58,9 @@ const FAELLE = [
   ["UEBEREINANDER", "assets/app.css", ".wert { display: block; margin: 4px 0;", ".wert { display: block; margin: -16px 0 4px;", /Schrift über Schrift/],
   ["LEERZEILE", "assets/app.js", "function melde(text) { $(\"#meldung-text\").replaceChildren(", "function melde(text) { $(\"#meldung-text\").style.whiteSpace = \"pre-line\"; $(\"#meldung-text\").textContent = text; $(\"#meldung\").hidden = false; return; $(\"#meldung-text\").replaceChildren(", /doppelte Leerzeile/],
   ["NETZ", "assets/app.js", "/* nur für die Proben */", "fetch(\"https://beispiel.example/\").catch(() => {});\n/* nur für die Proben */", /Kein Netz|Konsole/],
+  /* Befund Klaus 2026-10-29 */
+  ["AUSKUNFT", "assets/app.css", ".zahlen li { display: inline; white-space: nowrap; }", ".zahlen li { display: inline; white-space: nowrap; border: 1px solid var(--linie); border-radius: 99px; }", /ist Auskunft/],
+  ["ERKLAERUNG", "assets/app.js", "const p = el(\"p\", { class: \"erklaerung\", id, hidden: true,", "const p = el(\"p\", { class: \"erklaerung\", id, hidden: false,", /hinter ⓘ/],
 ];
 const nur = process.env.NUR_FALL;
 let gefangen = 0, schlecht = 0;
