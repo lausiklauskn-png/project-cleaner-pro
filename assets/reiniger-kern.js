@@ -11,16 +11,17 @@
  *
  * Stufe 1 = Einwerfen, Inventur, harte Angaben und Metadaten. Stufe 3 = gefühlte
  * Metadaten (Orte, Hochschulen, Firmen, Adressen, Kennzeichen, Vornamen, Rechner,
- * Ordnerpfade) über Wortlisten. Entscheiden,
- * Reinigen, Stellenplan, Tresor kommen in späteren Stufen. `pruefe` ändert
- * keine Datei.
+ * Ordnerpfade) über Wortlisten. Stufe 2 = Entscheiden, Reinigen, Stellenplan,
+ * Nachprüfung. Stufe 4 = neu gezeichnete Blätter (PDF, Bild, Office) und Mustermappe
+ * — das Zeichnen selbst bringt der Aufrufer mit (`werkzeuge.Zeichner`). Tresor folgt.
+ * `pruefe` ändert keine Datei; `reinige` ändert nur die Kopie.
  *
  * Grundsatz: was nicht gelesen werden konnte, heißt „ungeprüft“, nie „sauber“.
  */
 
 import * as L from "./reiniger-listen.js";
 
-export const KERN_FASSUNG = "2";
+export const KERN_FASSUNG = "3";
 
 /* Ordner, die gar nicht erst gelesen werden (Abhängigkeiten, Build-Ergebnisse). */
 export const UEBERSPRINGEN = [
@@ -434,7 +435,7 @@ const RE_FIRMA = new RegExp(VOR + "((?:" + FIRMA_WORT + "[ \\t]+){0,3}" + FIRMA_
 const STOPP_VORN = new Set("copyright © (c) by von bei für mit die der das the a an and und oder or at in im am zur zum für from".split(" "));
 
 const ENDUNG = oder([...L.STRASSEN_ENDUNG, ...L.STRASSEN_ENDUNG.map(gross1)]);
-const RE_STRASSE = new RegExp(VOR + "((?:[A-ZÄÖÜ][a-zäöüß.-]+\\s){0,2}[A-ZÄÖÜ][a-zäöüß-]*(?:" + ENDUNG + "))\\s+(\\d{1,4}(?:\\s?[a-zA-Z])?(?:\\s?[-–/]\\s?\\d{1,4}[a-z]?)?)(?![A-Za-z0-9_])", "g");
+const RE_STRASSE = new RegExp(VOR + "((?:[A-ZÄÖÜ][a-zäöüß.-]+[ \\t]){0,2}[A-ZÄÖÜ][a-zäöüß-]*(?:" + ENDUNG + "))\\s+(\\d{1,4}(?:\\s?[a-zA-Z])?(?:\\s?[-–/]\\s?\\d{1,4}[a-z]?)?)(?![A-Za-z0-9_])", "g");
 const STRASSE_STOPP = new Set("Die Der Das In Im Bei Nach Aus Von Und Oder Wohnt Adresse Anschrift Wohnhaft An Auf Zur Zum".split(" "));
 const RE_PLZ = /(?<![A-Za-z0-9_.,-])(?:(D|DE|A|AT|CH)-)?(\d{4,5})\s+([A-ZÄÖÜ][a-zäöüß]+(?:[- ](?:an der |am |im |in |bei |ob der )?[A-ZÄÖÜ(][A-Za-zäöüß().]+)?)/g;
 
@@ -901,7 +902,7 @@ function musterWert(art, n, original) {
   }
 }
 const ERSETZBAR = new Set(Object.keys(KUERZEL));
-/** Lässt sich dieses Bündel Stelle für Stelle ersetzen? (Auffälliges und Metadaten in PDF/Bildern nicht — die kommen mit dem Neubau, Stufe 4.) */
+/** Lässt sich dieses Bündel Stelle für Stelle ersetzen? (Auffälliges und Metadaten in PDF/Bildern nicht — die gehen mit dem Neubau weg, Stufe 4.) */
 export function ersetzbar(b) { return ERSETZBAR.has(b.art) && b.schicht !== "auffaellig"; }
 
 /* Umgebungsdateien (.env): JEDER Wert wird ersetzt, nicht nur die erkannten — dort steht fast nur Geheimes. */
@@ -924,18 +925,29 @@ export function reinigbar(e) {
   return !!e && e.gelesen && !e.ungeprueft && e.stufe === 1 && /^(text|html|svg|)$/.test(e.art || "") && !/(^|\/)\.git\//.test(e.pfad);
 }
 
-/** Was mit einer Datei geschieht, die nicht Stelle für Stelle gereinigt werden kann. */
+/** Was mit einer Datei geschieht, die nicht Stelle für Stelle gereinigt werden kann.
+    Jede bekommt ihre möglichen Wege (`wege`) und eine Vorgabe: neu zeichnen, wenn das geht und die
+    Datei ganz gelesen wurde; sonst weglassen. „Unverändert“ gibt es immer, aber nie als Vorgabe. */
 export function dateiPlan(ergebnis) {
   const aus = [];
   for (const e of ergebnis.inventur) {
     if (e.art === "ordner" || e.imArchiv || reinigbar(e)) continue;
-    let grund;
     if (/(^|\/)\.git(\/|$)/.test(e.pfad)) continue;                     // .git geht nie mit
-    if (e.ungeprueft) grund = e.ungeprueft;
+    const blatt = blattArt(e), muster = musterFuer(e.pfad), wege = [];
+    if (blatt) wege.push("neu");
+    if (muster && e.art !== "archiv") wege.push("muster");
+    wege.push("weg", "original");
+    let grund, vorgabe = "weg";
+    /* Eine PDF mit Textebene darf neu gezeichnet werden, auch wenn ihr Text nicht gegen das Seitenbild gelesen
+       wurde (das Neuzeichnen beseitigt versteckten Text ohnehin). Gescannte Seiten ohne Texterkennung nicht. */
+    const scanOffen = (e.hinweise || []).some((h) => /ohne Textebene/.test(h) && !/Text im Bild gelesen/.test(h));
+    if (blatt === "pdf" && e.ungeprueft && !scanOffen) { vorgabe = "neu"; grund = (e.artName || "PDF") + " — wird neu gezeichnet: ohne Metadaten und ohne Textebene (versteckter Text ist danach weg), graue Kästen an den gefundenen Stellen"; }
     else if (e.art === "archiv") grund = (e.artName || "Archiv") + " — Inhalt geprüft; zum Reinigen auspacken und den Ordner einwerfen";
-    else if (e.stufe === 2) grund = (e.artName || "Datei") + " — wird in Stufe 4 neu gezeichnet; bis dahin weggelassen";
-    else grund = (e.artName || "Datei") + " — lässt sich nur entfernen oder unverändert übernehmen";
-    aus.push({ pfad: e.pfad, grund, befunde: e.befunde, marken: e.marken.map((m) => m.kennung) });
+    else if (blatt && !e.ungeprueft) { vorgabe = "neu"; grund = (e.artName || "Datei") + (blatt === "office" ? " — wird als reiner Text neu gebaut (ohne Bilder und Formatierung)" : " — wird neu gezeichnet: ohne Metadaten, graue Kästen an den gefundenen Stellen"); }
+    else if (blatt) grund = e.ungeprueft + " — neu zeichnen geht trotzdem, dann bleibt sichtbarer Text ungeprüft";
+    else if (e.ungeprueft) grund = e.ungeprueft;
+    else grund = (e.artName || "Datei") + " — lässt sich nur weglassen" + (muster ? ", durch ein Muster ersetzen" : "") + " oder unverändert übernehmen";
+    aus.push({ pfad: e.pfad, grund, befunde: e.befunde, marken: e.marken.map((m) => m.kennung), wege, vorgabe, blatt, muster });
   }
   return aus;
 }
@@ -974,21 +986,48 @@ function ersetzungen(ergebnis, wahl) {
   return posten;
 }
 
-function ersatzFuer(p, pfad, imPfad) {
+/* Beim Neubau (Office, PDF-Seiten, Texterkennung) wird der EIGENE gelesene Text noch einmal durchsucht:
+   der Anhang-Prüfer liest manches anders (z. B. klebt er gelöschten Word-Text an den Absatz), dann hieße
+   der gefundene Wert anders als im Neubau. Was zusätzlich auftaucht, wird mit ersetzt und steht im Bericht. */
+async function nachfinden(text, posten, optionen) {
+  if (!String(text).trim()) return 0;
+  const r = await pruefe([{ pfad: "neubau.txt", bytes: new TextEncoder().encode(text) }], { werkzeuge: optionen.werkzeuge, begriffe: optionen.begriffe });
+  const bekannt = new Set(posten.flatMap((p) => p.werte)), neu = new Map();
+  for (const b of r.befunde) {
+    if (!ERSETZBAR.has(b.art) || b.schicht === "auffaellig") continue;
+    const v = String(b.wert);
+    if (v.trim().length < 2 || bekannt.has(v) || /^(⟦|muster)/i.test(v)) continue;
+    bekannt.add(v);
+    const k = buendelSchluessel(b), da = posten.find((p) => p.schluessel === k);
+    if (da) { da.werte.push(v); continue; }
+    if (!neu.has(k)) neu.set(k, { b, werte: [] });
+    neu.get(k).werte.push(v);
+  }
+  for (const [k, { b, werte }] of neu) {
+    const w = Object.assign({ weg: "auto" }, optionen.wahl && optionen.wahl[k]);
+    if (w.weg === "eigen" && !String(w.wert || "").trim()) w.weg = "auto";
+    const kz = KUERZEL[b.art], n = posten.filter((p) => KUERZEL[p.art] === kz).length + 1, nm = posten.filter((p) => p.art === b.art).length + 1;
+    posten.push({ schluessel: k, art: b.art, artName: ART_NAME[b.art] || b.art, weg: w.weg, eigen: w.wert, marke: "⟦" + kz + "-" + n + "⟧", markePfad: kz + "-" + n,
+      muster: musterWert(b.art, nm, werte[0]), werte, nachgefunden: true });
+  }
+  return neu.size;
+}
+
+function ersatzFuer(p, pfad, imPfad, doku) {
   if (p.weg === "behalten") return null;
   if (p.weg === "eigen") return String(p.eigen);
   if (imPfad) return p.weg === "marke" ? p.markePfad : p.muster;
   if (p.weg === "marke") return p.marke;
   if (p.weg === "muster") return p.muster;
-  return istDoku(pfad) ? p.marke : p.muster;
+  return (doku != null ? doku : istDoku(pfad)) ? p.marke : p.muster;
 }
 
 /* Ein Suchmuster über alle Werte, längste zuerst; Wortgrenzen nur dort, wo der Wert mit einem Wortzeichen beginnt/endet. */
-function ersetzeAlles(text, posten, pfad, imPfad) {
+function ersetzeAlles(text, posten, pfad, imPfad, doku) {
   const wz = imPfad ? "A-Za-zÀ-ÖØ-öø-ÿĀ-ž0-9" : WZ;
   const tabelle = new Map();
   for (const p of posten) {
-    const ersatz = ersatzFuer(p, pfad, imPfad);
+    const ersatz = ersatzFuer(p, pfad, imPfad, doku);
     if (ersatz == null) continue;
     for (const v of p.werte) {
       if (!tabelle.has(v)) tabelle.set(v, { p, ersatz });
@@ -1016,11 +1055,17 @@ function ersetzeAlles(text, posten, pfad, imPfad) {
  * nie mit, übersprungene Ordner auch nicht; was sich nicht reinigen lässt, wird
  * weggelassen, außer es steht in `uebernehmen`.
  * @param dateien   dieselbe Liste wie für `pruefe`
- * @param entscheidungen { ergebnis, wahl?: { [buendelSchluessel]: { weg, wert? } }, uebernehmen?: string[] }
+ * @param entscheidungen { ergebnis, wahl?: { [buendelSchluessel]: { weg, wert? } }, uebernehmen?: string[],
+ *        dateiWahl?: { [pfad]: "neu" | "muster" | "weg" | "original" }, mustermappe?: boolean }
+ * @param optionen  { werkzeuge?, texterkennung?, fortschritt? } — für neu gezeichnete Blätter (Zeichner)
  * @returns {Promise<{ sauber, stellenplan, zuordnung, bericht }>}
  */
-export async function reinige(dateien, entscheidungen) {
-  const { ergebnis, wahl = {}, uebernehmen = [] } = entscheidungen;
+export async function reinige(dateien, entscheidungen, optionen = {}) {
+  const { ergebnis, wahl = {}, uebernehmen = [], dateiWahl = {} } = entscheidungen;
+  const fortschritt = optionen.fortschritt || (() => {});
+  const plan = new Map(dateiPlan(ergebnis).map((p) => [p.pfad, p]));
+  const neuGezeichnet = [], musterErsetzt = [];
+  const belegt = new Set();
   const posten = ersetzungen(ergebnis, wahl);
   /* Zeilen, die ganz weg sollen (auffällige Funde mit Wahl „zeile“): Pfad → Map(Zeile → Art) */
   const zeilenWeg = new Map();
@@ -1062,20 +1107,48 @@ export async function reinige(dateien, entscheidungen) {
       sauber.push({ pfad: ziel, von: pfad, bytes: T.encode(r.text), gereinigt: r.stellen.length });
       continue;
     }
-    if (mitnehmen.has(pfad) && (d.bytes || d.lesen)) {
+    const pp = plan.get(pfad);
+    let weg = dateiWahl[pfad] || (mitnehmen.has(pfad) ? "original" : pp ? pp.vorgabe : "weg");
+    if (pp && !pp.wege.includes(weg)) weg = "weg";
+    if (weg === "neu" && (d.bytes || d.lesen)) {
+      fortschritt(neuGezeichnet.length + 1, 0, pfad);
+      const bytes = d.bytes || await d.lesen();
+      const r = await blattNeu(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes), e, posten, Object.assign({}, optionen, { wahl }));
+      if (r.fehler) { weggelassen.push({ pfad: ziel, grund: "neu zeichnen ging nicht (" + r.fehler + ") — weggelassen" }); continue; }
+      let zielNeu = ziel;
+      const alt = endungVon(ziel), soll = { jpeg: ["jpg", "jpeg", "jpe"], png: ["png"], webp: ["webp"], pdf: ["pdf"], docx: ["docx"], xlsx: ["xlsx"], pptx: ["pptx"] }[r.art] || [];
+      if (!soll.includes(alt)) {
+        zielNeu = ziel.replace(/(\.[^./]*)?$/, "." + (r.art === "jpeg" ? "jpg" : r.art));
+        while (belegt.has(zielNeu) || dateien.some((x) => normPfad(x.pfad) === zielNeu)) zielNeu = zielNeu.replace(/(\.[^./]*)$/, "-neu$1");
+        stellenplan.push({ pfad: zielNeu, stelle: "Datei- oder Ordnername", art: "DATEIART", artName: "Dateiart", weg: "muster", ersatz: "neu als " + r.art.toUpperCase() + " (war ." + (alt || "?") + ")" });
+      }
+      belegt.add(zielNeu);
+      for (const s of r.stellen) stellenplan.push(Object.assign({ pfad: zielNeu }, s));
+      sauber.push({ pfad: zielNeu, von: pfad, bytes: r.bytes, neu: r.art, gereinigt: r.stellen.length });
+      neuGezeichnet.push({ pfad: zielNeu, art: r.art, seiten: r.seiten || 0, kaesten: r.stellen.length, versteckt: r.versteckt || {}, hinweise: r.hinweise || [], ohneText: r.ohneText || 0 });
+      continue;
+    }
+    if (weg === "muster" && pp && pp.muster) {
+      const mappe = await mustermappe(), m = mappe.find((x) => x.pfad === pp.muster);
+      sauber.push({ pfad: ziel, von: pfad, bytes: m.bytes, muster: pp.muster });
+      musterErsetzt.push({ pfad: ziel, vorlage: pp.muster });
+      continue;
+    }
+    if (weg === "original" && (d.bytes || d.lesen)) {
       const bytes = d.bytes || await d.lesen();
       sauber.push({ pfad: ziel, von: pfad, bytes: bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes), unveraendert: true });
       unveraendert.push(ziel);
       continue;
     }
-    weggelassen.push({ pfad: ziel, grund: e ? (e.ungeprueft || (e.artName || "Datei") + " lässt sich noch nicht reinigen") : "nicht geprüft" });
+    weggelassen.push({ pfad: ziel, grund: e ? (pp && pp.blatt ? (e.artName || "Datei") + " — bewusst weggelassen (neu zeichnen war möglich)" : e.ungeprueft || (e.artName || "Datei") + " lässt sich nicht Stelle für Stelle reinigen") : "nicht geprüft" });
   }
+  if (entscheidungen.mustermappe) for (const m of await mustermappe()) sauber.push({ pfad: MUSTERMAPPE_ORDNER + "/" + m.pfad, bytes: m.bytes, mappe: true });
   const zuordnung = {};                                  // NUR im Speicher, nie in der Kopie
   for (const p of posten) if (p.weg !== "behalten") zuordnung[p.marke] = { art: p.art, werte: p.werte.slice(), muster: p.muster, eigen: p.weg === "eigen" ? p.eigen : undefined };
   const uebersprungenOrdner = ergebnis.inventur.filter((e) => e.art === "ordner").map((e) => e.pfad);
   for (const d of dateien) { const e = inv.get(normPfad(d.pfad)); if (e && e.art === "archiv") { const w = weggelassen.find((x) => x.pfad === neuerPfad(e.pfad)); if (w) w.grund = "Archiv — sein Inhalt wurde geprüft; um ihn zu reinigen, das Archiv auspacken und den Ordner einwerfen"; } }
-  const bericht = { posten: posten.map((p) => ({ art: p.art, artName: p.artName, weg: p.weg, marke: p.marke })), weggelassen, unveraendert, gitDateien, uebersprungenOrdner, imArchiv,
-    stellen: stellenplan.length, dateien: sauber.length };
+  const bericht = { posten: posten.map((p) => ({ art: p.art, artName: p.artName, weg: p.weg, marke: p.marke, nachgefunden: !!p.nachgefunden })), weggelassen, unveraendert, gitDateien, uebersprungenOrdner, imArchiv,
+    stellen: stellenplan.length, dateien: sauber.filter((d) => !d.mappe).length, neuGezeichnet, musterErsetzt, mustermappe: sauber.filter((d) => d.mappe).length };
   /* Auffälliges, das bewusst stehen bleiben soll (Wahl „behalten“ ausdrücklich gesetzt): zählt bei der Nachprüfung als behalten. */
   const behaltenAuffaellig = new Set(ergebnis.buendel.filter((b) => b.schicht === "auffaellig" && wahl[buendelSchluessel(b)] && wahl[buendelSchluessel(b)].weg === "behalten").map((b) => b.art + "|" + b.wert));
   bericht.zeilenEntfernt = stellenplan.filter((s) => s.weg === "zeile").length;
@@ -1092,6 +1165,9 @@ export function stellenplanText(stellenplan) {
     (s.weg === "eigen" ? "eigener Wert" : s.ersatz) + "   Art: " + s.artName + (s.weg !== "marke" && s.weg !== "eigen" && !/^⟦/.test(s.ersatz) ? " (Musterwert)" : "")).join("\n") + "\n";
 }
 
+/* Gründe für versteckten Text (wie reinigung.js aus Workflow PDF sie nennt). */
+const GRUND_VERSTECKT = { winzig: "winzige Schrift", aussen: "außerhalb der Seite", unsichtbar: "unsichtbar (Farbe wie der Grund)" };
+
 /* Bericht: sagt nur, WAS entfernt wurde — keine Werte. */
 export function berichtText(bericht, nach) {
   const proArt = new Map();
@@ -1102,18 +1178,30 @@ export function berichtText(bericht, nach) {
   z.push("Bericht — Projekt-Reiniger Pro", "Dieser Bericht nennt keine Werte, nur was ersetzt oder weggelassen wurde.", "");
   z.push("Ersetzt: " + bericht.stellen + " Stellen in " + bericht.dateien + " Dateien.");
   for (const [art, x] of proArt) z.push("  · " + art + ": " + (x.gesamt - x.behalten) + " Wert(e) ersetzt" + (x.behalten ? ", " + x.behalten + " bewusst behalten" : ""));
+  const nachgefunden = bericht.posten.filter((p) => p.nachgefunden).length;
+  if (nachgefunden) z.push("  · davon beim Neubau zusätzlich gefunden und ersetzt: " + nachgefunden + " Wert(e) (der neu gelesene Text wurde noch einmal durchsucht)");
   if (bericht.gitDateien) z.push("", ".git entfernt (" + bericht.gitDateien + " Dateien) — die eigene Geschichte beginnt bei null.");
   if (bericht.zeilenEntfernt) z.push("Zeilen entfernt (Anweisungen an eine KI, unsichtbare Zeichen …): " + bericht.zeilenEntfernt + ".");
   if (bericht.imArchiv) z.push("Inhalt von Archiven im Projekt: " + bericht.imArchiv + " Dateien geprüft, gehen aber nicht einzeln mit (das Archiv selbst steht unten bei „Weggelassen“).");
   if (bericht.uebersprungenOrdner.length) z.push("Nicht mitgenommen (nie gelesen): " + bericht.uebersprungenOrdner.join(", ") + " — nach dem Auspacken neu installieren (z. B. npm install).");
   if (bericht.weggelassen.length) { z.push("", "Weggelassen (" + bericht.weggelassen.length + "):"); for (const w of bericht.weggelassen) z.push("  · " + w.pfad + " — " + w.grund); }
+  if (bericht.neuGezeichnet && bericht.neuGezeichnet.length) {
+    z.push("", "Neu gebaut (" + bericht.neuGezeichnet.length + ") — ohne Metadaten. PDF und Bilder: neu gezeichnet, graue Kästen an den gefundenen Stellen, Rauschen über die untersten Bits. Office: nur der Text, Marken mit grauem Grund:");
+    for (const n of bericht.neuGezeichnet) {
+      const v = Object.entries(n.versteckt).map(([g, k]) => k + "× " + (GRUND_VERSTECKT[g] || g)).join(", ");
+      const office = /^(docx|xlsx|pptx)$/.test(n.art);
+      z.push("  · " + n.pfad + " — " + (n.seiten > 1 ? n.seiten + " Seiten, " : "") + n.kaesten + (office ? " Stelle(n) ersetzt" : " Kasten/Kästen") + (v ? "; versteckter Text entfernt: " + v : "") + (n.hinweise.length ? "; " + n.hinweise.join("; ") : ""));
+    }
+  }
+  if (bericht.musterErsetzt && bericht.musterErsetzt.length) { z.push("", "Durch ein Muster ersetzt (" + bericht.musterErsetzt.length + "):"); for (const m of bericht.musterErsetzt) z.push("  · " + m.pfad + " — Vorlage " + MUSTERMAPPE_ORDNER + "/" + m.vorlage); }
+  if (bericht.mustermappe) z.push("", "Mustermappe beigelegt: " + MUSTERMAPPE_ORDNER + "/ (" + bericht.mustermappe + " Dateien, alles erfunden).");
   if (bericht.unveraendert.length) { z.push("", "Unverändert übernommen, NICHT gereinigt (" + bericht.unveraendert.length + "):"); for (const p of bericht.unveraendert) z.push("  · " + p); }
   if (nach) {
     z.push("", "Nachprüfung: die saubere Kopie wurde noch einmal ganz durchsucht.");
     z.push("  · Originalwerte in der Kopie: " + nach.originalTreffer.length + (nach.originalTreffer.length ? " — NICHT sauber" : ""));
     z.push("  · neue Funde: " + nach.offen.length + (nach.offen.length ? " — bitte ansehen" : ""));
     z.push("  · bewusst behalten: " + nach.behalten);
-    if (nach.ungeprueft) z.push("  · ungeprüft: " + nach.ungeprueft + " Datei(en) (unverändert übernommen)");
+    if (nach.ungeprueft) z.push("  · ungeprüft: " + nach.ungeprueft + " Datei(en)" + (nach.ungeprueftListe ? ": " + nach.ungeprueftListe.map((u) => u.pfad).join(", ") : ""));
   }
   z.push("", "Die Suche arbeitet mit Mustern und Listen und findet nicht garantiert alles.");
   return z.join("\n") + "\n";
@@ -1126,6 +1214,7 @@ export function berichtText(bericht, nach) {
  */
 export async function nachpruefe(gereinigt, optionen = {}) {
   const { sauber, posten } = gereinigt;
+  const mappe = new Set(sauber.filter((d) => d.mappe).map((d) => d.pfad));
   const r = await pruefe(sauber.map((d) => ({ pfad: d.pfad, bytes: d.bytes })), optionen);
   const ersatz = new Set(), behaltenWerte = new Set();
   for (const p of posten) {
@@ -1160,7 +1249,8 @@ export async function nachpruefe(gereinigt, optionen = {}) {
       }
     }
   }
-  return { offen, behalten, originalTreffer, ungeprueft: r.zahlen.ungeprueft, ergebnis: r };
+  const ungeprueftListe = r.inventur.filter((e) => e.ungeprueft && !mappe.has(e.pfad)).map((e) => ({ pfad: e.pfad, grund: e.ungeprueft }));
+  return { offen, behalten, originalTreffer, ungeprueft: ungeprueftListe.length, ungeprueftListe, ergebnis: r };
 }
 
 /* ── ZIP schreiben (für die saubere Kopie) ─────────────────────────────── */
@@ -1180,14 +1270,14 @@ async function packe(bytes) {
   return zusammen(teile, n);
 }
 
-/** Baut ein ZIP aus `{ pfad, bytes }` (UTF-8-Namen, deflate wo es sich lohnt). Fester Zeitstempel: verrät nichts. */
-export async function zipBauen(dateien) {
+/** Baut ein ZIP aus `{ pfad, bytes }` (UTF-8-Namen, deflate wo es sich lohnt; `packen: false` = gespeichert). Fester Zeitstempel: verrät nichts. */
+export async function zipBauen(dateien, opt = {}) {
   const T = new TextEncoder(), teile = [], zentral = []; let off = 0;
   const DOS_ZEIT = 0, DOS_DATUM = (20 << 9) | (1 << 5) | 1;      // 01.01.2000 00:00
   for (const d of dateien) {
     const name = T.encode(normPfad(d.pfad)), roh = d.bytes, crc = crc32(roh);
     let daten = roh, methode = 0;
-    if (roh.length > 64) { const g = await packe(roh); if (g && g.length < roh.length) { daten = g; methode = 8; } }
+    if (opt.packen !== false && roh.length > 64) { const g = await packe(roh); if (g && g.length < roh.length) { daten = g; methode = 8; } }
     const lh = new Uint8Array(30 + name.length), v = new DataView(lh.buffer);
     v.setUint32(0, 0x04034b50, true); v.setUint16(4, 20, true); v.setUint16(6, 0x800, true); v.setUint16(8, methode, true);
     v.setUint16(10, DOS_ZEIT, true); v.setUint16(12, DOS_DATUM, true); v.setUint32(14, crc, true);
@@ -1208,10 +1298,10 @@ export async function zipBauen(dateien) {
  * Bericht beilegen, ZIP bauen. Die Zuordnung kommt zurück, aber nicht in das ZIP.
  */
 export async function saubereKopie(dateien, entscheidungen, optionen = {}) {
-  const g = await reinige(dateien, entscheidungen);
+  const g = await reinige(dateien, entscheidungen, optionen);
   const T = new TextEncoder();
   const planT = T.encode(stellenplanText(g.stellenplan));
-  const planJ = T.encode(JSON.stringify({ fassung: KERN_FASSUNG, stellen: g.stellenplan.map(({ pfad, zeile, stelle, art, weg, ersatz }) => ({ pfad, zeile, stelle, art, weg, ersatz: weg === "eigen" ? undefined : ersatz })) }, null, 1));
+  const planJ = T.encode(JSON.stringify({ fassung: KERN_FASSUNG, stellen: g.stellenplan.map(({ pfad, zeile, stelle, art, weg, ersatz, kasten }) => ({ pfad, zeile, stelle, art, weg, ersatz: weg === "eigen" ? undefined : ersatz, kasten })) }, null, 1));
   const vorab = [{ pfad: STELLENPLAN_DATEI, bytes: planT }, { pfad: STELLENPLAN_JSON, bytes: planJ }];
   const nach = await nachpruefe(g, Object.assign({}, optionen, { zusatz: vorab }));
   const berichtB = T.encode(berichtText(g.bericht, nach));
@@ -1219,3 +1309,590 @@ export async function saubereKopie(dateien, entscheidungen, optionen = {}) {
   const zip = await zipBauen([...g.sauber, ...beilagen]);
   return Object.assign(g, { nach, beilagen, zip });
 }
+
+/* ── Stufe 4: neu gezeichnete Blätter, Mustermappe ─────────────────────────
+ *
+ * Fremde PDFs, Bilder und Office-Dateien werden nicht übernommen. An ihre Stelle kommt
+ * ein NEU GEZEICHNETES Blatt: gleiche Größe, gleicher Name, keine Metadaten. Wo ein
+ * gefundener Wert stand, sitzt ein grauer Kasten mit Etikett („E-Mail entfernt“).
+ * Nicht schwärzen: ein Balken verrät die Länge und lässt in einer PDF den Text darunter
+ * stehen. Deshalb wird die Seite als Bild neu gezeichnet; der alte Text ist nicht mehr da.
+ *
+ * Teilung der Arbeit (der Kern bleibt ohne DOM):
+ *   - der Aufrufer bringt einen ZEICHNER mit (`werkzeuge.Zeichner`, im Browser app.js):
+ *     Seite/Bild öffnen → Bildpunkte, Etiketten schreiben, Bildpunkte als PNG/JPEG kodieren;
+ *   - der Kern entscheidet: wo Kästen hin, welcher Text versteckt ist (reinigung.js aus
+ *     Workflow PDF, byte-1:1: `werkzeuge.WFP.Reinigung`), Rauschen über die untersten Bits,
+ *     die PDF-Datei selbst, Word/Excel/PowerPoint (reiner Text, neu gebaut), Mustermappe.
+ *
+ * ⚠ Grenzen, benannt: Office wird als TEXT neu gebaut (Bilder, Formatierung, Formeln,
+ *   Kommentare und Änderungsverlauf gehen verloren). Ein Bild ohne Texterkennung bekommt
+ *   keine Kästen (sichtbarer Text bleibt — der Bericht sagt das). Gesichter und Schrift,
+ *   die die Texterkennung nicht liest, findet niemand. Gedrehter PDF-Text bekommt einen
+ *   Kasten um das ganze Stück. */
+
+export const BLATT_SEITEN_MAX = 100;                 // mehr Seiten zeichnet die App nicht neu
+export const DATEI_WEGE = ["neu", "muster", "weg", "original"];
+export const DATEI_WEG_NAME = { neu: "Neu zeichnen", muster: "Durch Muster ersetzen", weg: "Weglassen", original: "Unverändert übernehmen (NICHT gereinigt)" };
+export const MUSTERMAPPE_ORDNER = "MUSTERMAPPE";
+
+/** Lässt sich diese Datei als Blatt neu bauen? "bild" | "pdf" | "office" | null */
+export function blattArt(e) {
+  if (!e || !e.gelesen || e.imArchiv || /(^|\/)\.git\//.test(e.pfad)) return null;
+  if (e.art === "pdf") return "pdf";
+  if (/^(png|jpeg|webp|gif)$/.test(e.art)) return "bild";
+  if (/^(docx|xlsx|pptx)$/.test(e.art)) return "office";
+  return null;
+}
+
+/* Etikett eines Kastens: nie der Wert, nur die Art — oder der gewählte Muster-/eigene Wert. */
+function etikettVon(p) {
+  if (p.weg === "eigen") return String(p.eigen);
+  if (p.weg === "muster") return p.muster;
+  if (/^(NAME|EIGENNAME|BEGRIFF|VERFASSER|COPYRIGHT|GIT-NAME)$/.test(p.art)) return "Name entfernt";
+  return String(ART_NAME[p.art] || p.artName || "Angabe").replace(/\s*\(Vorschlag\)$/, "") + " entfernt";
+}
+
+/* Zeichen einer Seite in Zeilen, jedes Zeichen mit seinem Kasten in Bildpunkten.
+   PDF: aus den Stücken der Textebene (Seiteneinheiten, massstab = Bildpunkte je Einheit);
+   Texterkennung: aus den Wörtern (schon in Bildpunkten). */
+function zeilenAusStuecken(stuecke, m) {
+  const gerade = stuecke.filter((s) => !s.schraeg).sort((a, b) => a.y - b.y || a.x - b.x);
+  const zeilen = [];
+  for (const st of gerade) {
+    let z = zeilen.find((x) => Math.abs(x.y - st.y) < Math.max(1, Math.min(x.fh, st.fh) * 0.5));
+    if (!z) { z = { y: st.y, fh: st.fh, teile: [] }; zeilen.push(z); }
+    z.teile.push(st);
+  }
+  const aus = [];
+  for (const z of zeilen) {
+    z.teile.sort((a, b) => a.x - b.x);
+    const zeichen = [];
+    let ende = -Infinity;
+    for (const st of z.teile) {
+      const s = String(st.s);
+      if (zeichen.length && st.x - ende > st.fh * 0.2) zeichen.push({ c: " " });
+      const y0 = (st.y - st.fh * 0.95) * m, y1 = (st.y + st.fh * 0.28) * m;
+      /* `anteile`: wo jedes Zeichen beginnt (0…1 der Breite), gemessen vom Zeichner; sonst gleich breit geschätzt. */
+      const an = Array.isArray(st.anteile) && st.anteile.length === s.length + 1 ? st.anteile : null;
+      for (let i = 0; i < s.length; i++)
+        zeichen.push({ c: s[i], x0: (st.x + st.w * (an ? an[i] : i / s.length)) * m, x1: (st.x + st.w * (an ? an[i + 1] : (i + 1) / s.length)) * m, y0, y1, fh: st.fh * m });
+      ende = st.x + st.w;
+    }
+    aus.push(zeichen);
+  }
+  for (const st of stuecke.filter((s) => s.schraeg && s.kasten)) {
+    const [x0, y0, x1, y1] = st.kasten;                 // gedreht: das ganze Stück
+    aus.push(Array.from(String(st.s), (c) => ({ c, x0, y0, x1, y1 })));
+  }
+  return aus;
+}
+function zeilenAusWoertern(zeilen) {
+  return zeilen.map((z) => {
+    const zeichen = [];
+    for (const w of z) {
+      const s = String(w.s || "");
+      if (!s) continue;
+      if (zeichen.length) zeichen.push({ c: " " });
+      for (let i = 0; i < s.length; i++) zeichen.push({ c: s[i], x0: w.x0 + (w.x1 - w.x0) * i / s.length, x1: w.x0 + (w.x1 - w.x0) * (i + 1) / s.length, y0: w.y0, y1: w.y1 });
+    }
+    return zeichen;
+  });
+}
+
+/* Wo steht ein Wert in einer Zeile? Verglichen werden Folgen von Wortstücken (nur Buchstaben und
+   Ziffern, ohne Groß/klein): „anna@beispiel.example“ = anna·beispiel·example. So findet sich
+   „Hamburg“ in „Hamburg-Altona“, aber „Lena“ nicht in „Helena“. Auch wenn die Texterkennung ein
+   Wort zerlegt („Muster mann“), passt die Folge. */
+const RE_STUECK = /[\p{L}\p{N}]+/gu;
+const norm = (s) => (String(s).toLowerCase().match(RE_STUECK) || []).join("");
+function trefferInZeile(zeichen, posten) {
+  const text = zeichen.map((z) => z.c).join("");
+  const stuecke = [];
+  for (const m of text.matchAll(RE_STUECK)) stuecke.push({ n: m[0].toLowerCase(), von: m.index, bis: m.index + m[0].length });
+  const aus = [];
+  for (const p of posten) {
+    if (p.weg === "behalten") continue;
+    for (const v of p.werte) {
+      const nv = norm(v);
+      if (nv.length < 2) continue;
+      for (let i = 0; i < stuecke.length; i++) {
+        if (!nv.startsWith(stuecke[i].n)) continue;
+        let acc = "";
+        for (let j = i; j < stuecke.length && acc.length < nv.length; j++) {
+          acc += stuecke[j].n;
+          if (!nv.startsWith(acc)) break;
+          if (acc === nv) { aus.push({ p, von: stuecke[i].von, bis: stuecke[j].bis }); break; }
+        }
+      }
+    }
+  }
+  const kaesten = [];
+  for (const t of aus) {
+    const jeZeile = new Map();                         // ein Wert über zwei Zeilen: je Zeile ein Kasten
+    for (let k = t.von; k < t.bis; k++) {
+      const z = zeichen[k];
+      if (z.x0 == null) continue;
+      const b = jeZeile.get(z.zeile) || { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+      b.x0 = Math.min(b.x0, z.x0); b.x1 = Math.max(b.x1, z.x1); b.y0 = Math.min(b.y0, z.y0); b.y1 = Math.max(b.y1, z.y1);
+      jeZeile.set(z.zeile, b);
+    }
+    for (const b of jeZeile.values()) if (b.x1 > b.x0 && b.y1 > b.y0) kaesten.push(Object.assign({ p: t.p }, b));
+  }
+  return kaesten;
+}
+
+/* Ein Kasten bekommt Rand und eine gerundete Breite (mindestens Platz fürs Etikett): so verrät
+   er die Länge des Wortes nicht. Er darf Nachbarn mit zudecken — lieber zu viel als zu wenig. */
+function kastenFormen(k, breite, hoehe) {
+  const h0 = k.y1 - k.y0, pad = Math.max(1, h0 * 0.12), seite = Math.max(2, h0 * 0.22);     // seitlich mehr: Zeichenbreiten sind genähert
+  let y0 = k.y0 - pad, y1 = k.y1 + pad;
+  const h = y1 - y0, einheit = Math.max(4, h * 1.6);
+  let w = Math.ceil(Math.max(k.x1 - k.x0 + 2 * seite, h * 5) / einheit) * einheit;
+  let x0 = k.x0 - seite;
+  if (x0 + w > breite) x0 = Math.max(0, breite - w);
+  w = Math.min(w, breite - x0);
+  y0 = Math.max(0, y0); y1 = Math.min(hoehe, y1);
+  return { p: k.p, x0: Math.round(x0), y0: Math.round(y0), x1: Math.round(x0 + w), y1: Math.round(y1), etikett: etikettVon(k.p) };
+}
+function ueberlappt(a, b) { return a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1; }
+
+/** Die Kästen einer Seite. Versteckter Text (reinigung.js) wird zugedeckt und gezählt, nicht umrahmt. */
+export function blattKaesten(seite, posten, R, versteckt = {}) {
+  const m = seite.massstab || 1, bild = seite.bild, zeilen = [];
+  if (seite.stuecke && seite.stuecke.length) {
+    const sicht = [];
+    for (const st of seite.stuecke) {
+      if (!String(st.s || "").trim()) continue;
+      if (R && !st.schraeg) {
+        const g = R.versteckt(st, bild, m);
+        if (g) { versteckt[g] = (versteckt[g] || 0) + 1; R.zudecken(bild, st, m); continue; }
+      }
+      sicht.push(st);
+    }
+    zeilen.push(...zeilenAusStuecken(sicht, m));
+  }
+  if (seite.woerter && seite.woerter.length) zeilen.push(...zeilenAusWoertern(seite.woerter));
+  /* Alle Zeilen in Lesefolge hintereinander (mit Leerzeichen dazwischen): so findet sich auch ein Wert, der über
+     einen Zeilenumbruch läuft. Jedes Zeichen behält seine Zeile. */
+  const alle = [];
+  zeilen.forEach((z, i) => { if (alle.length) alle.push({ c: " " }); for (const c of z) alle.push(Object.assign(c, { zeile: i })); });
+  const roh = trefferInZeile(alle, posten);
+  const kaesten = [];
+  for (const k of roh.map((x) => kastenFormen(x, bild.width, bild.height))) {
+    if (k.x1 <= k.x0 || k.y1 <= k.y0) continue;
+    kaesten.push(Object.assign(k, { alle: [k.p] }));
+  }
+  /* Überlappende Kästen (auch verschiedener Funde, z. B. „Hamburg“ in „22767 Hamburg“) werden einer:
+     ein Etikett, keine doppelte Schrift. Das Etikett nimmt der breiteste Fund; der Stellenplan nennt jeden. */
+  for (let i = 0; i < kaesten.length; i++) for (let j = i + 1; j < kaesten.length; j++) {
+    const a = kaesten[i], b = kaesten[j];
+    if (!ueberlappt(a, b)) continue;
+    const breiter = (b.x1 - b.x0) > (a.x1 - a.x0) ? b : a;
+    Object.assign(a, { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1), p: breiter.p, etikett: breiter.etikett,
+      alle: [...a.alle, ...b.alle.filter((p) => !a.alle.includes(p))] });
+    kaesten.splice(j, 1); j = i;
+  }
+  return kaesten;
+}
+
+/** Grauer Kasten mit dunklerem Rand, direkt in die Bildpunkte (das Etikett schreibt der Zeichner). */
+export function kastenMalen(bild, k) {
+  const D = bild.data, W = bild.width;
+  const x0 = Math.max(0, k.x0), y0 = Math.max(0, k.y0), x1 = Math.min(W, k.x1), y1 = Math.min(bild.height, k.y1);
+  const rand = Math.max(1, Math.round((y1 - y0) / 24));
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+    const i = (y * W + x) * 4, r = x - x0 < rand || x1 - 1 - x < rand || y - y0 < rand || y1 - 1 - y < rand;
+    const v = r ? 128 : 205;
+    D[i] = v; D[i + 1] = v; D[i + 2] = v; D[i + 3] = 255;
+  }
+}
+
+/** Rauschen über das unterste Bit jeder Farbe: eine Botschaft in den untersten Bits überlebt
+    ein Neuzeichnen als PNG (gemessen im Sende-Prüfer) — danach nicht mehr. */
+export function rauschen(bild) {
+  const D = bild.data;
+  let s = (Math.random() * 0xFFFFFFFF) >>> 0 || 0x9E3779B9;
+  for (let i = 0; i < D.length; i += 4) {
+    s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0;
+    D[i] = (D[i] & 0xFE) | (s & 1); D[i + 1] = (D[i + 1] & 0xFE) | ((s >>> 1) & 1); D[i + 2] = (D[i + 2] & 0xFE) | ((s >>> 2) & 1);
+  }
+}
+
+function lageVon(k, W, H) {
+  const cx = (k.x0 + k.x1) / 2 / W, cy = (k.y0 + k.y1) / 2 / H;
+  const v = cy < 1 / 3 ? "oben" : cy > 2 / 3 ? "unten" : "Mitte", h = cx < 1 / 3 ? "links" : cx > 2 / 3 ? "rechts" : "Mitte";
+  return v === "Mitte" && h === "Mitte" ? "Mitte" : v === "Mitte" ? "Mitte " + h : v + (h === "Mitte" ? " Mitte" : " " + h);
+}
+
+/* Bild oder PDF neu zeichnen (braucht den Zeichner des Aufrufers). */
+async function blattZeichnen(bytes, art, posten, optionen) {
+  const w = optionen.werkzeuge || globalThis, Z = w.Zeichner, R = w.WFP && w.WFP.Reinigung;
+  if (!Z || typeof Z.oeffne !== "function") return { fehler: "neu zeichnen geht nur im Browser (kein Zeichner)" };
+  const dok = await Z.oeffne(bytes, art, { texterkennung: !!optionen.texterkennung });
+  if (!dok || !(dok.anzahl >= 1)) return { fehler: "keine Seite lesbar" };
+  if (dok.anzahl > BLATT_SEITEN_MAX) { if (dok.schliessen) await dok.schliessen(); return { fehler: dok.anzahl + " Seiten — mehr als " + BLATT_SEITEN_MAX + " zeichnet die App nicht neu" }; }
+  const stellen = [], versteckt = {}, seiten = [], hinweise = [];
+  let ohneText = 0, kaestenZahl = 0, ergebnisArt = art === "pdf" ? "pdf" : null, ausBytes = null;
+  try {
+    for (let i = 0; i < dok.anzahl; i++) {
+      const s = await dok.seite(i);
+      await nachfinden([...(s.stuecke || []).map((x) => x.s), ...(s.woerter || []).map((z) => z.map((x) => x.s).join(" "))].join("\n"), posten, optionen);
+      const ks = blattKaesten(s, posten, R, versteckt);
+      for (const k of ks) kastenMalen(s.bild, k);
+      if (ks.length && typeof Z.beschrifte === "function") await Z.beschrifte(s, ks);
+      rauschen(s.bild);
+      if (!(s.stuecke && s.stuecke.length) && !s.woerter) ohneText++;
+      kaestenZahl += ks.length;   // gezeichnete Kästen (zusammengelegte zählen einmal)
+      const m = s.massstab || 1;
+      for (const k of ks) for (const p of k.alle || [k.p]) stellen.push({
+        stelle: (art === "pdf" ? "Seite " + (i + 1) + " · " : "") + "Kasten " + lageVon(k, s.bild.width, s.bild.height),
+        art: p.art, artName: p.artName, weg: p.weg === "auto" ? "marke" : p.weg,
+        ersatz: p.weg === "eigen" || p.weg === "muster" ? etikettVon(p) : "grauer Kasten „" + k.etikett + "“ " + p.marke,
+        kasten: { seite: i + 1, x: +(k.x0 / m).toFixed(1), y: +(k.y0 / m).toFixed(1), w: +((k.x1 - k.x0) / m).toFixed(1), h: +((k.y1 - k.y0) / m).toFixed(1) },
+      });
+      if (art === "pdf") {
+        const k = await Z.kodiere(s, "jpeg");
+        const jpeg = R ? R.jpegOhneMeta(k.bytes).bytes : k.bytes;
+        seiten.push({ breite: s.breite, hoehe: s.hoehe, bild: { jpeg, w: s.bild.width, h: s.bild.height } });
+      } else {
+        const ziel = art === "jpeg" ? "jpeg" : art === "webp" ? "webp" : "png";
+        const k = await Z.kodiere(s, ziel);
+        ergebnisArt = k.art || ziel;
+        ausBytes = ergebnisArt === "jpeg" && R ? R.jpegOhneMeta(k.bytes).bytes : k.bytes;
+      }
+      if (dok.freigeben) dok.freigeben(i);
+    }
+  } finally { if (dok.schliessen) await dok.schliessen(); }
+  if (art === "pdf") ausBytes = pdfBauen(seiten);
+  if (!R && art === "pdf") hinweise.push("reinigung.js fehlt — versteckter Text wurde nicht gezählt (er ist mit dem Neuzeichnen trotzdem weg)");
+  if (ohneText) hinweise.push(art === "pdf" ? ohneText + " Seite(n) ohne Textebene und ohne Texterkennung — dort sitzen keine Kästen, sichtbarer Text ist UNGEPRÜFT"
+    : "Text im Bild ungeprüft (Texterkennung aus) — keine Kästen, sichtbarer Text bleibt sichtbar");
+  return { bytes: ausBytes, art: ergebnisArt, stellen, versteckt, seiten: dok.anzahl, kaesten: kaestenZahl, hinweise, ohneText };
+}
+
+/* ── Office: als reiner Text neu gebaut ─────────────────────────────────── */
+const XML_WEG = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g;
+const xmlEsc = (s) => String(s).replace(XML_WEG, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+function xmlText(s) {
+  return String(s).replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/&#x([0-9a-f]+);/gi, (_a, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (_a, d) => String.fromCodePoint(+d)).replace(/&amp;/g, "&");
+}
+async function zipLeser(bytes) {
+  const z = zipDateien(bytes);
+  if (z.kaputt) throw new Error("Inhaltsverzeichnis nicht lesbar");
+  const karte = new Map(z.dateien.map((d) => [d.pfad, d]));
+  const D = new TextDecoder("utf-8");
+  return { namen: [...karte.keys()], async xml(n) { const d = karte.get(n); if (!d || d.unlesbar) return null; return D.decode(await d.lesen()); } };
+}
+const nummer = (n) => +(/(\d+)\.xml$/.exec(n) || [0, 0])[1];
+const tLesen = (xml, tag) => { let t = ""; for (const x of xml.matchAll(new RegExp("<" + tag + "(?:\\s[^>]*)?>([^<]*)</" + tag + ">|<" + tag + "\\s*/>|<(?:w|a):(tab|br|cr)\\b[^>]*/>", "g"))) t += x[1] != null ? xmlText(x[1]) : x[2] === "tab" ? "\t" : x[2] ? "\n" : ""; return t; };
+
+/* Word: Absätze aus Kopfzeilen, Text, Fußzeilen und Fußnoten (Kommentare und gelöschter Text nicht). */
+async function docxLesen(z) {
+  const teile = [...z.namen.filter((n) => /^word\/header\d*\.xml$/.test(n)).sort(), "word/document.xml",
+    ...z.namen.filter((n) => /^word\/(footer\d*|footnotes|endnotes)\.xml$/.test(n)).sort()];
+  const absaetze = [];
+  for (const n of teile) {
+    const xml = await z.xml(n);
+    if (!xml) continue;
+    for (const m of xml.matchAll(/<w:p\b[^>]*\/>|<w:p\b[^>]*>[\s\S]*?<\/w:p>/g)) absaetze.push(tLesen(m[0], "w:t"));
+  }
+  return absaetze;
+}
+/* Excel: Blätter mit Zellen (Text und zuletzt berechnete Werte; Formeln nicht). */
+async function xlsxLesen(z) {
+  const geteilt = [];
+  const ss = await z.xml("xl/sharedStrings.xml");
+  if (ss) for (const m of ss.matchAll(/<si>([\s\S]*?)<\/si>/g)) geteilt.push(tLesen(m[1].replace(/<rPh\b[\s\S]*?<\/rPh>/g, ""), "t"));
+  const wb = (await z.xml("xl/workbook.xml")) || "", rels = (await z.xml("xl/_rels/workbook.xml.rels")) || "";
+  const ziel = {};
+  for (const m of rels.matchAll(/<Relationship\b[^>]*>/g)) { const id = (/Id="([^"]*)"/.exec(m[0]) || [])[1], t = (/Target="([^"]*)"/.exec(m[0]) || [])[1]; if (id && t) ziel[id] = "xl/" + t.replace(/^\/?xl\//, "").replace(/^\//, ""); }
+  const blaetter = [];
+  for (const m of wb.matchAll(/<sheet\b[^>]*>/g)) {
+    const name = xmlText((/name="([^"]*)"/.exec(m[0]) || [])[1] || "Blatt"), id = (/r:id="([^"]*)"/.exec(m[0]) || [])[1];
+    blaetter.push({ name, pfad: ziel[id] });
+  }
+  if (!blaetter.length) for (const n of z.namen.filter((x) => /^xl\/worksheets\/sheet\d+\.xml$/.test(x)).sort((a, b) => nummer(a) - nummer(b))) blaetter.push({ name: "Blatt" + nummer(n), pfad: n });
+  for (const b of blaetter) {
+    b.zellen = [];
+    const xml = b.pfad ? await z.xml(b.pfad) : null;
+    if (!xml) continue;
+    for (const m of xml.matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+      const r = (/\br="([A-Z]+\d+)"/.exec(m[1]) || [])[1], t = (/\bt="([^"]*)"/.exec(m[1]) || [])[1] || "", innen = m[2] || "";
+      if (!r) continue;
+      const v = (/<v>([^<]*)<\/v>/.exec(innen) || [])[1];
+      let wert = null, zahl = false;
+      if (t === "s") wert = v != null ? geteilt[+v] : null;
+      else if (t === "inlineStr") wert = tLesen(innen, "t");
+      else if (v != null) { wert = xmlText(v); zahl = (t === "" || t === "n") && /^-?\d+(\.\d+)?(E[-+]?\d+)?$/i.test(wert); }
+      if (wert != null && wert !== "") b.zellen.push({ r, wert, zahl });
+    }
+  }
+  return blaetter;
+}
+/* PowerPoint: Folien in ihrer Reihenfolge, je Folie die Absätze (Notizen nicht). */
+async function pptxLesen(z) {
+  const pres = (await z.xml("ppt/presentation.xml")) || "";
+  const sz = /<p:sldSz\b[^>]*cx="(\d+)"[^>]*cy="(\d+)"/.exec(pres);
+  const folien = [];
+  for (const n of z.namen.filter((x) => /^ppt\/slides\/slide\d+\.xml$/.test(x)).sort((a, b) => nummer(a) - nummer(b))) {
+    const xml = await z.xml(n);
+    folien.push(xml ? [...xml.matchAll(/<a:p\b[^>]*\/>|<a:p\b[^>]*>[\s\S]*?<\/a:p>/g)].map((m) => tLesen(m[0], "a:t")).filter((x) => x.trim()) : []);
+  }
+  return { folien, cx: sz ? +sz[1] : 12192000, cy: sz ? +sz[2] : 6858000 };
+}
+
+/* Eine Marke im neuen Text bekommt einen grauen Grund. */
+const RE_MARKE = /(⟦[A-ZÄÖÜ-]+-\d+⟧)/;
+function wordLauf(text, grau) {
+  const teile = String(text).replace(XML_WEG, "").split(/(\t|\n)/);
+  const rpr = grau ? '<w:rPr><w:shd w:val="clear" w:color="auto" w:fill="C8C8C8"/></w:rPr>' : "";
+  return teile.map((t) => t === "\t" ? "<w:r>" + rpr + "<w:tab/></w:r>" : t === "\n" ? "<w:r><w:br/></w:r>" : t ? '<w:r>' + rpr + '<w:t xml:space="preserve">' + xmlEsc(t) + "</w:t></w:r>" : "").join("");
+}
+const wordAbsatz = (text) => "<w:p>" + String(text).split(RE_MARKE).map((t, i) => wordLauf(t, i % 2 === 1)).join("") + "</w:p>";
+const ooxmlKopf = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+const REL_DOK = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+
+export function docxBauen(absaetze) {
+  const T = new TextEncoder();
+  return [
+    { pfad: "[Content_Types].xml", bytes: T.encode(ooxmlKopf + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>') },
+    { pfad: "_rels/.rels", bytes: T.encode(ooxmlKopf + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="' + REL_DOK + '/officeDocument" Target="word/document.xml"/></Relationships>') },
+    { pfad: "word/document.xml", bytes: T.encode(ooxmlKopf + '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
+      (absaetze.length ? absaetze : [""]).map(wordAbsatz).join("") + '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1417" w:right="1417" w:bottom="1134" w:left="1417" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>') },
+  ];
+}
+const spalteZahl = (s) => { let n = 0; for (const c of s) n = n * 26 + c.charCodeAt(0) - 64; return n; };
+export function xlsxBauen(blaetter) {
+  const T = new TextEncoder(), liste = blaetter.length ? blaetter : [{ name: "Blatt1", zellen: [] }];
+  const namen = new Set();
+  const blattName = (n, i) => { let x = String(n).replace(/[\[\]:*?\/\\]/g, " ").replace(XML_WEG, "").trim().slice(0, 31) || "Blatt" + (i + 1); while (namen.has(x.toLowerCase())) x = x.slice(0, 28) + " " + (i + 1); namen.add(x.toLowerCase()); return x; };
+  const dateien = [
+    { pfad: "[Content_Types].xml", bytes: T.encode(ooxmlKopf + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+      liste.map((_b, i) => '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join("") + "</Types>") },
+    { pfad: "_rels/.rels", bytes: T.encode(ooxmlKopf + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="' + REL_DOK + '/officeDocument" Target="xl/workbook.xml"/></Relationships>') },
+    { pfad: "xl/workbook.xml", bytes: T.encode(ooxmlKopf + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="' + REL_DOK + '"><sheets>' +
+      liste.map((b, i) => '<sheet name="' + xmlEsc(blattName(b.name, i)) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>').join("") + "</sheets></workbook>") },
+    { pfad: "xl/_rels/workbook.xml.rels", bytes: T.encode(ooxmlKopf + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      liste.map((_b, i) => '<Relationship Id="rId' + (i + 1) + '" Type="' + REL_DOK + '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>').join("") +
+      '<Relationship Id="rId' + (liste.length + 1) + '" Type="' + REL_DOK + '/styles" Target="styles.xml"/></Relationships>') },
+    { pfad: "xl/styles.xml", bytes: T.encode(ooxmlKopf + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>' +
+      '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFC8C8C8"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+      '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+      '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>') },
+  ];
+  liste.forEach((b, i) => {
+    const reihen = new Map();
+    for (const c of b.zellen) { const n = +/\d+$/.exec(c.r)[0]; if (!reihen.has(n)) reihen.set(n, []); reihen.get(n).push(c); }
+    const xml = [...reihen.keys()].sort((x, y) => x - y).map((n) => '<row r="' + n + '">' + reihen.get(n).sort((x, y) => spalteZahl(/^[A-Z]+/.exec(x.r)[0]) - spalteZahl(/^[A-Z]+/.exec(y.r)[0])).map((c) =>
+      c.zahl ? '<c r="' + c.r + '"><v>' + c.wert + "</v></c>"
+        : '<c r="' + c.r + '" t="inlineStr"' + (RE_MARKE.test(c.wert) ? ' s="1"' : "") + '><is><t xml:space="preserve">' + xmlEsc(c.wert) + "</t></is></c>").join("") + "</row>").join("");
+    dateien.push({ pfad: "xl/worksheets/sheet" + (i + 1) + ".xml", bytes: T.encode(ooxmlKopf + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' + xml + "</sheetData></worksheet>") });
+  });
+  return dateien;
+}
+const A = 'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="' + REL_DOK + '" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"';
+const PPTX_THEMA = '<a:theme ' + A.split(" ").slice(0, 1).join(" ") + ' name="Muster"><a:themeElements><a:clrScheme name="Muster"><a:dk1><a:srgbClr val="000000"/></a:dk1><a:lt1><a:srgbClr val="FFFFFF"/></a:lt1><a:dk2><a:srgbClr val="0B3154"/></a:dk2><a:lt2><a:srgbClr val="F2F7FA"/></a:lt2>' +
+  '<a:accent1><a:srgbClr val="0C79D8"/></a:accent1><a:accent2><a:srgbClr val="087F7A"/></a:accent2><a:accent3><a:srgbClr val="2E9EFF"/></a:accent3><a:accent4><a:srgbClr val="68C4FF"/></a:accent4><a:accent5><a:srgbClr val="164F7D"/></a:accent5><a:accent6><a:srgbClr val="8A4B00"/></a:accent6>' +
+  '<a:hlink><a:srgbClr val="0C79D8"/></a:hlink><a:folHlink><a:srgbClr val="164F7D"/></a:folHlink></a:clrScheme><a:fontScheme name="Muster"><a:majorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme>' +
+  '<a:fmtScheme name="Muster"><a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst>' +
+  '<a:lnStyleLst><a:ln w="9525"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln w="12700"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln w="19050"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln></a:lnStyleLst>' +
+  '<a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst>' +
+  '<a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>';
+const leererBaum = '<p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>';
+function pptAbsatz(text) {
+  return "<a:p>" + String(text).split(RE_MARKE).map((t, i) => t ? '<a:r><a:rPr lang="de-DE" sz="1800" dirty="0">' + (i % 2 ? '<a:highlight><a:srgbClr val="C8C8C8"/></a:highlight>' : "") + '</a:rPr><a:t>' + xmlEsc(t.replace(/[\t\n]/g, " ")) + "</a:t></a:r>" : "").join("") + '<a:endParaRPr lang="de-DE" sz="1800"/></a:p>';
+}
+export function pptxBauen(p) {
+  const T = new TextEncoder(), folien = p.folien.length ? p.folien : [[]], cx = p.cx || 12192000, cy = p.cy || 6858000;
+  const rel = (liste) => ooxmlKopf + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + liste.map(([id, typ, ziel]) => '<Relationship Id="' + id + '" Type="' + REL_DOK + "/" + typ + '" Target="' + ziel + '"/>').join("") + "</Relationships>";
+  const d = [
+    ["[Content_Types].xml", ooxmlKopf + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>' +
+      '<Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>' +
+      folien.map((_f, i) => '<Override PartName="/ppt/slides/slide' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>').join("") + "</Types>"],
+    ["_rels/.rels", rel([["rId1", "officeDocument", "ppt/presentation.xml"]])],
+    ["ppt/presentation.xml", ooxmlKopf + "<p:presentation " + A + '><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldIdLst>' +
+      folien.map((_f, i) => '<p:sldId id="' + (256 + i) + '" r:id="rId' + (i + 2) + '"/>').join("") + '</p:sldIdLst><p:sldSz cx="' + cx + '" cy="' + cy + '"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>'],
+    ["ppt/_rels/presentation.xml.rels", rel([["rId1", "slideMaster", "slideMasters/slideMaster1.xml"], ...folien.map((_f, i) => ["rId" + (i + 2), "slide", "slides/slide" + (i + 1) + ".xml"]), ["rId" + (folien.length + 2), "theme", "theme/theme1.xml"]])],
+    ["ppt/slideMasters/slideMaster1.xml", ooxmlKopf + "<p:sldMaster " + A + ">" + leererBaum + '</p:spTree></p:cSld><p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/><p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst></p:sldMaster>'],
+    ["ppt/slideMasters/_rels/slideMaster1.xml.rels", rel([["rId1", "slideLayout", "../slideLayouts/slideLayout1.xml"], ["rId2", "theme", "../theme/theme1.xml"]])],
+    ["ppt/slideLayouts/slideLayout1.xml", ooxmlKopf + "<p:sldLayout " + A + ' type="blank" preserve="1">' + leererBaum + "</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>"],
+    ["ppt/slideLayouts/_rels/slideLayout1.xml.rels", rel([["rId1", "slideMaster", "../slideMasters/slideMaster1.xml"]])],
+    ["ppt/theme/theme1.xml", ooxmlKopf + PPTX_THEMA],
+  ];
+  const rand = Math.round(Math.min(cx, cy) * 0.06);
+  folien.forEach((abs, i) => {
+    d.push(["ppt/slides/slide" + (i + 1) + ".xml", ooxmlKopf + "<p:sld " + A + ">" + leererBaum +
+      '<p:sp><p:nvSpPr><p:cNvPr id="2" name="Text"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="' + rand + '" y="' + rand + '"/><a:ext cx="' + (cx - 2 * rand) + '" cy="' + (cy - 2 * rand) + '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>' +
+      '<p:txBody><a:bodyPr wrap="square"><a:normAutofit/></a:bodyPr><a:lstStyle/>' + (abs.length ? abs : [""]).map(pptAbsatz).join("") + "</p:txBody></p:sp></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>"]);
+    d.push(["ppt/slides/_rels/slide" + (i + 1) + ".xml.rels", rel([["rId1", "slideLayout", "../slideLayouts/slideLayout1.xml"]])]);
+  });
+  return d.map(([pfad, s]) => ({ pfad, bytes: T.encode(s) }));
+}
+
+/* Office neu bauen: Text lesen, ersetzen (Dokumente bekommen Marken mit grauem Grund), neu schreiben.
+   Ungepackt gespeichert, damit die Nachprüfung jeden Originalwert Byte für Byte suchen kann. */
+async function officeNeu(bytes, art, posten, pfad, optionen) {
+  const z = await zipLeser(bytes);
+  const stellen = [];
+  const ersetze = (text, stelle) => { const r = ersetzeAlles(text, posten, pfad, false, true); for (const s of r.stellen) stellen.push({ stelle, art: s.art, artName: s.artName, weg: s.weg, ersatz: s.ersatz }); return r.text; };
+  let dateien;
+  if (art === "docx") {
+    const abs = await docxLesen(z);
+    await nachfinden(abs.join("\n"), posten, optionen);
+    dateien = docxBauen(abs.map((t, i) => ersetze(t, "Absatz " + (i + 1))));
+  } else if (art === "xlsx") {
+    const bl = await xlsxLesen(z);
+    await nachfinden(bl.map((b) => b.name + "\n" + b.zellen.map((c) => c.wert).join("\n")).join("\n"), posten, optionen);
+    bl.forEach((b, i) => { b.name = ersetze(b.name, "Name von Blatt " + (i + 1)); for (const c of b.zellen) if (!c.zahl) c.wert = ersetze(c.wert, "Blatt " + (i + 1) + " · Zelle " + c.r); else { const n = ersetze(c.wert, "Blatt " + (i + 1) + " · Zelle " + c.r); if (n !== c.wert) { c.wert = n; c.zahl = false; } } });
+    dateien = xlsxBauen(bl);
+  } else {
+    const p = await pptxLesen(z);
+    await nachfinden(p.folien.map((f) => f.join("\n")).join("\n"), posten, optionen);
+    p.folien = p.folien.map((f, i) => f.map((t, k) => ersetze(t, "Folie " + (i + 1) + " · Absatz " + (k + 1))));
+    dateien = pptxBauen(p);
+  }
+  return { bytes: await zipBauen(dateien, { packen: false }), art, stellen, hinweise: ["nur der Text kam mit — Bilder, Formatierung, Formeln, Kommentare, Notizen und Änderungsverlauf sind weg"] };
+}
+
+/** Ein Blatt neu bauen. @returns {bytes, art, stellen, …} oder {fehler} */
+export async function blattNeu(bytes, eintrag, posten, optionen = {}) {
+  const b = blattArt(eintrag);
+  if (!b) return { fehler: "diese Datei lässt sich nicht neu zeichnen" };
+  try {
+    if (b === "office") return await officeNeu(bytes, eintrag.art, posten, eintrag.pfad, optionen);
+    return await blattZeichnen(bytes, eintrag.art, posten, optionen);
+  } catch (e) { return { fehler: String(e && e.message || e) }; }
+}
+
+/* ── PDF und PNG schreiben (ohne Bibliothek) ─────────────────────────────── */
+function latin1(s) { const b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); b[i] = c < 256 ? c : 63; } return b; }
+const pdfText = (s) => "(" + String(s).replace(/[\\()]/g, "\\$&").replace(/[\r\n\t]/g, " ") + ")";
+/**
+ * Baut eine PDF ohne Verfasser, ohne Programm, ohne Datum.
+ * @param seiten [{ breite, hoehe (Punkte), bild?: { jpeg, w, h }, inhalt?: string (Zeichenbefehle mit /F1 = Helvetica) }]
+ */
+export function pdfBauen(seiten) {
+  const teile = [], offs = []; let n = 0;
+  const schreibe = (x) => { const b = typeof x === "string" ? latin1(x) : x; teile.push(b); n += b.length; };
+  const obj = (nr, kopf, strom) => {
+    offs[nr] = n; schreibe(nr + " 0 obj\n" + kopf + (strom ? "" : "\n") );
+    if (strom) { schreibe("\nstream\n"); schreibe(strom); schreibe("\nendstream\n"); }
+    schreibe("endobj\n");
+  };
+  schreibe("%PDF-1.4\n%\u00e2\u00e3\u00cf\u00d3\n");
+  const nrSeite = (i) => 4 + i * 3;
+  obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
+  obj(2, "<< /Type /Pages /Kids [" + seiten.map((_s, i) => nrSeite(i) + " 0 R").join(" ") + "] /Count " + seiten.length + " >>");
+  obj(3, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+  seiten.forEach((s, i) => {
+    const p = nrSeite(i), b = s.breite.toFixed(2), h = s.hoehe.toFixed(2);
+    let befehle = s.bild ? "q " + b + " 0 0 " + h + " 0 0 cm /Im0 Do Q\n" : "";
+    if (s.inhalt) befehle += s.inhalt;
+    obj(p, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + b + " " + h + "] /Contents " + (p + 1) + " 0 R /Resources << /Font << /F1 3 0 R >>" +
+      (s.bild ? " /XObject << /Im0 " + (p + 2) + " 0 R >>" : "") + " >> >>");
+    const inhalt = latin1(befehle);
+    obj(p + 1, "<< /Length " + inhalt.length + " >>", inhalt);
+    if (s.bild) obj(p + 2, "<< /Type /XObject /Subtype /Image /Width " + s.bild.w + " /Height " + s.bild.h + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + s.bild.jpeg.length + " >>", s.bild.jpeg);
+    else obj(p + 2, "<< >>");
+  });
+  const xref = n, anzahl = 4 + seiten.length * 3;
+  let x = "xref\n0 " + anzahl + "\n0000000000 65535 f \n";
+  for (let i = 1; i < anzahl; i++) x += String(offs[i]).padStart(10, "0") + " 00000 n \n";
+  schreibe(x + "trailer\n<< /Size " + anzahl + " /Root 1 0 R >>\nstartxref\n" + xref + "\n%%EOF\n");
+  return zusammen(teile, n);
+}
+/* Text und graue Kästen für Musterblätter (y von oben gemessen). */
+function pdfZeilen(hoehe, zeilen) {
+  let s = "";
+  for (const z of zeilen) {
+    if (z.kasten) { const [x, y, w, hh] = z.kasten; s += "0.8 g " + x + " " + (hoehe - y - hh) + " " + w + " " + hh + " re f 0.5 G 1 w " + x + " " + (hoehe - y - hh) + " " + w + " " + hh + " re S\n"; }
+    if (z.text != null) s += "0.12 g BT /F1 " + (z.groesse || 11) + " Tf " + z.x + " " + (hoehe - z.y) + " Td " + pdfText(z.text) + " Tj ET\n";
+  }
+  return s;
+}
+
+async function zlibPacke(bytes) {
+  const cs = new CompressionStream("deflate"), w = cs.writable.getWriter();
+  w.write(bytes).catch(() => {}); w.close().catch(() => {});
+  const r = cs.readable.getReader(), teile = []; let n = 0;
+  for (;;) { const { done, value } = await r.read(); if (done) break; teile.push(value); n += value.length; }
+  return zusammen(teile, n);
+}
+/** PNG aus RGBA-Bildpunkten (ohne Textfelder, ohne Zeitstempel). */
+export async function pngBauen(w, h, rgba) {
+  const roh = new Uint8Array(h * (1 + w * 4));
+  for (let y = 0; y < h; y++) { roh[y * (1 + w * 4)] = 0; roh.set(rgba.subarray(y * w * 4, (y + 1) * w * 4), y * (1 + w * 4) + 1); }
+  const idat = await zlibPacke(roh);
+  const stueck = (typ, daten) => {
+    const b = new Uint8Array(12 + daten.length), v = new DataView(b.buffer);
+    v.setUint32(0, daten.length); for (let i = 0; i < 4; i++) b[4 + i] = typ.charCodeAt(i); b.set(daten, 8);
+    v.setUint32(8 + daten.length, crc32(b.subarray(4, 8 + daten.length)));
+    return b;
+  };
+  const kopf = new Uint8Array(13), kv = new DataView(kopf.buffer); kv.setUint32(0, w); kv.setUint32(4, h); kopf[8] = 8; kopf[9] = 6;
+  const sig = Uint8Array.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+  const t = [sig, stueck("IHDR", kopf), stueck("IDAT", idat), stueck("IEND", new Uint8Array(0))];
+  return zusammen(t, t.reduce((s, x) => s + x.length, 0));
+}
+
+/* ── Mustermappe: leere Vorlagen und erfundene Beispiele ─────────────────
+   Alles erfunden; jeder Wert trägt „Muster“, damit die Nachprüfung ihn nie meldet. Keine Daten,
+   Telefonnummern oder Kontonummern (die zählen auch als Muster sonst als Fund). */
+const LEER_JPG = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgsKCA0LCgsODg0PEyAVExISEyccHhcgLikxMC4pLSwzOko+MzZGNywtQFdBRkxOUlNSMj5aYVpQYEpRUk//2wBDAQ4ODhMREyYVFSZPNS01T09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0//wAARCAB4AKADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD06iiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA//9k=";
+function ausB64(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
+const BRIEF = ["Max Mustermann", "Musterstraße 1", "12345 Musterstadt", "", "An Erika Mustermann", "Musterfirma GmbH", "",
+  "Betreff: Musterprojekt", "", "Hallo Erika Mustermann,", "dies ist ein erfundener Musterbrief. Er zeigt, wie ein Dokument aussieht,",
+  "nachdem der Projekt-Reiniger es neu gezeichnet hat.", "", "Viele Grüße", "Max Mustermann", "max.mustermann@beispiel.example"];
+let MAPPE = null;
+/** Die Mustermappe als Liste { pfad (relativ), bytes }. */
+export async function mustermappe() {
+  if (MAPPE) return MAPPE;
+  const T = new TextEncoder(), packe = async (d) => zipBauen(d, { packen: false });
+  const weiss = (w, h) => { const b = new Uint8Array(w * h * 4); b.fill(255); return b; };
+  const bild = (() => {
+    const w = 640, h = 400, b = new Uint8Array(w * h * 4);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4, t = y / h;
+      b[i] = Math.round(11 + 93 * t); b[i + 1] = Math.round(49 + 147 * t); b[i + 2] = Math.round(84 + 171 * t); b[i + 3] = 255;
+      if (x > 180 && x < 460 && y > 160 && y < 220) { b[i] = 205; b[i + 1] = 205; b[i + 2] = 205; }
+    }
+    return { w, h, b };
+  })();
+  const briefPdf = pdfBauen([{ breite: 595.28, hoehe: 841.89, inhalt: pdfZeilen(841.89, [
+    ...BRIEF.map((t, i) => ({ x: 72, y: 90 + i * 17, text: t })),
+    { x: 72, y: 90 + BRIEF.length * 17 + 30, text: "So sieht eine entfernte Stelle aus:", groesse: 10 },
+    { kasten: [72, 90 + BRIEF.length * 17 + 40, 160, 22] }, { x: 80, y: 90 + BRIEF.length * 17 + 55, text: "Name entfernt", groesse: 10 },
+  ]) }]);
+  const tabelle = [["Name", "Ort", "E-Mail"], ["Max Mustermann", "Musterstadt", "max.mustermann@beispiel.example"], ["Erika Mustermann", "Musterdorf", "erika.mustermann@beispiel.example"]];
+  const zellen = (z) => z.flatMap((r, i) => r.map((wert, k) => ({ r: String.fromCharCode(65 + k) + (i + 1), wert, zahl: false })));
+  MAPPE = [
+    { pfad: "LIESMICH.txt", bytes: T.encode("Mustermappe — Projekt-Reiniger Pro\n\nvorlagen/   leere Dateien je Art (PDF, Word, Excel, PowerPoint, Bild, Tabelle, JSON, Datenbank).\n" +
+      "beispiele/  erfundene Beispiele (Musterbrief, Mustertabelle, Musterfolien, Musterbild).\n\nAlle Angaben sind ausgedacht. Eine Datei, die sich nicht reinigen lässt, kann in der App\n" +
+      "„durch Muster ersetzen“ — sie bekommt dann die passende leere Vorlage unter ihrem Namen.\n") },
+    { pfad: "vorlagen/leer.pdf", bytes: pdfBauen([{ breite: 595.28, hoehe: 841.89, inhalt: "" }]) },
+    { pfad: "vorlagen/leer.docx", bytes: await packe(docxBauen([""])) },
+    { pfad: "vorlagen/leer.xlsx", bytes: await packe(xlsxBauen([{ name: "Blatt1", zellen: [] }])) },
+    { pfad: "vorlagen/leer.pptx", bytes: await packe(pptxBauen({ folien: [[]] })) },
+    { pfad: "vorlagen/leer.png", bytes: await pngBauen(160, 120, weiss(160, 120)) },
+    { pfad: "vorlagen/leer.jpg", bytes: ausB64(LEER_JPG) },
+    { pfad: "vorlagen/leer.csv", bytes: T.encode("Spalte1;Spalte2\n") },
+    { pfad: "vorlagen/leer.json", bytes: T.encode("{}\n") },
+    { pfad: "vorlagen/leer.sqlite", bytes: new Uint8Array(0) },
+    { pfad: "beispiele/musterbrief.pdf", bytes: briefPdf },
+    { pfad: "beispiele/musterbrief.docx", bytes: await packe(docxBauen([...BRIEF, "", "So sieht eine entfernte Stelle aus: ⟦NAME-1⟧"])) },
+    { pfad: "beispiele/mustertabelle.xlsx", bytes: await packe(xlsxBauen([{ name: "Muster", zellen: zellen(tabelle) }])) },
+    { pfad: "beispiele/mustertabelle.csv", bytes: T.encode(tabelle.map((r) => r.join(";")).join("\n") + "\n") },
+    { pfad: "beispiele/musterfolien.pptx", bytes: await packe(pptxBauen({ folien: [["Musterprojekt", "Erfundene Folie von Max Mustermann"], ["Zweite Musterfolie", "Musterstadt, Musterfirma GmbH"]] })) },
+    { pfad: "beispiele/musterbild.png", bytes: await pngBauen(bild.w, bild.h, bild.b) },
+  ];
+  return MAPPE;
+}
+const MUSTER_JE_ENDUNG = { pdf: "vorlagen/leer.pdf", docx: "vorlagen/leer.docx", docm: "vorlagen/leer.docx", dotx: "vorlagen/leer.docx",
+  xlsx: "vorlagen/leer.xlsx", xlsm: "vorlagen/leer.xlsx", pptx: "vorlagen/leer.pptx", pptm: "vorlagen/leer.pptx",
+  png: "vorlagen/leer.png", jpg: "vorlagen/leer.jpg", jpeg: "vorlagen/leer.jpg", csv: "vorlagen/leer.csv", tsv: "vorlagen/leer.csv",
+  json: "vorlagen/leer.json", db: "vorlagen/leer.sqlite", sqlite: "vorlagen/leer.sqlite", sqlite3: "vorlagen/leer.sqlite", db3: "vorlagen/leer.sqlite" };
+/** Welche Vorlage der Mustermappe passt zu dieser Datei? (Pfad in der Mappe oder null) */
+export function musterFuer(pfad) { return MUSTER_JE_ENDUNG[endungVon(pfad)] || null; }

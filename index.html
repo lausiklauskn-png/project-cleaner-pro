@@ -6,6 +6,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; worker-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#0b3154">
+<meta name="color-scheme" content="light dark">
 <title>Projekt-Reiniger Pro</title>
 <meta name="description" content="Prüft ein Projekt (ZIP, Ordner oder einzelne Dateien) auf persönliche Daten, bevor es an eine KI oder nach GitHub geht. Alles bleibt auf dem Gerät.">
 <link rel="manifest" href="manifest.json">
@@ -13,12 +14,14 @@
 <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="stylesheet" href="assets/app.css">
+<script src="assets/thema.js"></script>
 <!-- Prüfkerne, byte-1:1 übernommen und in tests/probe.mjs per SHA-256 gepinnt. Nie hier abwandeln. -->
 <script src="modules/25_pseudonym.js" defer></script>
 <script src="assets/pruefer-formate.js" defer></script>
 <script src="assets/pruefer-mail.js" defer></script>
 <script src="assets/pruefer.js" defer></script>
 <script src="assets/pruefer-anhang.js" defer></script>
+<script src="assets/reinigung.js" defer></script>
 <script type="module" src="assets/app.js"></script>
 </head>
 <body>
@@ -30,6 +33,7 @@
     </a>
     <span class="nurlesen" title="Alles bleibt auf diesem Gerät. Das Original wird nie verändert; die saubere Kopie geht nur als Download hinaus.">Lokal</span>
     <span class="luecke"></span>
+    <button type="button" class="knopf hell" id="thema" aria-label="Hell oder dunkel" title="Hell oder dunkel"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18z M12 3a9 9 0 0 1 0 18"/></svg><span class="t">Automatisch</span></button>
     <button type="button" class="knopf hell" id="installieren" aria-label="Als App installieren" title="Als App installieren"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M12 6v7 M9 10l3 3 3-3 M11 18h2"/></svg><span class="t">Installieren</span></button>
     <button type="button" class="knopf hell" id="aktualisieren" aria-label="Neue Fassung holen" title="Neue Fassung holen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8 M4 4v4h4 M4 13a8 8 0 0 0 14.3 4.9L20 16 M20 20v-4h-4"/></svg><span class="t">Aktualisieren</span></button>
     <button type="button" class="knopf hell" id="neu" aria-label="Neu anfangen" title="Neu anfangen" hidden><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z M14 3v4h4 M12 11v6 M9 14h6"/></svg><span class="t">Neu</span></button>
@@ -71,7 +75,7 @@
     </section>
   </main>
   <section class="ansicht" id="ansicht" hidden aria-label="Datei ansehen"></section>
-  <div class="meldung" id="meldung" role="status" hidden><button type="button" class="knopf" id="meldung-zu" aria-label="Meldung schließen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12 M18 6L6 18"/></svg></button><p id="meldung-text"></p></div>
+  <div class="meldung" id="meldung" role="status" hidden><button type="button" class="knopf" id="meldung-zu" aria-label="Meldung schließen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12 M18 6L6 18"/></svg></button><div id="meldung-text"></div></div>
   <div class="ziehen" id="ziehen" hidden>Loslassen zum Prüfen</div>
 </div>
 </body>

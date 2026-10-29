@@ -1,4 +1,4 @@
-/* Projekt-Reiniger Pro — die Oberfläche (Stufen 1–3: einwerfen, Inventur, anzeigen, entscheiden, reinigen).
+/* Projekt-Reiniger Pro — die Oberfläche (Stufen 1–4: einwerfen, Inventur, anzeigen, entscheiden, reinigen, neu zeichnen).
    Alles Fremde wird nur als Text gesetzt (textContent), nie als HTML. Nichts wird gespeichert;
    die saubere Kopie geht nur als Download hinaus. Das Original wird nie verändert. */
 import * as Kern from "./reiniger-kern.js";
@@ -33,6 +33,9 @@ const IKONEN = {
   weg: "M6 6l12 12 M18 6L6 18",
   zurueck: "M15 6l-6 6 6 6",
   weiter: "M9 6l6 6-6 6",
+  hell: "M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4",
+  dunkel: "M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z",
+  auto: "M12 3a9 9 0 1 0 0 18z M12 3a9 9 0 0 1 0 18",
 };
 function ikon(name) {
   const NS = "http://www.w3.org/2000/svg", s = document.createElementNS(NS, "svg"), p = document.createElementNS(NS, "path");
@@ -43,11 +46,13 @@ function ikon(name) {
 /* Knopf mit Symbol und Wort */
 function knopfMit(attr, name, wort) { return el("button", Object.assign({ type: "button" }, attr), ikon(name), wort); }
 const warnZeile = (attr, satz) => el(attr.tag || "p", Object.assign({}, attr, { tag: null }), ikon("warn"), el("span", { text: satz }));
+const anzahl = (n, eins, viele) => n + " " + (n === 1 ? eins : viele);
 const gross = (n) => n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(1).replace(".", ",") + " KB" : (n / 1048576).toFixed(1).replace(".", ",") + " MB";
 
 let ergebnis = null, laeuft = false, eingeworfen = [], gereinigt = null, quelle = "", texterkennung = false;
 const wahl = {};                 // buendelSchluessel → { weg, wert }
-const uebernehmen = new Set();   // Pfade, die unverändert mitgehen sollen
+const dateiWahl = {};            // Pfad → neu | muster | weg | original (Dateien, die nicht Stelle für Stelle gereinigt werden)
+let mappeBeilegen = false;       // Mustermappe in die saubere Kopie legen
 const begriffe = [];             // selbst eingetragene Namen, die die Suche nicht erkannt hat
 
 /* pdf.js aus dem eigenen Ordner (nicht im Vorrat des Workers). */
@@ -113,7 +118,8 @@ async function starte(liste) {
     const ein = await Kern.einwerfen(liste);
     eingeworfen = ein.dateien; gereinigt = null;
     for (const k of Object.keys(wahl)) delete wahl[k];
-    uebernehmen.clear(); begriffe.length = 0; textCache.clear(); texterkennung = false;
+    for (const k of Object.keys(dateiWahl)) delete dateiWahl[k];
+    mappeBeilegen = false; begriffe.length = 0; textCache.clear(); texterkennung = false;
     if (window.PrueferAnhang) window.PrueferAnhang.pfade({ tesseract: null });
     ergebnis = await Kern.pruefe(ein.dateien, {
       fortschritt: (nr, gesamt, pfad) => { $("#fortschritt-text").textContent = "Lese " + nr + " von " + gesamt + ": " + pfad; const b = $("#fortschritt-balken"); b.max = gesamt; b.value = nr; },
@@ -304,11 +310,21 @@ async function oeffneAnsicht(pfad, zeile, werte, fassung) {
   fassung = fassung || (ansichtZustand && ansichtZustand.pfad === pfad ? ansichtZustand.fassung : "original");
   if (fassung === "sauber" && !sauber) fassung = "original";
   ansichtZustand = { pfad, zeile, werte, fassung };
-  let text, marken;
+  let text, marken, vorschau = null;
   if (fassung === "sauber") {
-    text = new TextDecoder().decode(sauber.bytes);
+    if (sauber.neu || sauber.muster) vorschau = { bytes: sauber.bytes, pfad: sauber.pfad };
+    else text = new TextDecoder().decode(sauber.bytes);
     marken = gereinigt.stellenplan.filter((s) => s.pfad === sauber.pfad).map((s) => s.ersatz);
-  } else { text = await textVon(pfad); marken = werte; }
+  } else {
+    text = await textVon(pfad); marken = werte;
+    /* PDF und Bilder als Seite/Bild zeigen — auch wenn sich ihre Bytes als Text lesen ließen (kleine PDFs). */
+    const e = ergebnis.inventur.find((x) => x.pfad === pfad);
+    if (text == null || (e && /^(pdf|png|jpeg|webp|gif)$/.test(e.art))) {
+      const d = eingeworfen.find((x) => x.pfad === pfad); const bb = d && (d.bytes || (d.lesen ? await d.lesen().catch(() => null) : null));
+      if (bb && window.PrueferAnhang && /^(pdf|png|jpeg|webp|gif)$/.test(window.PrueferAnhang.artVon(bb))) { vorschau = { bytes: bb, pfad }; text = null; }
+      else if (bb && text == null) vorschau = { bytes: bb, pfad };
+    }
+  }
   const reiter = (f, wort) => { const k = el("button", { type: "button", class: "reiter-knopf", "data-fassung": f, "aria-pressed": String(f === fassung), text: wort, disabled: f === "sauber" && !sauber });
     k.addEventListener("click", () => oeffneAnsicht(pfad, zeile, werte, f)); return k; };
   const zu = knopfMit({ class: "knopf", id: "ansicht-zu" }, "zurueck", "Zurück");
@@ -316,7 +332,16 @@ async function oeffneAnsicht(pfad, zeile, werte, fassung) {
   const kopf = el("div", { class: "ansicht-kopf" }, zu, el("span", { class: "pfad", text: fassung === "sauber" ? sauber.pfad : pfad }),
     el("div", { class: "ansicht-reiter" }, reiter("original", "Original"), reiter("sauber", gereinigt ? "Saubere Kopie" : "Saubere Kopie (erst reinigen)")));
   let koerper;
-  if (text == null) {
+  const bildArt = vorschau && window.PrueferAnhang ? window.PrueferAnhang.artVon(vorschau.bytes) : "";
+  if (vorschau && /^(png|jpeg|webp|gif|pdf)$/.test(bildArt)) {
+    koerper = el("div", { class: "vorschau", "data-vorschau": fassung });
+    if (fassung === "sauber") koerper.append(el("p", { class: "satz", text: sauber.muster ? "Ersetzt durch die Vorlage " + sauber.muster + " aus der Mustermappe." :
+      "Neu gezeichnet: ohne Metadaten, graue Kästen an den Fundstellen (" + marken.length + "), Rauschen über die untersten Bits." }));
+    vorschauFuellen(koerper, vorschau.bytes, bildArt);
+  } else if (fassung === "sauber" && vorschau) {
+    koerper = el("div", { class: "ansicht-leer" }, el("p", { text: sauber.muster ? "Ersetzt durch die Vorlage " + sauber.muster + " aus der Mustermappe." : "Neu gebaut als reiner Text (ohne Bilder, Formatierung, Kommentare). Ersetzte Stellen:" }),
+      el("ul", {}, ...gereinigt.stellenplan.filter((s) => s.pfad === sauber.pfad).slice(0, 300).map((s) => el("li", { text: (s.stelle || "") + ": " + (s.weg === "eigen" ? "eigener Wert" : s.ersatz) + " (" + s.artName + ")" }))));
+  } else if (text == null) {
     koerper = el("div", { class: "ansicht-leer" }, el("p", { text: "Diese Datei ist kein lesbarer Text (Bild, PDF, Office oder Binärdatei). Funde darin:" }),
       el("ul", {}, ...ergebnis.befunde.filter((x) => x.pfad === pfad).map((x) => el("li", { text: (Kern.ART_NAME[x.art] || x.art) + ": " + x.wert }))));
   } else {
@@ -331,6 +356,137 @@ async function oeffneAnsicht(pfad, zeile, werte, fassung) {
   if (ziel) ziel.scrollIntoView({ block: "center" });
 }
 addEventListener("keydown", (e) => { if (e.key === "Escape") schliesseAnsicht(); });
+
+/* Vorschau eines Bildes oder einer PDF (bis 5 Seiten) — nur Bildpunkte, nichts wird ausgeführt. */
+async function vorschauFuellen(ziel, bytes, art) {
+  try {
+    if (art !== "pdf") {
+      const url = URL.createObjectURL(new Blob([bytes], { type: "image/" + art }));
+      const img = el("img", { src: url, alt: "Vorschau", class: "vorschau-bild" });
+      img.addEventListener("load", () => setTimeout(() => URL.revokeObjectURL(url), 1000));
+      ziel.append(img); return;
+    }
+    const L = await pdfjsBereit();
+    const doc = await L.getDocument({ data: bytes.slice(0), isEvalSupported: false }).promise;
+    for (let i = 1; i <= Math.min(5, doc.numPages); i++) {
+      const pg = await doc.getPage(i), v1 = pg.getViewport({ scale: 1 }), vp = pg.getViewport({ scale: Math.min(2, 1400 / v1.width) });
+      const c = el("canvas", { class: "vorschau-bild", width: String(Math.round(vp.width)), height: String(Math.round(vp.height)), "data-seite": String(i) });
+      const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+      await pg.render({ canvasContext: g, viewport: vp }).promise;
+      ziel.append(c);
+    }
+    if (doc.numPages > 5) ziel.append(el("p", { class: "satz", text: "… und " + (doc.numPages - 5) + " weitere Seite(n)" }));
+    doc.destroy();
+  } catch (e) { ziel.append(warnZeile({ class: "offen" }, "Vorschau ging nicht (" + (e && e.message || e) + ").")); }
+}
+
+/* ── Zeichner (Stufe 4): öffnet Seiten und Bilder, schreibt Etiketten, kodiert — der Kern entscheidet den Rest.
+   Nur hier gibt es eine Leinwand; der Kern (reiniger-kern.js) kennt kein DOM. */
+const BLATT_KANTE = 2400;          // lange Kante einer neu gezeichneten PDF-Seite in Bildpunkten (höchstens, ≈ 200 dpi bei A4)
+const BILD_KANTE = 8000;           // größere Bilder werden verkleinert neu gezeichnet
+async function pdfjsBereit() {
+  if (!window.pdfjsLib) await skriptLaden("vendor/pdfjs/pdf.min.js");
+  if (!window.pdfjsLib.GlobalWorkerOptions.workerSrc) window.pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("vendor/pdfjs/pdf.worker.min.js", location.href).href;
+  return window.pdfjsLib;
+}
+let ocrArbeiter = null;
+function ocrBeenden() { if (ocrArbeiter) { ocrArbeiter.then((w) => w.terminate()).catch(() => {}); ocrArbeiter = null; } }
+/* Wörter mit Kästen aus der Texterkennung (nur wenn sie eingeschaltet ist). */
+async function woerterLesen(leinwand) {
+  if (!texterkennung || !window.Tesseract) return null;
+  const basis = new URL("vendor/tesseract/", location.href).href;
+  if (!ocrArbeiter) ocrArbeiter = window.Tesseract.createWorker(["deu", "eng", "rus"], 1, { workerPath: basis + "worker.min.js", corePath: basis, langPath: basis + "lang", gzip: false, cacheMethod: "none" });
+  const w = await ocrArbeiter;
+  const f = Math.min(1, 3000 / Math.max(leinwand.width, leinwand.height));
+  let q = leinwand;
+  if (f < 1) { q = el("canvas", { width: String(Math.round(leinwand.width * f)), height: String(Math.round(leinwand.height * f)) }); q.getContext("2d").drawImage(leinwand, 0, 0, q.width, q.height); }
+  const r = await w.recognize(q, {}, { blocks: true, text: false });
+  const zeilen = [];
+  for (const bl of (r.data && r.data.blocks) || []) for (const pa of bl.paragraphs || []) for (const li of pa.lines || []) {
+    const z = (li.words || []).filter((x) => x.text && x.text.trim()).map((x) => ({ s: x.text, x0: x.bbox.x0 / f, y0: x.bbox.y0 / f, x1: x.bbox.x1 / f, y1: x.bbox.y1 / f }));
+    if (z.length) zeilen.push(z);
+  }
+  return zeilen;
+}
+const Zeichner = {
+  async oeffne(bytes, art) {
+    if (art === "pdf") {
+      const L = await pdfjsBereit();
+      const doc = await L.getDocument({ data: bytes.slice(0), isEvalSupported: false }).promise;
+      let letzte = null;
+      return {
+        anzahl: doc.numPages,
+        async seite(i) {
+          const pg = await doc.getPage(i + 1), v1 = pg.getViewport({ scale: 1 });
+          const m = Math.min(2, BLATT_KANTE / Math.max(v1.width, v1.height)), vp = pg.getViewport({ scale: m });
+          const c = el("canvas", { width: String(Math.round(vp.width)), height: String(Math.round(vp.height)) });
+          const g = c.getContext("2d", { willReadFrequently: true }); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+          await pg.render({ canvasContext: g, viewport: vp }).promise;
+          const tc = await pg.getTextContent(), stuecke = [];
+          /* Wo beginnt jedes Zeichen? Mit der Schrift aus pdf.js gemessen und auf die Breite des Stücks geeicht —
+             gleich breit geschätzt läge ein Kasten in „Mail: anna@…“ um ein Zeichen daneben. */
+          const mess = el("canvas", { width: "8", height: "8" }).getContext("2d");
+          const anteileVon = (it) => {
+            const st = tc.styles && tc.styles[it.fontName], fam = (st && st.fontFamily) || "sans-serif", s = it.str;
+            mess.font = "100px " + fam;
+            const a = [0]; for (let i = 1; i <= s.length; i++) a.push(mess.measureText(s.slice(0, i)).width);
+            const ges = a[a.length - 1];
+            return ges > 0 ? a.map((x) => x / ges) : null;
+          };
+          for (const it of tc.items) {
+            if (!it.str || !it.transform) continue;
+            const T = it.transform, t = L.Util.transform(v1.transform, T), l = Math.hypot(T[0], T[1]) || 1;
+            const ex = T[0] / l * it.width, ey = T[1] / l * it.width;
+            const ecken = [[T[4], T[5]], [T[4] + ex, T[5] + ey], [T[4] + T[2], T[5] + T[3]], [T[4] + ex + T[2], T[5] + ey + T[3]]].map(([x, y]) => vp.convertToViewportPoint(x, y));
+            const xs = ecken.map((e) => e[0]), ys = ecken.map((e) => e[1]), unter = Math.hypot(T[2], T[3]) * 0.25 * m;
+            stuecke.push({ s: it.str, x: t[4], y: t[5], w: it.width, fh: Math.hypot(t[2], t[3]), anteile: anteileVon(it), schraeg: Math.abs(t[1]) > Math.abs(t[0]) * 0.02 || t[0] <= 0,
+              kasten: [Math.min(...xs) - unter, Math.min(...ys) - unter, Math.max(...xs) + unter, Math.max(...ys) + unter] });
+          }
+          const mitText = stuecke.some((x) => x.s.trim());
+          letzte = c;
+          return { bild: g.getImageData(0, 0, c.width, c.height), massstab: m, breite: v1.width, hoehe: v1.height, stuecke, woerter: mitText ? null : await woerterLesen(c), leinwand: c };
+        },
+        freigeben() { if (letzte) { letzte.width = 0; letzte.height = 0; letzte = null; } },
+        schliessen: () => doc.destroy(),
+      };
+    }
+    const bm = await createImageBitmap(new Blob([bytes], { type: "image/" + art }));
+    const f = Math.min(1, BILD_KANTE / Math.max(bm.width, bm.height));
+    const c = el("canvas", { width: String(Math.max(1, Math.round(bm.width * f))), height: String(Math.max(1, Math.round(bm.height * f))) });
+    const g = c.getContext("2d", { willReadFrequently: true });
+    if (art === "jpeg") { g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); }
+    g.drawImage(bm, 0, 0, c.width, c.height); if (bm.close) bm.close();
+    return {
+      anzahl: 1,
+      async seite() { return { bild: g.getImageData(0, 0, c.width, c.height), massstab: f, breite: c.width, hoehe: c.height, stuecke: null, woerter: await woerterLesen(c), leinwand: c }; },
+      freigeben() { c.width = 0; c.height = 0; },
+    };
+  },
+  /* Etikett in jeden Kasten (der Kern hat ihn schon grau gemalt). */
+  async beschrifte(s, kaesten) {
+    const c = s.leinwand, g = c.getContext("2d", { willReadFrequently: true });
+    g.putImageData(s.bild, 0, 0);
+    for (const k of kaesten) {
+      const h = k.y1 - k.y0, w = k.x1 - k.x0, rand = h * 0.18;
+      let gr = Math.max(5, h * 0.52);
+      g.font = "600 " + gr + "px system-ui, sans-serif";
+      const b = g.measureText(k.etikett).width;
+      if (b > w - 2 * rand) { gr = Math.max(4, gr * (w - 2 * rand) / b); g.font = "600 " + gr + "px system-ui, sans-serif"; }
+      g.save(); g.beginPath(); g.rect(k.x0, k.y0, w, h); g.clip();
+      g.fillStyle = "#1e1e1e"; g.textBaseline = "middle"; g.fillText(k.etikett, k.x0 + rand, k.y0 + h / 2);
+      g.restore();
+    }
+    s.bild = g.getImageData(0, 0, c.width, c.height);
+  },
+  async kodiere(s, art) {
+    const c = s.leinwand; c.getContext("2d").putImageData(s.bild, 0, 0);
+    const typ = { jpeg: "image/jpeg", png: "image/png", webp: "image/webp" }[art] || "image/png";
+    const blob = await new Promise((ok) => c.toBlob(ok, typ, 0.9));
+    const b = new Uint8Array(await blob.arrayBuffer());
+    return { bytes: b, art: b[0] === 0x89 ? "png" : b[0] === 0xFF && b[1] === 0xD8 ? "jpeg" : b[8] === 0x57 && b[9] === 0x45 ? "webp" : art };
+  },
+};
+window.Zeichner = Zeichner;
 
 /* ── Entscheiden (Stufe 2): einmal für alle Stellen eines Bündels ─────── */
 const WEG_TEXT = {
@@ -359,28 +515,45 @@ function zeileWahl(b) {
   return el("div", { class: "weg-zeile" }, sel);
 }
 
+const DATEI_WEG_TEXT = { neu: "Neu zeichnen", muster: "Durch Muster ersetzen", weg: "Weglassen", original: "Unverändert (NICHT gereinigt)" };
 function dateiPlanKarte(plan) {
-  const alle = el("input", { type: "checkbox", id: "alle-uebernehmen" });
-  const boxen = plan.map((p) => {
-    const box = el("input", { type: "checkbox", "data-uebernehmen": p.pfad });
-    box.checked = uebernehmen.has(p.pfad);
-    box.addEventListener("change", () => { if (box.checked) uebernehmen.add(p.pfad); else uebernehmen.delete(p.pfad); gereinigt = null; });
-    return el("li", {}, el("label", { class: "wahl" }, box, el("span", { class: "pfad", text: p.pfad })), el("span", { class: "satz", text: p.grund }));
+  const geaendert = () => { gereinigt = null; const e = $("#kopie-ergebnis"); if (e) e.replaceChildren(); };
+  const zeilen = plan.map((p) => {
+    const jetzt = dateiWahl[p.pfad] || p.vorgabe;
+    const sel = el("select", { class: "weg", "data-datei-weg": p.pfad, "aria-label": "Was mit " + p.pfad.split("/").pop() + " geschieht" },
+      ...p.wege.map((w) => { const o = el("option", { value: w, text: DATEI_WEG_TEXT[w] }); if (w === jetzt) o.selected = true; return o; }));
+    sel.addEventListener("change", () => { if (sel.value === p.vorgabe) delete dateiWahl[p.pfad]; else dateiWahl[p.pfad] = sel.value; li.dataset.weg = sel.value; geaendert(); });
+    const li = el("li", { "data-weg": jetzt }, el("span", { class: "pfad", text: p.pfad }), el("span", { class: "satz", text: p.grund }), el("div", { class: "weg-zeile" }, sel));
+    return li;
   });
-  alle.addEventListener("change", () => { for (const b of document.querySelectorAll("[data-uebernehmen]")) { b.checked = alle.checked; b.dispatchEvent(new Event("change")); } });
+  const alle = el("select", { class: "weg", id: "alle-dateien", "aria-label": "Für alle Dateien wählen" },
+    el("option", { value: "", text: "Für alle wählen …" }), ...["neu", "muster", "weg", "original"].map((w) => el("option", { value: w, text: DATEI_WEG_TEXT[w] + " (wo möglich)" })));
+  alle.addEventListener("change", () => {
+    if (!alle.value) return;
+    for (const x of document.querySelectorAll("[data-datei-weg]")) { if ([...x.options].some((o) => o.value === alle.value)) { x.value = alle.value; x.dispatchEvent(new Event("change")); } }
+    alle.value = "";
+  });
+  const neu = plan.filter((p) => p.vorgabe === "neu").length;
   return el("section", { class: "gruppe", "data-gruppe": "dateien" },
     el("h2", { text: "Dateien, die nicht Stelle für Stelle gereinigt werden (" + plan.length + ")" }),
-    el("p", { text: "Bilder, PDF, Office, Datenbanken und Ungeprüftes. Sie bleiben in der sauberen Kopie weg (neu gezeichnete Blätter kommen in Stufe 4). Wer eine trotzdem braucht, hakt sie an — sie geht dann unverändert und ungereinigt mit." }),
-    el("label", { class: "wahl" }, alle, el("span", { text: "alle unverändert übernehmen" })),
-    el("ul", { class: "datei-plan" }, ...boxen));
+    el("p", { text: "PDF und Bilder werden neu gezeichnet: gleiche Größe, gleicher Name, ohne Metadaten; wo ein Fund stand, sitzt ein grauer Kasten mit Etikett. Word, Excel und PowerPoint kommen als reiner Text neu (ohne Bilder und Formatierung). " +
+      "Was sich nicht neu bauen lässt, bleibt weg oder bekommt eine leere Vorlage aus der Mustermappe. „Unverändert“ geht ungereinigt mit und steht so im Bericht." +
+      (neu ? " Vorgabe: " + neu + "× neu zeichnen." : "") }),
+    el("div", { class: "weg-zeile" }, alle),
+    el("ul", { class: "datei-plan" }, ...zeilen));
 }
 
 function reinigenLeiste(ersetzbare, plan) {
   const knopf = knopfMit({ class: "knopf haupt-knopf", id: "reinigen" }, "reinigen", "Saubere Kopie bauen");
   knopf.addEventListener("click", reinigen);
+  const mappe = el("input", { type: "checkbox", id: "mustermappe" });
+  mappe.checked = mappeBeilegen;
+  mappe.addEventListener("change", () => { mappeBeilegen = mappe.checked; gereinigt = null; const e = $("#kopie-ergebnis"); if (e) e.replaceChildren(); });
+  const neu = plan.filter((p) => (dateiWahl[p.pfad] || p.vorgabe) === "neu").length, weg = plan.filter((p) => (dateiWahl[p.pfad] || p.vorgabe) === "weg").length;
   return el("section", { class: "reinigen", "data-reinigen": "" },
     el("p", { text: ersetzbare + " Werte werden ersetzt. Je Fund wählbar: „Automatisch“ setzt in Texten eine Marke (⟦NAME-1⟧) und im Code einen Musterwert, damit das Programm weiterläuft. .git geht nie mit. " +
-      (plan.length ? plan.length + " Datei(en) bleiben weg. " : "") + "Danach wird die Kopie noch einmal ganz durchsucht. Das Original bleibt unverändert." }),
+      (neu ? anzahl(neu, "Datei wird", "Dateien werden") + " neu gezeichnet. " : "") + (weg ? anzahl(weg, "Datei bleibt", "Dateien bleiben") + " weg. " : "") + "Danach wird die Kopie noch einmal ganz durchsucht. Das Original bleibt unverändert." }),
+    el("label", { class: "wahl" }, mappe, el("span", { text: "Mustermappe beilegen (leere Vorlagen und erfundene Beispiele, Ordner MUSTERMAPPE/)" })),
     knopf, el("div", { id: "kopie-ergebnis", "aria-live": "polite" }));
 }
 
@@ -388,11 +561,12 @@ async function reinigen() {
   const knopf = $("#reinigen"), aus = $("#kopie-ergebnis");
   knopf.disabled = true; aus.replaceChildren(el("p", { text: "Reinige und prüfe nach …" }));
   try {
-    gereinigt = await Kern.saubereKopie(eingeworfen, { ergebnis, wahl, uebernehmen: Array.from(uebernehmen) }, { begriffe, texterkennung });
+    gereinigt = await Kern.saubereKopie(eingeworfen, { ergebnis, wahl, dateiWahl: Object.assign({}, dateiWahl), mustermappe: mappeBeilegen },
+      { begriffe, texterkennung, fortschritt: (nr, _g, pfad) => { aus.replaceChildren(el("p", { text: "Zeichne neu (" + nr + "): " + pfad })); } });
   } catch (e) {
     aus.replaceChildren(warnZeile({ class: "offen" }, "Reinigen brach ab (" + (e && e.message || e) + "). Es gibt keine saubere Kopie."));
     knopf.disabled = false; return;
-  }
+  } finally { ocrBeenden(); }
   knopf.disabled = false;
   const n = gereinigt.nach, gut = !n.originalTreffer.length && !n.offen.length;
   const name = (eingeworfen[0] && eingeworfen[0].pfad.includes("/") ? eingeworfen[0].pfad.split("/")[0] : "projekt").replace(/[^\w.-]+/g, "_") || "projekt";
@@ -418,18 +592,22 @@ async function reinigen() {
   aus.replaceChildren(el("div", { class: "kopie " + (gut ? "gut" : "warn"), "data-kopie": gut ? "sauber" : "offen" },
     el("h3", {}, ikon(gut ? "haken" : "warn"), el("span", { text: gut ? "Saubere Kopie fertig" : "Kopie fertig — die Nachprüfung meldet noch etwas" })),
     el("ul", {},
-      el("li", { text: gereinigt.bericht.stellen + " Stellen ersetzt in " + gereinigt.sauber.length + " Dateien" }),
+      el("li", { text: anzahl(gereinigt.bericht.stellen, "Stelle", "Stellen") + " ersetzt in " + anzahl(gereinigt.bericht.dateien, "Datei", "Dateien") }),
+      gereinigt.bericht.neuGezeichnet.length ? el("li", { "data-neu-gezeichnet": String(gereinigt.bericht.neuGezeichnet.length), text: "Neu gebaut: " + anzahl(gereinigt.bericht.neuGezeichnet.length, "Datei", "Dateien") + " — " +
+        gereinigt.bericht.neuGezeichnet.map((n) => n.pfad.split("/").pop() + " (" + (/^(docx|xlsx|pptx)$/.test(n.art) ? anzahl(n.kaesten, "Stelle", "Stellen") : anzahl(n.kaesten, "Kasten", "Kästen")) + (Object.keys(n.versteckt).length ? ", versteckter Text weg" : "") + ")").join(", ") }) : null,
+      gereinigt.bericht.musterErsetzt.length ? el("li", { text: "Durch Muster ersetzt: " + gereinigt.bericht.musterErsetzt.length }) : null,
+      n.ungeprueft ? el("li", { "data-nach-ungeprueft": String(n.ungeprueft), text: "Ungeprüft bei der Nachprüfung: " + n.ungeprueft + " (" + n.ungeprueftListe.map((u) => u.pfad.split("/").pop()).slice(0, 5).join(", ") + ") — meist Text im Bild ohne Texterkennung" }) : null,
       el("li", { "data-original": String(n.originalTreffer.length), text: "Originalwerte in der Kopie: " + n.originalTreffer.length + (n.originalTreffer.length ? " — in " + Array.from(new Set(n.originalTreffer.map((t) => t.pfad))).join(", ") : "") }),
       el("li", { "data-offen": String(n.offen.length), text: "Neue Funde bei der Nachprüfung: " + n.offen.length }),
       el("li", {}, (() => { const k = el("button", { type: "button", class: "stelle-knopf", id: "vorher-nachher", text: "Vorher / nachher ansehen" }); k.append(ikon("weiter"));
-        k.addEventListener("click", () => { const d = gereinigt.sauber.find((x) => x.gereinigt); if (d) oeffneAnsicht(d.von, (gereinigt.stellenplan.find((s) => s.pfad === d.pfad) || {}).zeile, null, "sauber"); }); return k; })()),
+        k.addEventListener("click", () => { const d = gereinigt.sauber.find((x) => x.gereinigt && x.neu) || gereinigt.sauber.find((x) => x.gereinigt); if (d) oeffneAnsicht(d.von, (gereinigt.stellenplan.find((s) => s.pfad === d.pfad) || {}).zeile, null, "sauber"); }); return k; })()),
       el("li", { text: "Bewusst behalten: " + n.behalten + " · weggelassen: " + gereinigt.bericht.weggelassen.length + " · .git entfernt: " + gereinigt.bericht.gitDateien + " Dateien" })),
     n.offen.length ? el("ol", { class: "offen-liste" }, ...n.offen.slice(0, 50).map((b) => el("li", { text: b.artName + ": " + (b.wert !== b.satz ? b.wert : b.satz) + " (" + b.stellen.map((s) => s.pfad).slice(0, 3).join(", ") + ")" }))) : null,
     el("div", { class: "knoepfe" },
       laden("Saubere Kopie (ZIP)", zipName, gereinigt.zip, "application/zip"), teilen,
       laden("Stellenplan", Kern.STELLENPLAN_DATEI, beilage(Kern.STELLENPLAN_DATEI), "text/plain"),
       laden("Bericht", Kern.BERICHT_DATEI, beilage(Kern.BERICHT_DATEI), "text/plain")),
-    el("p", { class: "klein", text: "Stellenplan und Bericht liegen auch im ZIP. Sie nennen keine Werte. Die Zuordnung (welche Marke für welchen Wert steht) bleibt nur hier im Speicher — sie verschwindet mit „Neu“ (Tresor: Stufe 5)." })));
+    el("p", { class: "klein", text: "Stellenplan und Bericht liegen auch im ZIP (dort stehen die Kästen der neu gezeichneten Blätter mit Seite und Lage). Sie nennen keine Werte. Die Zuordnung (welche Marke für welchen Wert steht) bleibt nur hier im Speicher — sie verschwindet mit „Neu“ (Tresor: Stufe 5)." })));
 }
 
 function zeigeInventur() {
@@ -458,7 +636,7 @@ function zeigeInventur() {
   $("#inventur").replaceChildren(
     el("div", { class: "inventur-kopf" }, el("h2", { text: "Inventur (" + ergebnis.inventur.length + ")" }),
       el("label", {}, box, "nur Auffälliges")),
-    el("p", { class: "stufen-legende", text: "Stufe 1 voll reinigen · Stufe 2 neu bauen (kommt mit Stufe 4 des Projekts, bis dahin weggelassen) · Stufe 3 nur prüfen (entfernen oder unverändert übernehmen)." }),
+    el("p", { class: "stufen-legende", text: "Stufe 1 voll reinigen · Stufe 2 neu bauen (PDF und Bilder neu gezeichnet, Office als reiner Text) · Stufe 3 nur prüfen (weglassen, durch ein Muster ersetzen oder unverändert übernehmen)." }),
     el("ul", { class: "datei" }, ...zeilen));
 }
 
@@ -470,13 +648,14 @@ for (const k of document.querySelectorAll(".reiter-knopf")) k.addEventListener("
 /* ── Installieren und Aktualisieren (Klaus 2026-10-28) ─────────────────────
    Ablauf und Texte übernommen aus dem Auslieferungsprüfer (assets/installieren.js, dort seit 2026-09-30
    am Tablet getragen), hier mit Strich-Symbolen und ohne Inline-Stile (CSP). */
-export const APP_FASSUNG = "5";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
+export const APP_FASSUNG = "6";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
 let installEreignis = null;
 function alsApp() {
   try { return matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: window-controls-overlay)").matches || matchMedia("(display-mode: minimal-ui)").matches || navigator.standalone === true; }
   catch { return false; }
 }
-function melde(text) { $("#meldung-text").textContent = text; $("#meldung").hidden = false; }
+/* Meldung in Absätzen (Leerzeile im Text = neuer Absatz), nie als Text mit doppelten Zeilenumbrüchen. */
+function melde(text) { $("#meldung-text").replaceChildren(...String(text).split(/\n\s*\n/).map((t) => el("p", { text: t.trim() }))); $("#meldung").hidden = false; }
 $("#meldung-zu").addEventListener("click", () => { $("#meldung").hidden = true; });
 function installKnopf() { const k = $("#installieren"); k.hidden = alsApp(); k.dataset.lage = alsApp() ? "app" : installEreignis ? "angeboten" : "nicht-angeboten"; }
 addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEreignis = e; installKnopf(); });
@@ -514,9 +693,24 @@ $("#aktualisieren").title = "Neue Fassung holen (jetzt: Fassung " + APP_FASSUNG 
 /* Liegt eine neue Fassung bereit, wird der Knopf hervorgehoben. */
 if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("controllerchange", () => { const k = $("#aktualisieren"); k.dataset.neu = ""; k.title = "Neue Fassung da — tippen zum Laden"; });
 
+/* Hell oder dunkel (Klaus 2026-10-29): Automatisch (wie das Gerät) → Hell → Dunkel. Gemerkt wird nur diese Wahl. */
+const THEMEN = [["", "auto", "Automatisch"], ["hell", "hell", "Hell"], ["dunkel", "dunkel", "Dunkel"]];
+function themaZeigen() {
+  const jetzt = document.documentElement.dataset.thema || "", [, sym, wort] = THEMEN.find((t) => t[0] === jetzt) || THEMEN[0];
+  const k = $("#thema"); k.replaceChildren(ikon(sym), el("span", { class: "t", text: wort }));
+  k.title = "Darstellung: " + wort + " — tippen zum Wechseln"; k.setAttribute("aria-label", "Darstellung: " + wort + ", wechseln"); k.dataset.thema = jetzt || "auto";
+}
+$("#thema").addEventListener("click", () => {
+  const jetzt = document.documentElement.dataset.thema || "", neu = THEMEN[(THEMEN.findIndex((t) => t[0] === jetzt) + 1) % THEMEN.length][0];
+  if (neu) document.documentElement.dataset.thema = neu; else delete document.documentElement.dataset.thema;
+  try { if (neu) localStorage.setItem("reiniger-thema", neu); else localStorage.removeItem("reiniger-thema"); } catch { /* privates Fenster: gilt nur jetzt */ }
+  themaZeigen();
+});
+themaZeigen();
+
 /* Offline-Fähigkeit: nur der Code wird abgelegt, nie Daten. */
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol) && !new URLSearchParams(location.search).has("ohne-sw"))
   navigator.serviceWorker.register("sw.js").then((reg) => reg.update().catch(() => {})).catch(() => {});
 
 /* nur für die Proben */
-window.__reiniger = { oeffneAnsicht, APP_FASSUNG, starte, ergebnis: () => ergebnis, gereinigt: () => gereinigt, beispielProjekt };
+window.__reiniger = { oeffneAnsicht, APP_FASSUNG, starte, ergebnis: () => ergebnis, gereinigt: () => gereinigt, eingeworfen: () => eingeworfen, beispielProjekt, dateiWahl, Kern };

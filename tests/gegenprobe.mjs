@@ -42,6 +42,21 @@ const FAELLE = [
   ["ARCHIV", "assets/reiniger-kern.js", "      try { auf = await archivOeffnen(d.pfad, bytes); }", "      try { auf = null; }", /APK: geöffnet/],
   ["OCR", "assets/app.js", "T.createWorker = (sprachen, oem, opt, cfg) => roh(sprachen, oem, Object.assign({}, opt, { workerBlobURL: false }), cfg);", "T.createWorker = roh;", /Texterkennung: Mail im Bild/],
   ["ZEILEWEG", "assets/reiniger-kern.js", "          zeilen[nr - 1] = istDoku(pfad)", "          if (0) zeilen[nr - 1] = istDoku(pfad)", /Zeile entfernen/],
+  /* Stufe 4 und Hell/Dunkel (2026-10-29) */
+  ["REINIGUNGPIN", "assets/reinigung.js", "'use strict';", "'use strict'; ", /Pin assets\/reinigung\.js/],
+  ["DOM", "assets/reiniger-kern.js", "export const KERN_FASSUNG = \"3\";", "export const KERN_FASSUNG = \"3\"; export function x() { return document.title; }", /kein DOM/],
+  ["KASTEN", "assets/reiniger-kern.js", "      for (const k of ks) kastenMalen(s.bild, k);", "      for (const k of ks) void k;", /grauer Kasten/],
+  ["RAUSCHEN", "assets/reiniger-kern.js", "      rauschen(s.bild);\n", "\n", /untersten Bits ist weg/],
+  ["VERSTECKT", "assets/reiniger-kern.js", "        if (g) { versteckt[g] = (versteckt[g] || 0) + 1; R.zudecken(bild, st, m); continue; }", "        if (false) { continue; }", /Versteckter/],
+  ["KOMMENTAR", "assets/reiniger-kern.js", "(footer\\d*|footnotes|endnotes)", "(footer\\d*|footnotes|endnotes|comments)", /Word neu gebaut/],
+  ["NACHFINDEN", "assets/reiniger-kern.js", "    await nachfinden(abs.join(\"\\n\"), posten, optionen);\n", "", /nachgefunden|Nachprüfung 0/],
+  ["ZEILENUEBER", "assets/reiniger-kern.js", "  zeilen.forEach((z, i) => { if (alle.length) alle.push({ c: \" \" }); for (const c of z) alle.push(Object.assign(c, { zeile: i })); });\n  const roh = trefferInZeile(alle, posten);", "  const roh = zeilen.flatMap((z, i) => trefferInZeile(z.map((c) => Object.assign(c, { zeile: i })), posten));", /Zeilenumbruch/],
+  ["BREITE", "assets/app.js", "anteile: anteileVon(it), ", "", /deckt die Mail ganz/],
+  ["MUSTERWEG", "assets/reiniger-kern.js", "export function musterFuer(pfad) { return MUSTER_JE_ENDUNG[endungVon(pfad)] || null; }", "export function musterFuer() { return null; }", /Muster/],
+  ["KONTRAST", "assets/app.css", ".knopf.hell { min-height: 38px; background: rgb(0 20 40 / .35);", ".knopf.hell { min-height: 38px; background: rgb(255 255 255 / .6);", /Kontrast/],
+  ["DUNKEL", "assets/app.css", ":root[data-thema=\"dunkel\"] {", ":root[data-thema=\"xdunkel\"] {", /wirklich dunkel/],
+  ["UEBEREINANDER", "assets/app.css", ".wert { display: block; margin: 4px 0;", ".wert { display: block; margin: -16px 0 4px;", /Schrift über Schrift/],
+  ["LEERZEILE", "assets/app.js", "function melde(text) { $(\"#meldung-text\").replaceChildren(", "function melde(text) { $(\"#meldung-text\").style.whiteSpace = \"pre-line\"; $(\"#meldung-text\").textContent = text; $(\"#meldung\").hidden = false; return; $(\"#meldung-text\").replaceChildren(", /doppelte Leerzeile/],
   ["NETZ", "assets/app.js", "/* nur für die Proben */", "fetch(\"https://beispiel.example/\").catch(() => {});\n/* nur für die Proben */", /Kein Netz|Konsole/],
 ];
 const nur = process.env.NUR_FALL;
