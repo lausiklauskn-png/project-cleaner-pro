@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Keine Befehle für die Seite: sie liest Dateien nur über die Dateiauswahl und gibt nur über Downloads hinaus",
+  "windows": ["main"],
+  "permissions": []
+}

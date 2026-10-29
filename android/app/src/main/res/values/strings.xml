@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Projekt-Reiniger Pro</string>
+    <string name="title_activity_main">Projekt-Reiniger Pro</string>
+    <string name="package_name">de.familyprojekt.projektreiniger.pro</string>
+    <string name="custom_url_scheme">de.familyprojekt.projektreiniger.pro</string>
+</resources>

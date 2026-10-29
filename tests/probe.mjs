@@ -753,6 +753,30 @@ await seite.setViewportSize({ width: 1280, height: 800 });
     k.w === 900 && k.h === 160 && k.kasten && /E-Mail entfernt/.test(k.etikett) && !k.offen.some((x) => /MAIL/.test(x)) && k.original === 0 && k.grau.every((v) => v > 180 && v < 225), JSON.stringify(k));
 }
 
+/* Android-Hülle (Capacitor), nachgestellt: dieselbe Seite, aber ohne Installieren/Aktualisieren/Service-Worker,
+   und „Saubere Kopie (ZIP)“ geht über das Plugin „Speichern“ (System-Dialog „Speichern unter“). */
+{
+  const ctx2 = await browser.newContext({ viewport: { width: 412, height: 915 } }), s2 = await ctx2.newPage();
+  s2.on("request", (q) => { if (!q.url().startsWith(BASIS) && !q.url().startsWith("data:") && !q.url().startsWith("blob:")) netz.push(q.url()); });
+  await s2.addInitScript(() => { window.__gespeichert = []; window.Capacitor = { isNativePlatform: () => true,
+    nativePromise: (p, m, o) => { window.__gespeichert.push({ p, m, name: o.name, typ: o.typ, daten: o.daten }); return Promise.resolve({ gespeichert: true }); } }; });
+  await s2.goto(BASIS, { waitUntil: "load" });
+  ok("Android-Hülle: kein Installieren, kein Aktualisieren, kein Service-Worker", await s2.evaluate(async () =>
+    document.documentElement.dataset.huelle === "android" && document.querySelector("#installieren").hidden && document.querySelector("#aktualisieren").hidden &&
+    !(await navigator.serviceWorker.getRegistration())));
+  await s2.click("#beispiel");
+  await s2.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden, null, { timeout: 30000 });
+  await s2.click("#reinigen"); await s2.waitForSelector("[data-kopie]", { timeout: 60000 });
+  await s2.click('[data-laden$="-sauber.zip"]');
+  await s2.waitForFunction(() => window.__gespeichert.length > 0, null, { timeout: 10000 }).catch(() => {});
+  const g = await s2.evaluate(() => window.__gespeichert[0] || null);
+  let zipOk = false;
+  if (g) { const ein = await Kern.einwerfen([{ pfad: "k.zip", bytes: new Uint8Array(Buffer.from(g.daten, "base64")) }]); zipOk = ein.dateien.some((d) => d.pfad === "REINIGER-STELLENPLAN.txt"); }
+  ok("Android-Hülle: „Saubere Kopie (ZIP)“ geht über „Speichern unter“, die übergebene ZIP ist gültig", !!g && g.p === "Speichern" && g.m === "speichern" && g.name === "musterapp-sauber.zip" && g.typ === "application/zip" && zipOk,
+    JSON.stringify(g && { p: g.p, m: g.m, name: g.name, typ: g.typ, laenge: g.daten.length }));
+  ok("Android-Hülle: Meldung „Gespeichert“", await s2.evaluate(() => /Gespeichert: musterapp-sauber\.zip/.test(document.querySelector("#meldung-text").textContent)));
+  await ctx2.close();
+}
 ok("Kein Netz: keine einzige Anfrage nach außen", netz.length === 0, netz.join(", "));
 ok("Keine Fehler in der Konsole", konsole.length === 0, konsole.slice(0, 3).join(" | "));
 await browser.close(); server.close();
