@@ -5,7 +5,7 @@ einwerfen oder **hereinladen** (Fenster: wählen, ablegen, einfügen) → Funde 
 entscheiden (mit **Vorschau**, was aus der Zeile wird) → saubere Kopie als ZIP mit Stellenplan und Bericht → Nachprüfung →
 **herausladen** → auf Wunsch **Tresor** (verschlüsselte Datei mit Zuordnung und Originalen). Die **Gäste-Sperre** im Kopf schließt
 die App sofort. PDF und Bilder werden neu gezeichnet, Word/Excel/PowerPoint als reiner Text neu gebaut, dazu die Mustermappe.
-**Testfassungen** (Android-APK, Windows-Setup) liegen in der Vorab-Veröffentlichung **testfassung**. Klaus' Befund vom Tablet ist
+**Testfassungen 9** (Android-APK, Windows-Setup, Stand `f53fef1`) liegen in der Vorab-Veröffentlichung **testfassung**. Klaus' Befund vom Tablet ist
 eingearbeitet. Nächster Schritt: Klaus testet Fassung 9 (Tresor, Sperre, geteilte Ansicht, Hereinladen), danach **Stufe 6**
 (Zurückbauen, mit eigenen Werten füllen). Der Brief lebt **hier** im Repo `project-cleaner-pro`; die Fassung im Sende-Prüfer ist
 eingefroren und zeigt hierher.

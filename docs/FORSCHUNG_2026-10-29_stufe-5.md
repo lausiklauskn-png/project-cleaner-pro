@@ -61,4 +61,4 @@ Ergänzt den [Brief](BRIEF_2026-10-28_projekt-reiniger-pro.md) (Abschnitte „Be
 
 | Datum | von–bis (UTC) | Dauer | Repo | Was |
 |---|---|---|---|---|
-| 2026-10-29 | 06:31–ARBEITSENDE | ARBEITSDAUER | project-cleaner-pro | Befund (zwei Runden), Mustermappe-Fehler, Stufe 5 (Tresor, Gäste-Sperre), Hereinladen/Herausladen, Proben, Testfassung 9 (#10, #11) |
+| 2026-10-29 | 06:31–07:40 | ≈ 1 h 10 min | project-cleaner-pro | Befund (zwei Runden), Mustermappe-Fehler, Stufe 5 (Tresor, Gäste-Sperre), Hereinladen/Herausladen, Proben, Testfassung 9 (#10, #11, #12) |
