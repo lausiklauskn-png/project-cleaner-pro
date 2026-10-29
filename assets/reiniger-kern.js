@@ -44,7 +44,7 @@ export const ART_NAME = {
   BENUTZERPFAD: "Benutzername im Pfad", "GIT-NAME": "Git-Name", "GIT-ADRESSE": "Git-Adresse",
   ORT: "Ort", HOCHSCHULE: "Hochschule / Schule", FIRMA: "Firma", ADRESSE: "Straße und Hausnummer", "PLZ-ORT": "PLZ und Ort",
   KFZ: "Kfz-Kennzeichen", EIGENNAME: "Vorname (Vorschlag)", RECHNER: "Rechnername", ORDNERPFAD: "Ordnerpfad",
-  BEGRIFF: "Selbst eingetragen",
+  BEGRIFF: "Selbst eingetragen", GESPERRT: "Auf der Sperrliste",
 };
 
 /* Gefühlte Metadaten (Stufe 3): verraten erst zusammen etwas. */
@@ -650,8 +650,17 @@ export async function pruefe(dateien, optionen = {}) {
   const M25 = w.SbkimPseudonym, PA = w.PrueferAnhang, PM = w.PrueferMail;
   const fortschritt = optionen.fortschritt || (() => {});
   const begriffe = (optionen.begriffe || []).map(String).filter((b) => b.trim().length >= 2);
-  const gefuehltInText = (pfad, text, melde, quelle) => gefuehltInTextMit(pfad, text, melde, quelle, begriffe);
+  /* Stufe 7: die Sperrliste sucht überall mit, wo die gefühlten Metadaten suchen (Text, PDF, Office, .git, Zeichenketten). */
+  const sperr = optionen.sperrliste ? sperrlisteLesen(optionen.sperrliste) : null;
+  const sperrInText = (pfad, text, melde, quelle) => {
+    if (!sperr) return;
+    const zeile = quelle ? null : zeilenFinder(text);
+    for (const tr of sperrTreffer(text, sperr)) melde({ schicht: "hart", art: "GESPERRT", wert: tr.wert, pfad, zeile: zeile ? zeile(tr.index) : undefined, stelle: quelle,
+      satz: "Steht auf deiner Sperrliste (der Fingerabdruck stimmt) — ein bekannter fremder Wert." });
+  };
+  const gefuehltInText = (pfad, text, melde, quelle) => { gefuehltInTextMit(pfad, text, melde, quelle, begriffe); sperrInText(pfad, text, melde, quelle); };
   const inventur = [], befunde = [], hinweise = [];
+  if (optionen.sperrliste && !sperr) hinweise.push("Die Sperrliste ist beschädigt oder aus einer neueren Fassung — sie wurde NICHT benutzt.");
   if (!M25 || typeof M25.find !== "function")
     hinweise.push("Modul 25 (harte Angaben) fehlt — Namen, Mail, Telefon, IBAN, Datum und Schlüssel sind UNGEPRÜFT, nicht sauber.");
   if (!PM || typeof PM.pruefeMail !== "function")
@@ -682,6 +691,8 @@ export async function pruefe(dateien, optionen = {}) {
     const melde = (b) => { befunde.push(b); eintrag.befunde++; };
     const imGit = /(^|\/)\.git\//.test(d.pfad);
     if (!imGit) gefuehltImPfad(d.pfad, pfadeGesehen, melde, begriffe);
+    if (!imGit && sperr) for (const tr of sperrTreffer(d.pfad.replace(/_/g, " "), sperr)) melde({ schicht: "hart", art: "GESPERRT", wert: d.pfad.slice(tr.index, tr.ende), pfad: d.pfad, stelle: "im Datei- oder Ordnernamen",
+      satz: "Steht auf deiner Sperrliste (der Fingerabdruck stimmt) — ein bekannter fremder Wert." });
     if (d.unlesbar) { eintrag.ungeprueft = d.unlesbar; Object.assign(eintrag, einordnen(d.pfad, "")); continue; }
     if ((d.groesse || 0) > GROESSE_MAX) { eintrag.ungeprueft = "zu groß zum Lesen — ungeprüft"; Object.assign(eintrag, einordnen(d.pfad, "")); continue; }
     let bytes;
@@ -822,6 +833,18 @@ export async function pruefe(dateien, optionen = {}) {
       const e = inventur.find((x) => x.pfad === b.pfad); if (e) e.befunde--;
     }
   }
+  /* Ein Wert, den die Suche ohnehin gefunden hat (Mail, Name …), kommt nicht doppelt: er trägt nur das Zeichen „gesperrt“. */
+  if (sperr) {
+    const andere = new Map();
+    for (const b of befunde) if (b.art !== "GESPERRT") { const k = String(b.wert).toLowerCase(); if (!andere.has(k)) andere.set(k, []); andere.get(k).push(b); }
+    for (let i = befunde.length - 1; i >= 0; i--) {
+      const b = befunde[i];
+      if (b.art !== "GESPERRT" || !andere.has(String(b.wert).toLowerCase())) continue;
+      for (const x of andere.get(String(b.wert).toLowerCase())) { x.gesperrt = true; if (!/Sperrliste/.test(x.satz || "")) x.satz = (x.satz ? x.satz + " · " : "") + "steht auf deiner Sperrliste"; }
+      befunde.splice(i, 1);
+      const e = inventur.find((x) => x.pfad === b.pfad); if (e) e.befunde--;
+    }
+  }
   if (gitPakete) hinweise.push(gitPakete + " Git-Paket-Datei(en) nicht ausgepackt — die Geschichte darin ist ungeprüft. Die saubere Kopie bekommt ohnehin kein .git.");
   if (archivZuviel) hinweise.push(archivZuviel + " Datei(en) in Archiven über dem Deckel (" + ARCHIV_DATEIEN_MAX + " Dateien / " + (ARCHIV_SUMME_MAX >> 20) + " MB) nicht geöffnet — ungeprüft.");
   if (gitObjekteZuviel) hinweise.push(gitObjekteZuviel + " Git-Objekte über dem Deckel (" + GIT_OBJEKTE_MAX + ") nicht geöffnet — ungeprüft.");
@@ -845,6 +868,7 @@ export function buendeln(befunde) {
     let x = karte.get(k);
     if (!x) { x = { schicht: b.schicht, art: b.art, artName: ART_NAME[b.art] || b.art, wert: b.wert, vorschlag: !!b.vorschlag, satz: b.satz || "", anzahl: 0, dateien: 0, stellen: [] }; karte.set(k, x); }
     x.anzahl++;
+    if (b.gesperrt) x.gesperrt = true;
     x.stellen.push({ pfad: b.pfad, zeile: b.zeile, stelle: b.stelle });
   }
   const reihe = { hart: 0, meta: 1, gefuehlt: 2, auffaellig: 3 };
@@ -871,7 +895,7 @@ const KUERZEL = {
   NAME: "NAME", EIGENNAME: "NAME", VERFASSER: "NAME", COPYRIGHT: "NAME", "GIT-NAME": "NAME",
   MAIL: "MAIL", "GIT-ADRESSE": "ADRESSE-GIT", TELEFON: "TELEFON", IBAN: "IBAN", DATUM: "DATUM", SCHLUESSEL: "SCHLUESSEL",
   BENUTZERPFAD: "BENUTZER", BEGRIFF: "NAME", ORT: "ORT", "PLZ-ORT": "ORT", ADRESSE: "ADRESSE", HOCHSCHULE: "HOCHSCHULE", FIRMA: "FIRMA",
-  KFZ: "KFZ", RECHNER: "RECHNER", ORDNERPFAD: "PFAD",
+  KFZ: "KFZ", RECHNER: "RECHNER", ORDNERPFAD: "PFAD", GESPERRT: "GESPERRT",
 };
 /* Doku bekommt Marken, Code bekommt Musterwerte (damit das Programm weiterläuft). */
 const DOKU_ENDUNG = new Set("md markdown txt rst adoc tex eml mbox log".split(" "));
@@ -899,6 +923,7 @@ function musterWert(art, n, original) {
     case "KFZ": return "XX-MU " + n;
     case "RECHNER": return "MUSTER-PC-" + n;
     case "ORDNERPFAD": return /^\//.test(original) ? "/Volumes/Musterordner" + n : "C:\\Musterordner" + n;
+    case "GESPERRT": return "Musterwert-gesperrt-" + n;
     default: return "Musterwert " + n;
   }
 }
@@ -2239,4 +2264,261 @@ export function rueckbauText(b) {
   z.push("", "Plätze:");
   for (const p of b.plaetze) z.push("  · " + p.zeigt + " (" + p.artName + ") — " + (p.gefuellt ? "gefüllt" : "leer gelassen"));
   return z.join("\n") + "\n";
+}
+
+/* ══ Stufe 7: Sperrliste und Git-Wächter ══════════════════════════════════════════════════════════════
+ * Die Sperrliste hält bekannte fremde Werte (z. B. die aus dem Projekt eines Freundes) nur als Fingerabdruck:
+ * SHA-256 über Salz + Wert in einer festen Schreibweise (klein, nur Buchstaben und Ziffern, Wörter mit einem
+ * Leerzeichen). Im Klartext steht kein Wert darin. Gesucht wird Wortfolge für Wortfolge: jede Folge von 1 bis
+ * `woerterMax` Wörtern im Text bekommt denselben Fingerabdruck und wird verglichen.
+ *   „Erika Mustermann“, „erika.mustermann@…“ und „ERIKA  MUSTERMANN“ geben dieselbe Schreibweise; IBAN und
+ *   Telefon (alle Wörter mit Ziffern) zusätzlich ohne Leerzeichen („DE02 1203 …“ = „DE021203…“).
+ * Grenze, ehrlich: wer die Liste hat, kann kurze Werte (Vornamen, Orte) durchprobieren — das Salz verhindert nur
+ * vorbereitete Tabellen. Deshalb gehört die Liste nicht in ein öffentliches Repo, sondern in ein Geheimnis.
+ * Der Git-Wächter (`waechterPruefe`) hält an: Werte von der Sperrliste und Tresor-Dateien — immer. Alles andere,
+ * was die Suche findet, meldet er als Hinweis (mit `streng` hält er auch bei Mail, IBAN, Telefon, Schlüssel). Seine
+ * Ausgabe nennt nie einen Wert: sie landet in Protokollen (GitHub), die andere lesen. */
+export const SPERRLISTE_KENNUNG = "PROJEKT-REINIGER-SPERRLISTE";
+export const SPERRLISTE_FASSUNG = 1;
+export const SPERRLISTE_DATEI = "reiniger-sperrliste.json";
+export const SPERR_WOERTER_MAX = 12;      // längere Werte (mehr Wörter) nimmt die Liste nicht auf
+export const SPERR_ZEICHEN_MIN = 4;       // kürzere Werte auch nicht (zu viele Zufallstreffer)
+/* Arten, die beim Bauen aus einer Zuordnung NICHT vorgewählt sind: zu allgemein, um jeden Commit anzuhalten. */
+export const SPERR_NICHT_VORGEWAEHLT = ["DATUM", "ORT", "PLZ-ORT", "EIGENNAME", "HOCHSCHULE"];
+
+/* SHA-256 ohne Hilfe von außen (der Kern braucht sie synchron und in jeder Umgebung). */
+const SHA_K = new Uint32Array([
+  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+  0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+  0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+  0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2]);
+const SHA_W = new Uint32Array(64);
+/** SHA-256 einer Bytefolge → 64 Hex-Zeichen. */
+export function sha256(bytes) {
+  const n = bytes.length, bloecke = ((n + 9 + 63) >> 6), m = new Uint8Array(bloecke * 64);
+  m.set(bytes); m[n] = 0x80;
+  const bits = n * 8, dv = new DataView(m.buffer);
+  dv.setUint32(m.length - 8, Math.floor(bits / 4294967296)); dv.setUint32(m.length - 4, bits >>> 0);
+  let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a, h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
+  const W = SHA_W;
+  for (let o = 0; o < m.length; o += 64) {
+    for (let i = 0; i < 16; i++) W[i] = dv.getUint32(o + i * 4);
+    for (let i = 16; i < 64; i++) {
+      const a = W[i - 15], b = W[i - 2];
+      const s0 = ((a >>> 7) | (a << 25)) ^ ((a >>> 18) | (a << 14)) ^ (a >>> 3), s1 = ((b >>> 17) | (b << 15)) ^ ((b >>> 19) | (b << 13)) ^ (b >>> 10);
+      W[i] = (W[i - 16] + s0 + W[i - 7] + s1) | 0;
+    }
+    let a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, h = h7;
+    for (let i = 0; i < 64; i++) {
+      const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7)), ch = (e & f) ^ (~e & g);
+      const t1 = (h + S1 + ch + SHA_K[i] + W[i]) | 0;
+      const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10)), maj = (a & b) ^ (a & c) ^ (b & c);
+      const t2 = (S0 + maj) | 0;
+      h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+    }
+    h0 = (h0 + a) | 0; h1 = (h1 + b) | 0; h2 = (h2 + c) | 0; h3 = (h3 + d) | 0; h4 = (h4 + e) | 0; h5 = (h5 + f) | 0; h6 = (h6 + g) | 0; h7 = (h7 + h) | 0;
+  }
+  return [h0, h1, h2, h3, h4, h5, h6, h7].map((x) => (x >>> 0).toString(16).padStart(8, "0")).join("");
+}
+
+const RE_SPERR_WORT = /[\p{L}\p{N}]+/gu;
+const T8 = new TextEncoder();
+const sperrKlein = (w) => w.normalize("NFC").toLowerCase();
+const mitZiffer = (w) => /\p{N}/u.test(w);
+/** Die feste Schreibweise eines Werts: { raum, dicht|null, woerter } oder null (zu kurz / zu lang). */
+export function sperrForm(wert) {
+  const w = (String(wert).normalize("NFC").match(RE_SPERR_WORT) || []).map(sperrKlein);
+  const raum = w.join(" ");
+  if (!w.length || raum.replace(/ /g, "").length < SPERR_ZEICHEN_MIN || w.length > SPERR_WOERTER_MAX) return null;
+  return { raum, dicht: w.length > 1 && w.every(mitZiffer) ? w.join("") : null, woerter: w.length };
+}
+const abdruck = (salz, form) => sha256(T8.encode(salz + "\n" + form));
+/* Vorfilter: ein Bitfeld (2^16 Bit) über FNV-1a von Salz + Schreibweise. Er sagt nur „vielleicht“; erst dann rechnet
+   der Kern SHA-256. Er verrät nichts, was die Fingerabdrücke nicht schon verraten. FNV läuft Zeichen für Zeichen weiter. */
+const VORFILTER_BITS = 16;
+const fnvWeiter = (h, s) => { for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h; };
+const fnvStart = (salz) => fnvWeiter(0x811c9dc5 | 0, salz + "\n");
+const fnvFach = (h) => (h ^ (h >>> 16)) & ((1 << VORFILTER_BITS) - 1);
+function zufallsSalz() {
+  const b = new Uint8Array(16);
+  if (globalThis.crypto && typeof globalThis.crypto.getRandomValues === "function") globalThis.crypto.getRandomValues(b);
+  else throw new Error("kein-zufall");
+  return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Baut eine Sperrliste aus Klartext-Werten. Die Werte selbst stehen danach nirgends darin.
+ * @returns {{ liste, aufgenommen: number, zuKurz: number, zuLang: number }}
+ */
+export function sperrlisteBauen(werte, optionen = {}) {
+  const salz = optionen.salz || zufallsSalz();
+  const set = new Set(), filter = new Uint8Array(1 << (VORFILTER_BITS - 3)), start = fnvStart(salz);
+  const merke = (form) => { set.add(abdruck(salz, form)); const f = fnvFach(fnvWeiter(start, form)); filter[f >> 3] |= 1 << (f & 7); };
+  let aufgenommen = 0, zuKurz = 0, zuLang = 0, woerterMax = 1;
+  const gesehen = new Set();
+  for (const roh of werte || []) {
+    const f = sperrForm(roh);
+    if (!f) { if ((String(roh).match(RE_SPERR_WORT) || []).length > SPERR_WOERTER_MAX) zuLang++; else if (String(roh).trim()) zuKurz++; continue; }
+    if (gesehen.has(f.raum)) continue;
+    gesehen.add(f.raum); aufgenommen++;
+    merke(f.raum);
+    if (f.dicht) merke(f.dicht);
+    woerterMax = Math.max(woerterMax, f.woerter);
+  }
+  const liste = { kennung: SPERRLISTE_KENNUNG, fassung: SPERRLISTE_FASSUNG, erstellt: optionen.datum || new Date().toISOString().slice(0, 10),
+    hinweis: "Nur Fingerabdrücke (SHA-256 mit Salz), keine Werte. Nicht in ein öffentliches Repo legen: kurze Werte lassen sich durchprobieren.",
+    gruppen: aufgenommen ? [{ salz, woerterMax, abdruecke: Array.from(set).sort(), vorfilter: alsB64(filter) }] : [] };
+  return { liste, aufgenommen, zuKurz, zuLang };
+}
+
+/** Liest eine Sperrliste (Bytes, Text oder Objekt) und prüft ihre Form. → Liste oder null. */
+export function sperrlisteLesen(roh) {
+  let o = roh;
+  try {
+    if (roh instanceof Uint8Array) o = JSON.parse(new TextDecoder().decode(roh));
+    else if (typeof roh === "string") o = JSON.parse(roh);
+  } catch { return null; }
+  if (!o || o.kennung !== SPERRLISTE_KENNUNG || !Array.isArray(o.gruppen)) return null;
+  if (o.fassung > SPERRLISTE_FASSUNG) return null;
+  for (const g of o.gruppen) {
+    if (!g || typeof g.salz !== "string" || !/^[0-9a-f]{16,128}$/.test(g.salz) || !Array.isArray(g.abdruecke)) return null;
+    if (!Number.isInteger(g.woerterMax) || g.woerterMax < 1 || g.woerterMax > SPERR_WOERTER_MAX) return null;
+    if (!g.abdruecke.every((h) => typeof h === "string" && /^[0-9a-f]{64}$/.test(h))) return null;
+    if (g.vorfilter != null) { try { if (typeof g.vorfilter !== "string" || ausB64(g.vorfilter).length !== 1 << (VORFILTER_BITS - 3)) return null; } catch { return null; } }
+  }
+  return o;
+}
+/** Ist das eine Sperrliste? (für das Einwerfen: wird geladen, nicht geprüft) */
+export function istSperrliste(pfad, bytes) {
+  if (!bytes || bytes.length > 64 * 1024 * 1024 || !/\.json$/i.test(String(pfad || ""))) return false;
+  const anfang = new TextDecoder().decode(bytes.subarray(0, 400));
+  return anfang.includes(SPERRLISTE_KENNUNG) && !!sperrlisteLesen(bytes);
+}
+/** Mehrere Sperrlisten zu einer (gleiches Salz → eine Gruppe). */
+export function sperrlisteZusammen(...listen) {
+  const gruppen = new Map();
+  for (const l of listen.flat()) {
+    if (!l) continue;
+    for (const g of l.gruppen) {
+      const x = gruppen.get(g.salz) || { salz: g.salz, woerterMax: 1, abdruecke: new Set(), filter: new Uint8Array(1 << (VORFILTER_BITS - 3)), ohneFilter: false };
+      x.woerterMax = Math.max(x.woerterMax, g.woerterMax);
+      if (g.vorfilter) { const f = ausB64(g.vorfilter); for (let i = 0; i < f.length; i++) x.filter[i] |= f[i]; } else x.ohneFilter = true;
+      for (const h of g.abdruecke) x.abdruecke.add(h);
+      gruppen.set(g.salz, x);
+    }
+  }
+  return { kennung: SPERRLISTE_KENNUNG, fassung: SPERRLISTE_FASSUNG, erstellt: new Date().toISOString().slice(0, 10),
+    hinweis: "Nur Fingerabdrücke (SHA-256 mit Salz), keine Werte. Nicht in ein öffentliches Repo legen: kurze Werte lassen sich durchprobieren.",
+    gruppen: Array.from(gruppen.values()).map((g) => Object.assign({ salz: g.salz, woerterMax: g.woerterMax, abdruecke: Array.from(g.abdruecke).sort() }, g.ohneFilter ? {} : { vorfilter: alsB64(g.filter) })) };
+}
+/** Wie viele Fingerabdrücke trägt die Liste? */
+export function sperrlisteGroesse(liste) { return liste ? liste.gruppen.reduce((n, g) => n + g.abdruecke.length, 0) : 0; }
+
+const sperrBereit = new WeakMap();
+function sperrVorbereiten(liste) {
+  if (sperrBereit.has(liste)) return sperrBereit.get(liste);
+  const x = liste.gruppen.map((g) => ({ salz: g.salz, n: g.woerterMax, set: new Set(g.abdruecke), start: fnvStart(g.salz), filter: g.vorfilter ? ausB64(g.vorfilter) : null }));
+  sperrBereit.set(liste, x);
+  return x;
+}
+
+/**
+ * Sucht die Werte der Sperrliste in einem Text. Gibt die Stellen zurück (der Wert steht nur im eigenen Text —
+ * wer ihn zeigt, entscheidet der Aufrufer). An jeder Stelle gewinnt die längste Wortfolge.
+ * @returns {Array<{ wert: string, index: number, ende: number }>}
+ */
+export function sperrTreffer(text, liste) {
+  if (!liste || !text) return [];
+  const gruppen = sperrVorbereiten(liste);
+  if (!gruppen.length) return [];
+  const t = String(text), woerter = [];
+  RE_SPERR_WORT.lastIndex = 0;
+  for (let m; (m = RE_SPERR_WORT.exec(t));) woerter.push({ w: sperrKlein(m[0]), i: m.index, e: m.index + m[0].length, z: mitZiffer(m[0]) });
+  const nMax = Math.max(...gruppen.map((g) => g.n));
+  const aus = [];
+  for (let s = 0; s < woerter.length;) {
+    let bester = 0, raum = "", dicht = "", alleZ = true;
+    const hR = gruppen.map((g) => g.start), hD = gruppen.map((g) => g.start);
+    for (let n = 1; n <= nMax && s + n <= woerter.length; n++) {
+      const w = woerter[s + n - 1];
+      raum = n === 1 ? w.w : raum + " " + w.w; dicht += w.w; alleZ = alleZ && w.z;
+      for (let k = 0; k < gruppen.length; k++) { hR[k] = fnvWeiter(hR[k], n === 1 ? w.w : " " + w.w); hD[k] = fnvWeiter(hD[k], w.w); }
+      if (dicht.length < SPERR_ZEICHEN_MIN) continue;
+      for (let k = 0; k < gruppen.length; k++) {
+        const g = gruppen[k];
+        if (n > g.n && !alleZ) continue;
+        const vielleicht = (h) => { if (!g.filter) return true; const f = fnvFach(h); return (g.filter[f >> 3] >> (f & 7)) & 1; };
+        if ((n <= g.n && vielleicht(hR[k]) && g.set.has(abdruck(g.salz, raum))) || (n > 1 && alleZ && vielleicht(hD[k]) && g.set.has(abdruck(g.salz, dicht)))) { bester = n; break; }
+      }
+    }
+    if (bester) { const a = woerter[s].i, e = woerter[s + bester - 1].e; aus.push({ wert: t.slice(a, e), index: a, ende: e }); s += bester; }
+    else s++;
+  }
+  return aus;
+}
+
+/* Wert in der Wächter-Ausgabe: nie der Wert selbst. */
+const WAECHTER_HALT_STRENG = new Set(["MAIL", "IBAN", "TELEFON", "SCHLUESSEL"]);
+const waechterMuster = (w) => /muster|⟦|beispiel\.example|example\.(com|org|net)|@example\b|\.(example|test|invalid)\b/i.test(String(w));
+
+/**
+ * Der Git-Wächter: prüft Dateien (z. B. die eines Commits) und sagt, ob der Commit angehalten wird.
+ * `dateien`: [{ pfad, bytes }]. `texte`: weitere Texte ohne Datei (Commit-Nachricht, Name und Mail des Autors) als
+ * [{ wo, text }]. Optionen: `sperrliste`, `streng`, `werkzeuge`, `fortschritt`.
+ * @returns {Promise<{ halt: Array<{ pfad, zeile?, grund }>, hinweise: Array<{ pfad, zeile?, art, artName }>, ungeprueft: Array<{ pfad, grund }>, dateien: number }>}
+ */
+export async function waechterPruefe(dateien, optionen = {}) {
+  const liste = optionen.sperrliste || null;
+  const halt = [], hinweise = [], gesehen = new Set();
+  const halte = (pfad, zeile, grund) => { const k = pfad + ":" + (zeile || "") + ":" + grund; if (!gesehen.has(k)) { gesehen.add(k); halt.push({ pfad, zeile, grund }); } };
+  const SPERR_GRUND = "Wert von der Sperrliste";
+  const nurPruefen = [];
+  for (const d of dateien || []) {
+    const pfad = normPfad(d.pfad);
+    const bytes = d.bytes instanceof Uint8Array ? d.bytes : new Uint8Array(d.bytes || 0);
+    if (istTresor(pfad, bytes)) { halte(pfad, 0, "Tresor-Datei (" + TRESOR_ENDUNG + ") — gehört nie in ein Repo"); continue; }
+    if (liste) {
+      /* Sperrliste: jede Datei, auch in node_modules und Build-Ordnern; Text direkt, sonst lesbare Zeichenketten. */
+      for (const tr of sperrTreffer(pfad, liste)) halte(pfad, 0, SPERR_GRUND + " im Datei- oder Ordnernamen");
+      const t = istTextBytes(bytes) ? textAus(bytes) : null;
+      const text = t ? t.text : zeichenketten(bytes);
+      if (text) { const zeile = zeilenFinder(text); for (const tr of sperrTreffer(text, liste)) halte(pfad, t ? zeile(tr.index) : 0, SPERR_GRUND + (t ? "" : " (Zeichenkette in der Datei)")); }
+    }
+    nurPruefen.push({ pfad, bytes });
+  }
+  for (const x of optionen.texte || []) for (const _ of sperrTreffer(x.text, liste)) halte(x.wo, 0, SPERR_GRUND);
+  /* Der ganze Suchkern: findet in PDF, Office, Archiven mehr Text (dort auch die Sperrliste) und liefert die Hinweise. */
+  const r = nurPruefen.length ? await pruefe(nurPruefen, { werkzeuge: optionen.werkzeuge, sperrliste: liste, fortschritt: optionen.fortschritt }) : { befunde: [], inventur: [] };
+  for (const b of r.befunde) {
+    if (b.art === "GESPERRT" || b.gesperrt) { halte(b.pfad, b.zeile || 0, SPERR_GRUND + (b.stelle ? " (" + b.stelle + ")" : "")); continue; }
+    if (b.schicht !== "hart" && b.schicht !== "meta") continue;
+    if (b.vorschlag || b.art === "DATUM" || waechterMuster(b.wert)) continue;      // ein Datum allein nennt niemanden
+    if (optionen.streng && WAECHTER_HALT_STRENG.has(b.art)) { halte(b.pfad, b.zeile || 0, (ART_NAME[b.art] || b.art) + " (streng)"); continue; }
+    hinweise.push({ pfad: b.pfad, zeile: b.zeile, art: b.art, artName: ART_NAME[b.art] || b.art });
+  }
+  const ungeprueft = r.inventur.filter((e) => e.ungeprueft && e.art !== "ordner").map((e) => ({ pfad: e.pfad, grund: e.ungeprueft }));
+  return { halt, hinweise, ungeprueft, dateien: nurPruefen.length + halt.filter((h) => /Tresor/.test(h.grund)).length, texte: (optionen.texte || []).length };
+}
+
+/** Die Wächter-Ausgabe als Text (nennt Dateien, Zeilen und Arten — nie Werte). */
+export function waechterText(r, optionen = {}) {
+  const z = [];
+  const ort = (x) => x.pfad + (x.zeile ? ":" + x.zeile : "");
+  if (r.halt.length) {
+    z.push("Git-Wächter (Projekt-Reiniger Pro): ANGEHALTEN — " + r.halt.length + " Stelle(n).");
+    for (const h of r.halt.slice(0, 50)) z.push("  ✗ " + ort(h) + " — " + h.grund);
+    if (r.halt.length > 50) z.push("  … und " + (r.halt.length - 50) + " weitere");
+    z.push("", "Was tun: die Stellen entfernen (Projekt-Reiniger: einwerfen, reinigen), neu hinzufügen, neu committen.",
+      "Der Wert wird hier nie gezeigt — die Ausgabe landet in Protokollen, die andere lesen.");
+  } else z.push("Git-Wächter (Projekt-Reiniger Pro): frei — " + r.dateien + " Datei(en)" + (r.texte ? " und " + r.texte + " Text(e) (Nachricht, Autor)" : "") + " geprüft" + (optionen.sperrliste ? ", Sperrliste mit " + sperrlisteGroesse(optionen.sperrliste) + " Fingerabdrücken" : ", ohne Sperrliste") + ".");
+  if (r.hinweise.length) {
+    const je = new Map();
+    for (const h of r.hinweise) je.set(h.artName, (je.get(h.artName) || 0) + 1);
+    z.push("Hinweise (halten nicht an" + (optionen.streng ? "" : "; mit --streng halten Mail, IBAN, Telefon und Schlüssel an") + "): " + Array.from(je, ([a, n]) => a + " " + n + "×").join(", ") + ".");
+    for (const h of r.hinweise.slice(0, optionen.alleHinweise ? 1e9 : 10)) z.push("  · " + ort(h) + " — " + h.artName);
+    if (!optionen.alleHinweise && r.hinweise.length > 10) z.push("  … und " + (r.hinweise.length - 10) + " weitere");
+  }
+  return z.join("\n");
 }

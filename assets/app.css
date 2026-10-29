@@ -434,3 +434,11 @@ mark.ersatz { background: var(--gut-grund); color: var(--gut); outline: 1px soli
 #zurueck .knoepfe { margin-top: 12px; }
 .rueckbau-tresor { margin: 8px 0 12px; }
 @media (max-width: 380px) { .tresor-karte { padding: 10px 8px; } .tresor-karte .knopf { padding-left: 8px; padding-right: 8px; } }
+
+/* Stufe 7: Sperrliste */
+#sperrfenster .ansicht-kopf .satz { flex: 1 1 100%; margin: 0; font-size: .84rem; color: var(--leise); }
+#sperrfenster .knoepfe { margin-top: 12px; }
+.sperr-liste li { display: grid; gap: 2px; min-width: 0; }
+.sperr-liste code { font-weight: 600; color: var(--titel); overflow-wrap: anywhere; }
+.sperr-liste .wert { overflow-wrap: anywhere; min-width: 0; }
+.sperrliste-satz { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px; }

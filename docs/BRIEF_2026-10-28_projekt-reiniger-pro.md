@@ -1,14 +1,18 @@
 # Brief: Projekt-Reiniger Pro
 
-Stand 2026-10-29 (Abend), **Stufen 1–6 gebaut**, Fassung 10 (Abschnitte „Stufe 1/2/3/4/5/6 · gebaut“ unten). Die App reinigt:
+Stand 2026-10-29 (spät), **Stufen 1–7 gebaut**, Fassung 11 (Abschnitte „Stufe 1/2/3/4/5/6/7 · gebaut“ unten). Die App reinigt:
 einwerfen oder **hereinladen** (Fenster: wählen, ablegen, einfügen) → Funde ansehen (antippen = Datei an der Stelle) → je Fund
 entscheiden (mit **Vorschau**, was aus der Zeile wird) → saubere Kopie als ZIP mit Stellenplan und Bericht → Nachprüfung →
 **herausladen** → auf Wunsch **Tresor** (verschlüsselte Datei mit Zuordnung und Originalen) → **Zurückbauen** (Stufe 6: die
 Platzhalter mit eigenen Werten füllen oder einzelne Stellen mit dem Original zurückholen). Die **Gäste-Sperre** im Kopf schließt
 die App sofort. PDF und Bilder werden neu gezeichnet, Word/Excel/PowerPoint als reiner Text neu gebaut, dazu die Mustermappe.
 Neu auf der ersten Seite: **„So geht's“** — eine Vorführung, in der ein Finger die echte App bedient (Schritt 1–4).
-Klaus' Befund zu Fassung 9 ist eingearbeitet (Abschnitt „Befund zu Fassung 9“). Nächster Schritt: Klaus testet Fassung 10
-(Vorführung, „Neu“ links, Zurückbauen), danach **Stufe 7** (Git-Wächter und Sperrliste). Der Brief lebt **hier** im Repo
+Neu in Stufe 7: aus der Zuordnung eine **Sperrliste** herausladen (nur Fingerabdrücke, keine Werte) und den **Git-Wächter**
+einrichten, der jeden Commit und Push mit einem dieser Werte oder einer Tresor-Datei anhält — auch als GitHub-Prüfung.
+Klaus' Befund zu Fassung 9 ist eingearbeitet. ⚠ **Ein Befund zu Fassung 10 lag in der Sitzung von Stufe 7 nicht vor** (kein Issue,
+kein Kommentar, nichts im Auftrag) — er ist offen. Nächster Schritt: Klaus testet Fassung 11 (Vorführung, „Neu“ links, Zurückbauen,
+Sperrliste, Git-Wächter in einem eigenen Repo) und gibt den Befund **in den Auftrag**; danach Stufe 8 (APK/Windows fertig machen)
+oder der Einbau in die Familienakte (Stufe 9). Der Brief lebt **hier** im Repo
 `project-cleaner-pro`; die Fassung im Sende-Prüfer ist eingefroren und zeigt hierher.
 
 ## Anlass
@@ -245,6 +249,8 @@ Und das Icon so einfach wie das Familien-Icon, aber mit einem Cleaner-Zeichen.�
 
 ## Git-Wächter
 
+(Plan von 2026-10-28; gebaut: Abschnitt „Stufe 7 · gebaut“ unten.)
+
 Derselbe Suchkern läuft auch **vor jedem Commit** und als GitHub-Prüfung in Klaus' Repos.
 
 - Dazu gehört eine **Sperrliste** mit bekannten fremden Werten. Sie wird nur als Fingerabdruck
@@ -266,6 +272,8 @@ Damit der Reiniger später ohne Umbau in die Familienakte passt:
    verschliesse(zuordnung, originale, code) → tresorDatei
    oeffne(tresorDatei, code)          → { zuordnung, originale }
    fuelle(sauber, stellenplan, werte) → dateien
+   sperrlisteBauen(werte)             → { liste }        (Stufe 7, gebaut)
+   waechterPruefe(dateien, { sperrliste }) → { halt, hinweise }
    ```
    `dateien` ist eine Liste aus `{ pfad, bytes }`. Der Kern kennt weder das DOM noch IndexedDB
    noch das Netz.
@@ -307,13 +315,14 @@ ungereinigte ZIP, gilt:
 | 4 ✅ | Neu gezeichnete Blätter, Mustermappe — gebaut 2026-10-29 |
 | 5 ✅ | Tresor und Gäste-Sperre — gebaut 2026-10-29 (Ersatzschlüssel 3 aus 5 noch offen) |
 | 6 ✅ | Zurückbauen, mit eigenen Werten füllen — gebaut 2026-10-29 (Kästen in neu gezeichneten PDF/Bildern noch nicht füllbar) |
-| 7 | Git-Wächter und Sperrliste |
+| 7 ✅ | Git-Wächter und Sperrliste — gebaut 2026-10-29 (eingerichtet in Klaus' Repos: noch nicht; Klaus entscheidet je Repo) |
 | 8 (Test) | APK, danach Windows — **Testfassungen** gebaut 2026-10-29 (Debug-APK, Windows unsigniert); eigener Schlüssel, Signatur, Updates offen |
 | 9 | Einbau in die Familienakte |
 
 Abschlussbriefe: [Stufe 4 und Testfassungen](BRIEF_ABSCHLUSS_2026-10-29_stufe-4-und-testfassungen.md) ·
 [Befund und Stufe 5](BRIEF_ABSCHLUSS_2026-10-29_befund-und-stufe-5.md) · [Befund 9 und Stufe 6](BRIEF_ABSCHLUSS_2026-10-29_befund-9-und-stufe-6.md) ·
-Forschung: [Stufe 4](FORSCHUNG_2026-10-29_stufe-4.md) · [Stufe 5](FORSCHUNG_2026-10-29_stufe-5.md) · [Stufe 6](FORSCHUNG_2026-10-29_stufe-6.md).
+[Stufe 7](BRIEF_ABSCHLUSS_2026-10-29_stufe-7.md) ·
+Forschung: [Stufe 4](FORSCHUNG_2026-10-29_stufe-4.md) · [Stufe 5](FORSCHUNG_2026-10-29_stufe-5.md) · [Stufe 6](FORSCHUNG_2026-10-29_stufe-6.md) · [Stufe 7](FORSCHUNG_2026-10-29_stufe-7.md).
 
 ## Am Ende jeder Sitzung: Kurzauftrag zum Kopieren (Klaus 2026-10-28)
 
@@ -683,6 +692,44 @@ dann nicht erreichbar, obwohl die CLAUDE.md „immer sichtbar“ verlangt. Jetzt
   `kasten`); eigene Werte in Office tragen noch den grauen Grund der Marke; eine Kopie, die nach dem Reinigen von Hand geändert
   wurde (Zeilen verschoben) — dann meldet „Nicht gefunden“ die Stellen, gefüllt wird dort nichts; große Projekte; echte Geräte.
 
+## Stufe 7 · gebaut (2026-10-29)
+
+- **Sperrliste** (`reiniger-sperrliste.json`): je Wert ein Fingerabdruck — SHA-256 über ein zufälliges **Salz** und eine feste
+  Schreibweise (klein, nur Buchstaben und Ziffern, Wörter mit einem Leerzeichen). „Erika Mustermann“, „ERIKA  MUSTERMANN“ und
+  „erika.mustermann@…“ geben dieselben Wörter; IBAN und Telefon (alle Wörter mit Ziffern) zählen auch ohne Leerzeichen. Gesucht wird
+  **Wortfolge für Wortfolge** (1 bis 12 Wörter), nur ganze Wörter („Hamburger“ ist nicht „Hamburg“). Werte unter 4 Zeichen oder über
+  12 Wörter nimmt die Liste nicht auf (gezählt, nicht still). Ein **Vorfilter** (Bitfeld über einen schnellen Hash) spart das
+  SHA-256 für fast alle Wortfolgen: 1 MB Text in ≈ 0,2–0,4 s statt 6 s. Mehrere Listen lassen sich zusammenlegen.
+- **In der App:** nach dem Reinigen „**Sperrliste herausladen …**“ (auch im geöffneten Tresor: „Sperrliste daraus …“) — Fenster unter
+  dem Kopf, je Marke ein Haken mit dem Wert; Datum, Ort, PLZ-Ort, Vorname und Hochschule sind **nicht vorgewählt** (zu allgemein, um
+  jeden Commit anzuhalten). „Hier laden“ nimmt sie gleich in Gebrauch. **Eingeworfen** wird eine Sperrliste geladen, nicht geprüft:
+  erste Seite „Sperrliste geladen: N Fingerabdrücke — sucht beim Prüfen mit“ (entfernen geht). Jede Prüfung findet dann ihre Werte
+  als „**Auf der Sperrliste**“ — auch ohne Muster (ein Name ohne Anrede, ein Rechnername in anderer Schreibweise), auch in Datei- und
+  Ordnernamen; schon Gefundenes trägt nur den Satz „steht auf deiner Sperrliste“. Reinigen ersetzt sie wie jeden Fund, die
+  Nachprüfung sucht mit. Gespeichert wird nichts — nach dem Neuladen ist die Liste weg.
+- **Git-Wächter** (`tools/git-waechter.mjs`, Node, derselbe Kern): `--einrichten <repo>` legt **pre-commit** (vorgemerkte Dateien und
+  Autor), **commit-msg** (Nachricht) und **pre-push** (jeder Commit, der hinausgeht — auch ein Wert, der mit `--no-verify` hineinkam und
+  wieder gelöscht wurde) an; fremde Hooks bleiben (nur mit `--ersetzen`). Dazu `--bereich A..B`, `--alles`, `--ci`,
+  `--sperrliste-bauen werte.txt`, `--sperrliste-zusammen`. Er **hält an** bei Werten der Sperrliste (in jeder Datei, auch
+  `node_modules`, Binärdateien über ihre Zeichenketten, PDF/Office über den Kern) und bei **Tresor-Dateien** (auch umbenannt);
+  `--streng` hält auch bei Mail, IBAN, Telefon, Schlüssel. Alles andere ist **Hinweis** (Datum, Muster- und Beispielwerte nicht).
+  **Die Ausgabe nennt nie einen Wert** — nur Datei, Zeile, Art. Liste: `--sperrliste`, `REINIGER_SPERRLISTE` (Inhalt oder Pfad),
+  `<repo>/.git/reiniger-sperrliste.json`, `~/.config/projekt-reiniger/sperrliste.json`.
+- **GitHub-Prüfung** (`.github/workflows/waechter.yml`): bei push und pull_request jeden neuen Commit (neuer Zweig: alles, was der
+  Hauptzweig nicht hat; erster Push: ganze Geschichte), Anmerkungen `::error` ohne Wert, nur Leserechte. **Aufrufbar aus Klaus' anderen
+  Repos** (`uses: lausiklauskn-png/project-cleaner-pro/.github/workflows/waechter.yml@main`, `secrets: inherit`); die Sperrliste als
+  Geheimnis `REINIGER_SPERRLISTE`. In diesem Repo selbst läuft sie ohne Liste (nur Tresor-Dateien und Hinweise).
+- **Kern** (ohne DOM, Typen in `.d.ts`): `sha256`, `sperrForm`, `sperrlisteBauen`, `sperrlisteLesen`, `istSperrliste`, `sperrlisteZusammen`,
+  `sperrlisteGroesse`, `sperrTreffer`, `waechterPruefe`, `waechterText`; `pruefe(…, { sperrliste })` → Fundart `GESPERRT`.
+- **Proben:** `npm test` 360 grün · 0 ROT (+38: 14 Kern, 7 Werkzeug im echten Git mit Wegwerf-Repo und Wegwerf-Fernrepo, 1 Workflow,
+  16 Oberfläche). Gegenproben: 12 neue Fälle (siehe Abschlussbrief).
+- ⚠ **Grenzen, ehrlich:** Wer die Sperrliste hat, kann kurze Werte (Vornamen, Orte, Geburtsdaten) **durchprobieren** — das Salz
+  verhindert nur vorbereitete Tabellen. Darum gehört sie nicht in ein öffentliches Repo, sondern in `.git/` oder ein GitHub-Geheimnis.
+  `--no-verify` umgeht die Hooks (der Wächter sagt das offen) — dann fängt erst pre-push bzw. die GitHub-Prüfung, und die läuft **nach**
+  dem Push (der Wert liegt dann schon bei GitHub). Merge-Commits: nur was ihre Eltern-Commits bringen, nicht eine Konfliktlösung im
+  Merge selbst. Werte, die zerteilt oder verschlüsselt sind (Base64), findet die Liste nicht. Nicht gemessen: an Klaus' echten Repos,
+  unter Windows (Hooks brauchen `node` im Pfad), große Repos in der GitHub-Prüfung.
+
 ## Grenzen (vorab benannt)
 
 - Die Suche arbeitet mit Mustern und Listen. Sie findet viel, aber **nicht garantiert alles**.
@@ -691,6 +738,9 @@ dann nicht erreichbar, obwohl die CLAUDE.md „immer sichtbar“ verlangt. Jetzt
 - Klaus' Blick auf die Befundliste bleibt deshalb Pflicht.
 
 ## Offen
+
+- ⚠ **Befund zu Fassung 10** (Vorführung, „Neu“ links, Zurückbauen): lag in der Stufe-7-Sitzung nicht vor — bitte in den Kurzauftrag schreiben.
+- Git-Wächter in Klaus' Repos einrichten (je Repo: `--einrichten` am Rechner, Workflow-Datei, Geheimnis `REINIGER_SPERRLISTE`) — Klaus entscheidet, welche.
 
 - Eigene Adresse (Unterdomain) oder fürs Erste github.io?
 - ✅ Das Repo gibt es: `project-cleaner-pro` (Klaus 2026-10-28). Stufe 1 liegt darin.

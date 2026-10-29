@@ -90,6 +90,7 @@ const wahl = {};                 // buendelSchluessel → { weg, wert }
 const dateiWahl = {};            // Pfad → neu | muster | weg | original (Dateien, die nicht Stelle für Stelle gereinigt werden)
 let mappeBeilegen = false;       // Mustermappe in die saubere Kopie legen
 const begriffe = [];             // selbst eingetragene Namen, die die Suche nicht erkannt hat
+let sperrliste = null;           // Stufe 7: geladene Sperrliste (nur Fingerabdrücke) — sucht beim Prüfen mit, nur im Speicher
 
 /* pdf.js aus dem eigenen Ordner (nicht im Vorrat des Workers). */
 window.addEventListener("load", () => {
@@ -153,6 +154,9 @@ function quelleVon(liste) {
 
 async function starte(liste, opt = {}) {
   if (laeuft || gesperrt) return;
+  /* Eine Sperrliste (Stufe 7) wird geladen, nicht geprüft. Kam nur sie, wird das offene Projekt mit ihr neu geprüft. */
+  liste = await sperrlistenHerausnehmen(liste);
+  if (!liste.length) { if (ergebnis && eingeworfen.length) nochmal(); return; }
   /* Eine einzelne Tresor-Datei wird nicht geprüft, sondern geöffnet (Stufe 5). */
   if (liste.length === 1 && /\.rtresor$/i.test(liste[0].pfad)) return tresorZeigen(liste[0]);
   laeuft = true;
@@ -176,7 +180,7 @@ async function starte(liste, opt = {}) {
       mappeBeilegen = false; begriffe.length = 0; texterkennung = false;
       if (window.PrueferAnhang) window.PrueferAnhang.pfade({ tesseract: null });
     }
-    ergebnis = await Kern.pruefe(ein.dateien, { begriffe, texterkennung,
+    ergebnis = await Kern.pruefe(ein.dateien, { begriffe, texterkennung, sperrliste,
       fortschritt: (nr, gesamt, pfad) => { $("#fortschritt-text").textContent = "Lese " + nr + " von " + gesamt + ": " + pfad; const b = $("#fortschritt-balken"); b.max = gesamt; b.value = nr; },
     });
     ergebnis.hinweise.unshift(...ein.hinweise);
@@ -193,13 +197,13 @@ async function nochmal() {
   if (laeuft) return;
   laeuft = true; gereinigt = null;
   const fs = $("#fortschritt"); fs.hidden = false;
-  try { ergebnis = await Kern.pruefe(eingeworfen, { begriffe, texterkennung, fortschritt: (nr, g, p) => { $("#fortschritt-text").textContent = "Lese " + nr + " von " + g + ": " + p; } }); }
+  try { ergebnis = await Kern.pruefe(eingeworfen, { begriffe, texterkennung, sperrliste, fortschritt: (nr, g, p) => { $("#fortschritt-text").textContent = "Lese " + nr + " von " + g + ": " + p; } }); }
   finally { fs.hidden = true; laeuft = false; }
   zeigen();
 }
 
 function zuruecksetzen() {
-  ergebnis = null; eingeworfen = []; gereinigt = null; textCache.clear(); schliesseAnsicht(); tresorSchliessen(); rueckbauSchliessen();
+  ergebnis = null; eingeworfen = []; gereinigt = null; textCache.clear(); schliesseAnsicht(); tresorSchliessen(); rueckbauSchliessen(); sperrfensterSchliessen();
   $("#arbeit").hidden = true; $("#einwurf").hidden = false; $("#neu").hidden = true;
   $("#befunde").replaceChildren(); $("#inventur").replaceChildren();
 }
@@ -665,7 +669,7 @@ async function reinigen() {
   knopf.disabled = true; aus.replaceChildren(el("p", { text: "Reinige und prüfe nach …" }));
   try {
     gereinigt = await Kern.saubereKopie(eingeworfen, { ergebnis, wahl, dateiWahl: Object.assign({}, dateiWahl), mustermappe: mappeBeilegen },
-      { begriffe, texterkennung, fortschritt: (nr, _g, pfad) => { aus.replaceChildren(el("p", { text: "Zeichne neu (" + nr + "): " + pfad })); } });
+      { begriffe, texterkennung, sperrliste, fortschritt: (nr, _g, pfad) => { aus.replaceChildren(el("p", { text: "Zeichne neu (" + nr + "): " + pfad })); } });
   } catch (e) {
     aus.replaceChildren(warnZeile({ class: "offen" }, "Reinigen brach ab (" + (e && e.message || e) + "). Es gibt keine saubere Kopie."));
     knopf.disabled = false; return;
@@ -707,7 +711,9 @@ async function reinigen() {
       laden("Stellenplan", Kern.STELLENPLAN_DATEI, beilage(Kern.STELLENPLAN_DATEI), "text/plain"),
       laden("Bericht", Kern.BERICHT_DATEI, beilage(Kern.BERICHT_DATEI), "text/plain"),
       (() => { const k = knopfMit({ class: "knopf", id: "zurueckbauen" }, "zurueck", "Eigene Werte einsetzen …");
-        k.addEventListener("click", () => rueckbauOeffnen([...gereinigt.sauber, ...gereinigt.beilagen].map((d) => ({ pfad: d.pfad, bytes: d.bytes })), { name, zuordnung: gereinigt.zuordnung })); return k; })()),
+        k.addEventListener("click", () => rueckbauOeffnen([...gereinigt.sauber, ...gereinigt.beilagen].map((d) => ({ pfad: d.pfad, bytes: d.bytes })), { name, zuordnung: gereinigt.zuordnung })); return k; })(),
+      (() => { const k = knopfMit({ class: "knopf", id: "sperrliste-bauen" }, "schloss", "Sperrliste herausladen …");
+        k.addEventListener("click", () => sperrfensterOeffnen(gereinigt.zuordnung, { name })); return k; })()),
     tresorKarte(name),
     ...(([ik, erkl]) => [el("div", { class: "titel-zeile" }, el("span", { class: "klein", text: "Was liegt im ZIP?" }), ik), erkl])(info("Stellenplan und Bericht liegen auch im ZIP (dort stehen die Kästen der neu gezeichneten Blätter mit Seite und Lage). Sie nennen keine Werte. Die Zuordnung (welche Marke für welchen Wert steht) bleibt nur hier im Speicher — sie verschwindet mit „Neu“. Aufbewahren lässt sie sich nur verschlüsselt im Tresor.", "Stellenplan und Bericht"))));
 }
@@ -751,7 +757,7 @@ for (const k of document.querySelectorAll("#reiter .reiter-knopf")) k.addEventLi
 /* ── Installieren und Aktualisieren (Klaus 2026-10-28) ─────────────────────
    Ablauf und Texte übernommen aus dem Auslieferungsprüfer (assets/installieren.js, dort seit 2026-09-30
    am Tablet getragen), hier mit Strich-Symbolen und ohne Inline-Stile (CSP). */
-export const APP_FASSUNG = "10";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
+export const APP_FASSUNG = "11";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
 let installEreignis = null;
 function alsApp() {
   try { return matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: window-controls-overlay)").matches || matchMedia("(display-mode: minimal-ui)").matches || navigator.standalone === true; }
@@ -932,7 +938,9 @@ function tresorMalen(meldung) {
         rueckbauOeffnen(ein.dateien, { name: l[0].pfad.split("/").pop().replace(/(-sauber)?\.zip$/i, ""), zuordnung: o.zuordnung, ausTresor: true });
       });
       const [ik, erkl] = info("Die saubere Kopie (ZIP) wählen, die zu diesem Tresor gehört. Dann lassen sich einzelne Stellen mit dem Original füllen (z. B. das Impressum) oder alle mit eigenen Werten.", "Zurückbauen");
-      return el("div", { class: "rueckbau-tresor" }, el("div", { class: "titel-zeile" }, el("label", { class: "knopf", for: "rueckbau-wahl" }, ikon("zurueck"), "Saubere Kopie zurückbauen …"), ik), erkl, wahl);
+      const sp = knopfMit({ class: "knopf", id: "tresor-sperrliste" }, "schloss", "Sperrliste daraus …");
+      sp.addEventListener("click", () => sperrfensterOeffnen(o.zuordnung, { name: tresorName.replace(/-tresor-.*$|\.rtresor$/i, "") }));
+      return el("div", { class: "rueckbau-tresor" }, el("div", { class: "titel-zeile" }, el("label", { class: "knopf", for: "rueckbau-wahl" }, ikon("zurueck"), "Saubere Kopie zurückbauen …"), sp, ik), erkl, wahl);
     })(),
     el("section", { class: "gruppe" }, el("h2", { text: "Zuordnung (" + marken.length + ")" }), el("ul", { class: "datei-plan", id: "tresor-zuordnung" }, ...zeilen)),
     el("section", { class: "gruppe" }, el("h2", { text: "Originale (" + o.originale.length + ")" }),
@@ -969,12 +977,12 @@ function sperrFlaeche(modus) {
     : "Alles Offene liegt verschlüsselt nur im Speicher. Neu laden oder Schließen verwirft es.";
   $("#sperre-code").value = ""; $("#sperre-code2").value = ""; $("#sperre-meldung").textContent = "";
   s.hidden = false;
-  for (const x of [".kopf", "#haupt", "#ansicht", "#tresor", "#zurueck", "#meldung", "#import"]) { const e = $(x); if (e) e.inert = true; }
+  for (const x of [".kopf", "#haupt", "#ansicht", "#tresor", "#zurueck", "#sperrfenster", "#meldung", "#import"]) { const e = $(x); if (e) e.inert = true; }
   setTimeout(() => $("#sperre-code").focus(), 0);
 }
 function sperrFlaecheWeg() {
   $("#sperre").hidden = true; sperrModus = "";
-  for (const x of [".kopf", "#haupt", "#ansicht", "#tresor", "#zurueck", "#meldung", "#import"]) { const e = $(x); if (e) e.inert = false; }
+  for (const x of [".kopf", "#haupt", "#ansicht", "#tresor", "#zurueck", "#sperrfenster", "#meldung", "#import"]) { const e = $(x); if (e) e.inert = false; }
 }
 function sperren() {
   if (gesperrt || laeuft) { if (laeuft) melde("Erst die laufende Prüfung abwarten, dann sperren."); return; }
@@ -989,7 +997,7 @@ async function zuschliessen() {
     quelle, warAktiv: !!ergebnis, hatteKopie: !!gereinigt };
   /* 2. Alles Offene aus der Anzeige und aus dem Speicher. */
   for (const id of ["#befunde", "#inventur", "#zahlen", "#hinweise", "#ansicht", "#meldung-text"]) $(id).replaceChildren();
-  $("#meldung").hidden = true; schliesseAnsicht(); tresorSchliessen(); rueckbauSchliessen(); ocrBeenden();
+  $("#meldung").hidden = true; schliesseAnsicht(); tresorSchliessen(); rueckbauSchliessen(); sperrfensterSchliessen(); ocrBeenden();
   importListe.length = 0; $("#import-text").value = ""; $("#import-name").value = ""; importZu(); importMalen();
   ergebnis = null; gereinigt = null; eingeworfen = []; textCache.clear();
   for (const k of Object.keys(wahl)) delete wahl[k];
@@ -1361,3 +1369,106 @@ async function rueckbauLaden() {
   await hinausgeben(datei, g.zip, "application/zip");
 }
 window.__rueckbau = () => rueckbau && { plaetze: rueckbau.plaetze.length, originale: Object.keys(rueckbau.originale).length, name: rueckbau.name };
+
+/* ══ Stufe 7 · Sperrliste (Klaus 2026-10-28: „bevor irgendein Commit … in GitHub geschrieben wird“) ═══════════════
+   Aus der Zuordnung (gleich nach dem Reinigen oder aus dem Tresor) wird eine Liste von Fingerabdrücken: die Werte
+   selbst stehen nicht darin. Sie geht als Datei hinaus — für den Git-Wächter (tools/git-waechter.mjs, GitHub-Prüfung)
+   und für diese App: eingeworfen wird sie geladen, nicht geprüft, und sucht danach bei jeder Prüfung mit. */
+async function sperrlistenHerausnehmen(liste) {
+  const rest = [], neu = [];
+  for (const d of liste) {
+    if (/\.json$/i.test(d.pfad) && (d.groesse == null || d.groesse < 64 * 1024 * 1024) && (d.bytes || d.lesen)) {
+      let bytes = null;
+      try { bytes = d.bytes || await d.lesen(); } catch { bytes = null; }
+      if (bytes && Kern.istSperrliste(d.pfad, bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes))) { neu.push(Kern.sperrlisteLesen(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes))); continue; }
+    }
+    rest.push(d);
+  }
+  if (neu.length) {
+    const vorher = Kern.sperrlisteGroesse(sperrliste);
+    sperrliste = Kern.sperrlisteZusammen(sperrliste, ...neu);
+    sperrlisteZeigen();
+    melde("Sperrliste geladen: " + anzahl(Kern.sperrlisteGroesse(sperrliste) - vorher, "neuer Fingerabdruck", "neue Fingerabdrücke") + " (zusammen " + Kern.sperrlisteGroesse(sperrliste) + "). " +
+      "Sie wird nicht geprüft, sondern sucht ab jetzt bei jeder Prüfung mit. Gespeichert wird sie nicht — nach dem Neuladen der App ist sie weg.");
+  }
+  return rest;
+}
+function sperrlisteZeigen() {
+  const p = $("#sperrliste-satz");
+  if (!p) return;
+  p.hidden = !sperrliste;
+  if (!sperrliste) return;
+  const weg = el("button", { type: "button", class: "knopf klein-knopf", id: "sperrliste-weg", "aria-label": "Sperrliste wieder entfernen" }, ikon("weg"), "entfernen");
+  weg.addEventListener("click", () => { sperrliste = null; sperrlisteZeigen(); if (ergebnis && eingeworfen.length && !laeuft) nochmal(); });
+  p.replaceChildren(ikon("schloss"), el("span", { text: " Sperrliste geladen: " }), el("b", { "data-sperrliste": String(Kern.sperrlisteGroesse(sperrliste)), text: String(Kern.sperrlisteGroesse(sperrliste)) }), el("span", { text: " Fingerabdrücke — sucht beim Prüfen mit. " }), weg);
+}
+
+let sperrfenster = null;
+function sperrfensterSchliessen() {
+  sperrfenster = null;
+  const f = $("#sperrfenster"); if (f) { f.replaceChildren(); f.hidden = true; }
+}
+function sperrfensterOeffnen(zuordnung, opt = {}) {
+  if (gesperrt) return;
+  const zeilen = Object.entries(zuordnung || {}).map(([marke, z]) => ({ marke, art: z.art, werte: (z.werte || []).map(String).filter((w) => w.trim()) })).filter((z) => z.werte.length);
+  sperrfenster = { zeilen, name: (opt.name || "projekt").replace(/[^\w.-]+/g, "_") };
+  const f = $("#sperrfenster");
+  const zu = knopfMit({ class: "knopf", id: "sperrfenster-schliessen" }, "zurueck", "Schließen");
+  zu.addEventListener("click", sperrfensterSchliessen);
+  const vor = zeilen.filter((z) => !Kern.SPERR_NICHT_VORGEWAEHLT.includes(z.art)).length;
+  const kopf = el("div", { class: "ansicht-kopf" }, zu, el("span", { class: "pfad", text: "Sperrliste: " + sperrfenster.name }),
+    el("span", { class: "satz", text: anzahl(zeilen.length, "Wert", "Werte") + " · " + vor + " vorgewählt" }));
+  const [ik, erkl] = info("Die Sperrliste hält die fremden Werte nur als Fingerabdruck (SHA-256 mit Salz) — in der Datei steht kein Name, keine Mail, keine IBAN. " +
+    "Wozu: Der Git-Wächter hält jeden Commit und jeden Push an, in dem einer dieser Werte auftaucht (Datei, Nachricht, Autor, auch in alten Commits). " +
+    "Für den Wächter: als .git/reiniger-sperrliste.json ins eigene Repo legen (nie ins Repo selbst) oder bei GitHub als Geheimnis REINIGER_SPERRLISTE. " +
+    "Hier in der App: einwerfen wie ein Projekt — dann sucht sie bei jeder Prüfung mit. Vorsicht: wer die Datei hat, kann kurze Werte (Vornamen, Orte) durchprobieren. Deshalb sind Datum, Ort, Vorname und Hochschule nicht vorgewählt.", "Sperrliste");
+  const liste = zeilen.map((z) => {
+    const box = el("input", { type: "checkbox", "data-sperr-marke": z.marke });
+    box.checked = !Kern.SPERR_NICHT_VORGEWAEHLT.includes(z.art);
+    return el("li", { "data-sperr-zeile": z.marke },
+      el("label", { class: "wahl" }, box, el("code", { text: z.marke }), el("span", { class: "satz", text: " " + (Kern.ART_NAME[z.art] || z.art) })),
+      el("span", { class: "wert", text: z.werte.join(" · ") }));
+  });
+  const alle = knopfMit({ class: "knopf klein-knopf", id: "sperr-alle" }, "haken", "Alle");
+  const keine = knopfMit({ class: "knopf klein-knopf", id: "sperr-keine" }, "weg", "Keine");
+  const setze = (an) => { for (const b of document.querySelectorAll("[data-sperr-marke]")) b.checked = an; };
+  alle.addEventListener("click", () => setze(true)); keine.addEventListener("click", () => setze(false));
+  let mit = null, mitBox = null;
+  if (sperrliste) { mitBox = el("input", { type: "checkbox", id: "sperr-mit-geladener" }); mitBox.checked = true; mit = el("label", { class: "wahl" }, mitBox, el("span", { text: "Mit der geladenen Sperrliste zusammenlegen (" + Kern.sperrlisteGroesse(sperrliste) + " Fingerabdrücke)" })); }
+  const aus = el("div", { id: "sperr-ergebnis", "aria-live": "polite" });
+  const bauen = () => {
+    const gewaehlt = new Set(Array.from(document.querySelectorAll("[data-sperr-marke]:checked"), (b) => b.dataset.sperrMarke));
+    const werte = zeilen.filter((z) => gewaehlt.has(z.marke)).flatMap((z) => z.werte);
+    if (!werte.length) { aus.replaceChildren(el("p", { class: "satz", text: "Kein Wert gewählt." })); return null; }
+    const r = Kern.sperrlisteBauen(werte);
+    return Object.assign(r, { liste: mitBox && mitBox.checked ? Kern.sperrlisteZusammen(sperrliste, r.liste) : r.liste });
+  };
+  const laden = knopfMit({ class: "knopf haupt-knopf", id: "sperr-laden" }, "laden", "Sperrliste herausladen");
+  laden.addEventListener("click", async () => {
+    const r = bauen(); if (!r) return;
+    const bytes = new TextEncoder().encode(JSON.stringify(r.liste, null, 1) + "\n");
+    aus.replaceChildren(el("div", { class: "kopie gut", "data-sperr-fertig": String(r.aufgenommen) },
+      el("h3", {}, ikon("haken"), el("span", { text: "Sperrliste fertig: " + Kern.SPERRLISTE_DATEI })),
+      el("ul", {},
+        el("li", { text: anzahl(r.aufgenommen, "Wert", "Werte") + " als Fingerabdruck (" + Kern.sperrlisteGroesse(r.liste) + " insgesamt)" }),
+        r.zuKurz ? el("li", { text: "Zu kurz, nicht aufgenommen: " + r.zuKurz + " (unter " + Kern.SPERR_ZEICHEN_MIN + " Zeichen)" }) : null,
+        r.zuLang ? el("li", { text: "Zu lang, nicht aufgenommen: " + r.zuLang + " (über " + Kern.SPERR_WOERTER_MAX + " Wörter)" }) : null),
+      el("p", { class: "satz", text: "Die Datei nennt keinen Wert. Gespeichert wird nichts." })));
+    await hinausgeben(Kern.SPERRLISTE_DATEI, bytes, "application/json");
+  });
+  const hier = knopfMit({ class: "knopf", id: "sperr-hier" }, "lesen", "Hier laden (prüft ab jetzt mit)");
+  hier.addEventListener("click", () => {
+    const r = bauen(); if (!r) return;
+    sperrliste = r.liste; sperrlisteZeigen();
+    aus.replaceChildren(el("p", { class: "satz", "data-sperr-hier": String(Kern.sperrlisteGroesse(sperrliste)), text: "Geladen: " + Kern.sperrlisteGroesse(sperrliste) + " Fingerabdrücke. Jede neue Prüfung sucht sie mit — nur bis die App neu geladen wird." }));
+  });
+  f.replaceChildren(kopf, el("div", { class: "ansicht-koerper" },
+    el("div", { class: "titel-zeile" }, el("p", { class: "satz", text: "Welche Werte sollen nie in ein Repo? Gewählt wird je Marke." }), ik), erkl,
+    el("div", { class: "weg-zeile" }, alle, keine),
+    el("ul", { class: "datei-plan sperr-liste", id: "sperr-liste" }, ...liste),
+    mit,
+    el("div", { class: "knoepfe" }, laden, hier),
+    aus));
+  f.hidden = false;
+}
+window.__sperrliste = () => sperrliste && { groesse: Kern.sperrlisteGroesse(sperrliste), gruppen: sperrliste.gruppen.length };
