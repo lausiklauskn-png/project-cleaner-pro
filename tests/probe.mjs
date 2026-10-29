@@ -1077,6 +1077,18 @@ await seite.setViewportSize({ width: 1280, height: 800 });
     if (!z.deckt) ueberApp = false;
     /* daneben erst, wenn es nach einem Bild-Nachlauf (die Seite kann sich gerade verschoben haben) immer noch daneben ist */
     if (z.offen && z.x && !z.auf) { await s5.waitForTimeout(120); const n = await s5.evaluate(() => { const v = window.__vorfuehrung(), q = document.querySelector(".vf-ziel"); if (!q || !v.laeuft) return true; const r = q.getBoundingClientRect(); return !r.width || (v.x >= r.left - 2 && v.x <= r.right + 2 && v.y >= r.top - 2 && v.y <= r.bottom + 2); }); if (!n) { fingerAufZiel = false; daneben.push(z.schritt + " " + z.x + "," + z.y); } }
+    /* Die Seite rutscht unter dem Finger (Vorschau lädt, Ergebnis schiebt): absichtlich 60 px — der Finger muss mitkommen. */
+    if (!schritte.__geschoben && await s5.evaluate(() => !!document.querySelector(".vf-ziel[data-wert]"))) {
+      schritte.__geschoben = 1;
+      const mit = await s5.evaluate(async () => {
+        const z = document.querySelector(".vf-ziel"), luecke = document.createElement("div"); luecke.style.height = "60px";
+        z.parentElement.insertBefore(luecke, z);
+        await new Promise((ok) => setTimeout(ok, 120));
+        const r = z.getBoundingClientRect(), v = window.__vorfuehrung(); luecke.remove();
+        return v.y >= r.top - 2 && v.y <= r.bottom + 2;
+      });
+      ok("Vorführung: rutscht die Seite unter dem Finger, kommt er mit (er bleibt auf seinem Ziel)", mit);
+    }
     if (schritte.has("Schritt 2 von 4:") && !schritte.__gemessen) { schritte.__gemessen = 1; const f = await s5.evaluate(messen); ok("Vorführung läuft 1280×800: die App darunter ist unverändert (nichts quer, keine Schrift über Schrift)", f.length === 0, f.slice(0, 3).join(" | ")); }
     await s5.waitForTimeout(150);
   }

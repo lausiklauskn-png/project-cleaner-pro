@@ -87,7 +87,7 @@ const FAELLE = [
   ["NAMEN", "index.html", "</svg>Ordner einfügen</label>", "</svg>Ordner</label>", /jeder Knopf sagt, was er tut/],
   ["NEULINKS", "assets/app.css", ".ein-aus { display: flex;", ".ein-aus { flex-direction: row-reverse; display: flex;", /„Neu“ links neben/],
   ["VFTIPP", "assets/app.js", "$(\"#vorfuehrung\").addEventListener(\"pointerdown\", (e) => { e.preventDefault(); vorfuehrungEnde(); });", "", /ein Tipp beendet/],
-  ["VFFOLGEN", "assets/app.js", "  const folgen = () => { if (v.aus) return; vfFingerSetzen(false); requestAnimationFrame(folgen); };", "  const folgen = () => {};", /Finger steht auf dem Knopf/],
+  ["VFFOLGEN", "assets/app.js", "  const folgen = () => { if (v.aus) return; vfFingerSetzen(false); requestAnimationFrame(folgen); };", "  const folgen = () => {};", /Finger steht auf dem Knopf|kommt er mit/],
   /* Stufe 6 · Zurückbauen */
   ["RBWORTGRENZE", "assets/reiniger-kern.js", "(wortZ.test(v[v.length - 1]) ? \"(?![\" + wz + \"])\" : \"\")).join(\"|\"), \"g\");", "\"\").join(\"|\"), \"g\");", /Byte für Byte das Original/],
   ["RBMUSTERART", "assets/reiniger-kern.js", "  return istMarke(e) ? e : s.art + \"|\" + e;", "  return e;", /Plätze gebündelt|Byte für Byte/],
