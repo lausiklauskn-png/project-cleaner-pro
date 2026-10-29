@@ -10,16 +10,20 @@ Funde und Lehren: [Forschung](FORSCHUNG_2026-10-29_stufe-4.md). Bilder: [`bilder
 | Fassung | Wo | Stand |
 |---|---|---|
 | PWA, Fassung 7 | https://lausiklauskn-png.github.io/project-cleaner-pro/ — „Aktualisieren“ im Kopf tippen | main |
-| Android-Testfassung | Release **testfassung**: `Projekt-Reiniger-Pro-Test-7.apk` | __APK__ |
-| Windows-Testfassung | Release **testfassung**: `Projekt-Reiniger-Pro-Test-7-Windows-Setup.exe` | __EXE__ |
+| Android-Testfassung | Release **testfassung**: `Projekt-Reiniger-Pro-Test-7.apk` | [APK](https://github.com/lausiklauskn-png/project-cleaner-pro/releases/download/testfassung/Projekt-Reiniger-Pro-Test-7.apk) 21.875.544 B `ac88a9aa…`, Stand `e9c48c5` |
+| Windows-Testfassung | Release **testfassung**: `Projekt-Reiniger-Pro-Test-7-Windows-Setup.exe` | [Setup](https://github.com/lausiklauskn-png/project-cleaner-pro/releases/download/testfassung/Projekt-Reiniger-Pro-Test-7-Windows-Setup.exe) 13.049.264 B `eb8e2853…`, Stand `e9c48c5` |
 
 Release-Seite: https://github.com/lausiklauskn-png/project-cleaner-pro/releases/tag/testfassung (jede neue Fassung auf
-main ersetzt sie; Prüfsummen liegen daneben).
+main ersetzt sie; Prüfsummen liegen daneben, SHA-256 vollständig: APK `ac88a9aac8cfd1972676927640a8e9a85d18f307edc97c383d156b0a2fff0ab0`,
+Setup `eb8e28538f8b1fead2498f04054ed9c3f855b1cdb8e248e29fba646eb4edbce8`). ⚠ Die Downloads wurden von hier aus nicht
+unabhängig nachgeladen (der Netzfilter dieser Sitzung sperrt github.io und Release-Downloads); die Prüfsummen stammen von GitHub.
 
 ## PRs (nach grünen Proben selbst gemergt, Freibrief NETZWEIT § 1)
 
 - #7 Stufe 4: neu gezeichnete Blätter, Mustermappe, Hell/Dunkel — `npm test` 222 grün, Gegenprobe 48 gefangen · 0 blind.
-- #8 Testfassungen: Android-APK (Capacitor 8.5.3) und Windows-Setup (Tauri 2) — `npm test` 225 grün, Bau auf GitHub grün.
+- #8 Testfassungen: Android-APK (Capacitor 8.5.3) und Windows-Setup (Tauri 2) — `npm test` 225 grün, Bau auf GitHub beim ersten
+  Lauf grün (APK 1,5 min, Windows 5 min); der Lauf auf main hat die Vorab-Veröffentlichung angelegt (00:48 UTC).
+- #9 Brief, Anker, Abschlussbrief (nur Doku).
 
 ## So testet Klaus (im Groben: funktioniert das Vorhaben?)
 
@@ -43,7 +47,7 @@ main ersetzt sie; Prüfsummen liegen daneben).
 
 | Datum | von–bis (UTC) | Dauer | Repo | Was |
 |---|---|---|---|---|
-| 2026-10-28/29 | __ZEIT__ | __DAUER__ | project-cleaner-pro | Stufe 4 (Blätter, Mustermappe), Hell/Dunkel + Kontrast, Schrift-Proben, Testfassungen APK/Windows, Veröffentlichung (#7, #8) |
+| 2026-10-28/29 | 23:37–00:55 | ≈ 1 h 20 min | project-cleaner-pro | Stufe 4 (Blätter, Mustermappe), Hell/Dunkel + Kontrast, Schrift-Proben, Testfassungen APK/Windows, Veröffentlichung (#7, #8) |
 
 ## Nächste Sitzung
 
