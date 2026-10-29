@@ -6,16 +6,16 @@ oder nach GitHub gehen. Kein Build-Schritt. Der Plan steht im Brief:
 er ist die Quelle, diese Datei ist nur der Anker. Am Ende jeder Sitzung: Brief nachziehen und einen
 Kurzauftrag zum Kopieren ausgeben.
 
-## Stand: Stufen 1–4 + Testfassungen APK/Windows (2026-10-29) · nächster Schritt: Klaus' Test-Befund, dann Stufe 5
+## Stand: Stufen 1–5 + Testfassungen APK/Windows + Befund 1 (2026-10-29) · nächster Schritt: Klaus testet Fassung 8, dann Stufe 6
 
 | Datei | Rolle |
 |---|---|
-| `assets/reiniger-kern.js` + `.d.ts` | **Der Kern ohne Oberfläche** (ES-Modul). Kein DOM, keine IndexedDB, kein Netz — die Probe prüft das. Wandert später byte-1:1 in die Familienakte. Heute: `einwerfen`, `zipDateien`, `einordnen`, `pruefe`, `buendeln`, `gefuehlt`, `reinige`, `nachpruefe`, `saubereKopie`, `zipBauen`; Stufe 4: `dateiPlan` (Wege je Datei), `blattNeu`, `blattKaesten`, `kastenMalen`, `rauschen`, `pdfBauen`, `pngBauen`, `docxBauen`/`xlsxBauen`/`pptxBauen`, `mustermappe`, `musterFuer`. Zeichnen bringt der Aufrufer mit (`werkzeuge.Zeichner`, im Browser `app.js`). |
+| `assets/reiniger-kern.js` + `.d.ts` | **Der Kern ohne Oberfläche** (ES-Modul). Kein DOM, keine IndexedDB, kein Netz — die Probe prüft das. Wandert später byte-1:1 in die Familienakte. Heute: `einwerfen`, `zipDateien`, `einordnen`, `pruefe`, `buendeln`, `gefuehlt`, `reinige`, `nachpruefe`, `saubereKopie`, `zipBauen`, `vorschau`; Stufe 5: `verschliesse`, `oeffne`, `tresorKopf`, `istTresor`, `codeGuete`, `sperrWartezeit`, `sperrPaket`/`sperrAuf` (Schloss bringt der Aufrufer: `werkzeuge.WERKSTATT_SCHLUESSEL`); Stufe 4: `dateiPlan` (Wege je Datei), `blattNeu`, `blattKaesten`, `kastenMalen`, `rauschen`, `pdfBauen`, `pngBauen`, `docxBauen`/`xlsxBauen`/`pptxBauen`, `mustermappe`, `musterFuer`. Zeichnen bringt der Aufrufer mit (`werkzeuge.Zeichner`, im Browser `app.js`). |
 | `assets/reiniger-listen.js` | **Wortlisten** für die gefühlten Metadaten (Städte, Stadtteile, Hochschulen, Firmenformen, Straßenendungen, Kfz-Zeichen, Vornamen). Einziger Import des Kerns — wandert mit ihm. Neue Wörter: erst `npm test` (Fallen-Probe), mehrdeutige Wörter nach `STAEDTE_MEHRDEUTIG`. |
 | `assets/app.js`, `assets/app.css`, `index.html`, `assets/thema.js` | Oberfläche. Fremdes nur über `textContent`. `app.js` enthält den **Zeichner** (pdf.js, Leinwand, Texterkennung mit Wortkästen, gemessene Zeichenbreiten). Farben nur als Variablen mit Hell- und Dunkel-Satz; `thema.js` setzt die gemerkte Wahl vor dem ersten Zeichnen. |
 | `tools/native/prepare-web.mjs`, `capacitor.config.json`, `android/`, `windows/`, `.github/workflows/testfassungen.yml` | **App-Hüllen** (wie Private Brain Pro): Android über Capacitor 8.5.3 (Plugin `Speichern` für „Speichern unter“), Windows über Tauri 2. Gebaut nur auf GitHub; auf `main` → Vorab-Veröffentlichung `testfassung`. `www/`, `windows/dist`, Build-Ordner nie einchecken. In der Hülle (`HUELLE` in app.js) kein Installieren/Aktualisieren/Service-Worker. |
 | `assets/beispiel.js` | Erfundenes Beispielprojekt (Knopf „🧪 Beispielprojekt“ und Proben). |
-| `modules/25_pseudonym.js`, `assets/pruefer-anhang.js`, `pruefer-formate.js`, `pruefer-mail.js`, `pruefer.js`, `reinigung.js`, `vendor/pdfjs/`, `vendor/tesseract/` | **byte-1:1** aus Sende-Prüfer (`d8a8c54`) bzw. Sage/Auslieferungsprüfer, `reinigung.js` aus Workflow PDF (`a2cfdf1`), Tesseract aus Workflow PDF Pro, per SHA-256 in `tests/probe.mjs` gepinnt (`PINS`). **Nie hier abwandeln** — dort pflegen, neu kopieren, Pin nachziehen, `CACHE_VERSION` in `sw.js` erhöhen. |
+| `modules/25_pseudonym.js`, `assets/pruefer-anhang.js`, `pruefer-formate.js`, `pruefer-mail.js`, `pruefer.js`, `reinigung.js`, `schluesseltresor.js`, `vendor/pdfjs/`, `vendor/tesseract/` | **byte-1:1** aus Sende-Prüfer (`d8a8c54`) bzw. Sage/Auslieferungsprüfer, `reinigung.js` aus Workflow PDF (`a2cfdf1`), `schluesseltresor.js` (das Schloss) aus kim-hub-company `1a4528d` über den Sende-Prüfer (`TRESOR_SHA`), Tesseract aus Workflow PDF Pro, per SHA-256 in `tests/probe.mjs` gepinnt (`PINS`). **Nie hier abwandeln** — dort pflegen, neu kopieren, Pin nachziehen, `CACHE_VERSION` in `sw.js` erhöhen. |
 
 - **Fassung:** bei jeder Änderung an einer Datei aus `CORE` (sw.js) `CACHE_VERSION` **und** `APP_FASSUNG` (app.js) gleich erhöhen — sonst bleibt am Handy die alte Fassung; die Probe vergleicht beide. Kopf-Knöpfe „Installieren“ und „Aktualisieren“ (leert nur den `reiniger-…`-Vorrat).
 
@@ -39,6 +39,13 @@ Kurzauftrag zum Kopieren ausgeben.
 - **Neu gezeichnete Blätter (Stufe 4):** nie schwärzen — PDF-Seiten und Bilder als Bild neu, grauer Kasten mit Etikett (nur die Art,
   nie der Wert), Kastenbreite gerundet, Rauschen über das unterste Bit; Office als reiner Text. Was neu gebaut wird, wird im
   **eigenen** gelesenen Text noch einmal durchsucht (`nachfinden`). Fehlschlag = weggelassen mit Grund, nie still übernommen.
+- **Tresor (Stufe 5):** eine Datei `*.rtresor`; ohne Code lesbar nur Kennung und Datum (Ablauf 30 Tage). Zuordnung immer, Originale
+  nur auf Wunsch. Geöffnet nur im Speicher; „Schließen“/„Sperren“/„Neu“ werfen ihn weg. Kein zweites Schloss.
+- **Gäste-Sperre (Stufe 5):** Knopf im Kopf, immer sichtbar (Handy: nur Symbol). Anzeige sofort weg, alles Offene verschlüsselt nur im
+  Speicher, Code vergessen; drei Versuche frei, dann wachsende Wartezeit. Neu laden = alles weg.
+- **Auskunft ist kein Knopf (Klaus 2026-10-29):** Zahlen, Stufen, Marken, Größen nur als Text (farbig/fett), keine Pillen und Rahmen.
+  Erklärungen hinter **ⓘ** (`info()` in app.js). Beim Wählen je Fund zeigt „Wird zu:“ sofort die Zeile danach (`Kern.vorschau`).
+- **Mustermappe:** ihre erfundenen Werte dürfen nie einem Projektwert gleichen; trifft es zufällig, bleibt die Datei weg (Probe).
 - **Kontrast und Schrift (Klaus 2026-10-29):** jede Schrift ≥ 4,5 : 1 in Hell **und** Dunkel (Probe `tests/kontrast.mjs`),
   weiße Schrift nur auf dunklem Grund; keine Schrift über Schrift, keine doppelten Leerzeilen (Probe in `messen`).
   Bildschirmfotos aller Zustände: `docs/bilder-stufe-4/`.
@@ -46,13 +53,14 @@ Kurzauftrag zum Kopieren ausgeben.
 ## Prüfen
 
 ```bash
-npm test             # 225 grün · 0 ROT (2026-10-29, Stufe 4, Hell/Dunkel, Android-Hülle nachgestellt)
-npm run gegenprobe   # 48 gefangen · 0 blind · 0 falsch · 0 tot (2026-10-29)
+npm test             # 266 grün · 0 ROT (2026-10-29, Stufe 5, Befund 1, Fassung 8)
+npm run gegenprobe   # 65 Fälle, Anker 0 tot; 2026-10-29 voll gefahren: die 17 neuen + 11 berührte alte = 28 gefangen · 0 blind
+                     # (die übrigen 37 nicht neu gefahren; ein voller Lauf dauert hier ~2 h — einzeln: NUR_FALL=NAME)
 ```
 
 ## ⚠ Nicht gemessen
 
-Tablet und Handy (echtes Gerät), große Repos (Hunderte MB), echte Fotos/Office-Dateien, große PDFs beim Neuzeichnen, Dunkelmodus am Gerät, Rauschen der Wortlisten in
+Tablet und Handy (echtes Gerät) — Klaus testete Fassung 7 am Tablet (Befund eingearbeitet), APK/Windows ohne Befund; Tresor/Sperre bei großen Projekten (alles als Base64 im Speicher), große Repos (Hunderte MB), echte Fotos/Office-Dateien, große PDFs beim Neuzeichnen, Dunkelmodus am Gerät, Rauschen der Wortlisten in
 echten deutschen Projekten, Ziehen eines Ordners
 mit der Maus (nur der Code-Weg ist gebaut; die Probe nutzt Knopf und `starte`). Als Datei geöffnet (`file://`)
 läuft die App nicht — der Kern ist ein ES-Modul.

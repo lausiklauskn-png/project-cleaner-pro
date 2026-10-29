@@ -155,3 +155,29 @@ export function xlsxBauen(blaetter: Array<{ name: string; zellen: Array<{ r: str
 export function pptxBauen(p: { folien: string[][]; cx?: number; cy?: number }): Array<{ pfad: string; bytes: Uint8Array }>;
 export function mustermappe(): Promise<Array<{ pfad: string; bytes: Uint8Array }>>;
 export function musterFuer(pfad: string): string | null;
+
+/* ── Stufe 5: Tresor und Gäste-Sperre (Schloss: schluesseltresor.js, werkzeuge.WERKSTATT_SCHLUESSEL) ── */
+export interface Schloss { zu(code: string, klartext: string): Promise<Paket>; auf(code: string, paket: Paket): Promise<string>; istPaketForm(p: unknown): boolean; FASSUNG: number; }
+export interface Paket { v: number; salt: string; iv: string; ct: string; }
+export interface TresorOptionen { werkzeuge?: { WERKSTATT_SCHLUESSEL?: Schloss }; ablaufTage?: number; jetzt?: string | Date; quelle?: string; }
+export interface TresorKopf { kennung: string; fassung: number; erstellt: string; ablauf: string; abgelaufen: boolean; paket: Paket; }
+export interface TresorInhalt { zuordnung: Gereinigt["zuordnung"]; originale: Array<{ pfad: string; bytes: Uint8Array }>; quelle: string; erstellt: string; ablauf: string; abgelaufen: boolean; }
+export const TRESOR_KENNUNG: string;
+export const TRESOR_FASSUNG: number;
+export const TRESOR_ENDUNG: string;
+export const TRESOR_TAGE: number;
+export const TRESOR_ORIGINALE_MAX: number;
+export const CODE_MIN: number;
+export const SPERRE_FREI: number;
+export function codeGuete(code: string): { ok: boolean; stufe: "zu-kurz" | "schwach" | "gut"; satz: string };
+/** verschliesse(zuordnung, originale, code) → tresorDatei. Fehler: „code-zu-kurz“, „zu-gross“, „schloss-fehlt“. */
+export function verschliesse(zuordnung: Gereinigt["zuordnung"], originale: Datei[] | null, code: string, optionen?: TresorOptionen): Promise<Uint8Array>;
+/** oeffne(tresorDatei, code) → { zuordnung, originale }. Fehler: „kein-tresor“, „fassung“, „code“, „schloss-fehlt“. */
+export function oeffne(tresorDatei: Uint8Array, code: string, optionen?: TresorOptionen): Promise<TresorInhalt>;
+export function tresorKopf(bytes: Uint8Array, jetzt?: string | Date): TresorKopf | null;
+export function istTresor(pfad: string, bytes?: Uint8Array): boolean;
+export function sperrWartezeit(fehlversuche: number): number;
+export function sperrPaket(zustand: { dateien: Datei[]; [k: string]: unknown }, code: string, optionen?: TresorOptionen): Promise<Paket>;
+export function sperrAuf(paket: Paket, code: string, optionen?: TresorOptionen): Promise<{ dateien: Datei[]; [k: string]: unknown }>;
+/** Vorschau einer Wahl: eine Zeile, wie sie nach dem Reinigen aussähe (nur dieses Bündel ersetzt). */
+export function vorschau(ergebnis: Ergebnis, wahl: Entscheidungen["wahl"], schluessel: string, pfad: string, zeile: string): { text: string; ersatz: string | null };

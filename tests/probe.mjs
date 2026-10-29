@@ -1,4 +1,4 @@
-/* Projekt-Reiniger Pro — die Probe (Stufen 1–4).
+/* Projekt-Reiniger Pro — die Probe (Stufen 1–5).
  *
  *   node tests/probe.mjs            alles
  *   BILDER=<ordner> node tests/…    legt Bildschirmfotos ab
@@ -31,6 +31,7 @@ export const PINS = {
   "assets/pruefer-formate.js": "c7206f163521fd3cf1b09845a7e547e912564838ff1bf899c2575366764d15cd", // FORMATE_SHA
   "assets/pruefer-mail.js": "cdf3ca7881bfa68763a2c0be7436d35a65bea4dbd03f606e02eaec5c613632d7",    // MAIL_SHA
   "assets/pruefer.js": "9b004f0c76bf8d79b75d361b5b8d4cae87d2b2becd229f2d37391e93566300fd",         // HTML_SHA
+  "assets/schluesseltresor.js": "eaed30e8f3921835a3f58b69f89d9b008831f69f164ad1dfec630fa43161f666", // das Schloss: kim-hub-company 1a4528d über Sende-Prüfer (TRESOR_SHA)
   "assets/reinigung.js": "c3420fb57875db193096b13bd586387d41b383bd9625b54145dece8c4b65ac0e",       // Workflow PDF a2cfdf1 (Reinigung vor der KI)
   "vendor/pdfjs/pdf.min.js": "978fd1b2d134a98e98966186a97777bebf87d8e770dadab1ece3687e21a5aa6c",
   "vendor/pdfjs/pdf.worker.min.js": "38cde5311957b86bc3669f93e7d2566de333a90055ed6635bef60d9bf00e96f2",
@@ -77,7 +78,7 @@ ok("Fassung: APP_FASSUNG in app.js = Nummer in CACHE_VERSION von sw.js (sonst bl
 ok("Vorrat: die Wortlisten stehen darin (sonst offline kein Kern)", /"assets\/reiniger-listen\.js"/.test(sw));
 
 const req = createRequire(import.meta.url);
-for (const f of ["modules/25_pseudonym.js", "assets/pruefer-formate.js", "assets/pruefer-mail.js", "assets/pruefer.js", "assets/pruefer-anhang.js", "assets/reinigung.js"]) req(join(WURZEL, f));
+for (const f of ["modules/25_pseudonym.js", "assets/pruefer-formate.js", "assets/pruefer-mail.js", "assets/pruefer.js", "assets/pruefer-anhang.js", "assets/reinigung.js", "assets/schluesseltresor.js"]) req(join(WURZEL, f));
 const Kern = await import(pathToFileURL(join(WURZEL, "assets/reiniger-kern.js")).href);
 const { beispielProjekt } = await import(pathToFileURL(join(WURZEL, "assets/beispiel.js")).href);
 {
@@ -323,6 +324,43 @@ const { beispielProjekt } = await import(pathToFileURL(join(WURZEL, "assets/beis
   ok("Muster je Endung: PDF, Word, Datenbank ja — RAR nein", Kern.musterFuer("a/b.pdf") === "vorlagen/leer.pdf" && Kern.musterFuer("x.docx") === "vorlagen/leer.docx" && Kern.musterFuer("d.db") === "vorlagen/leer.sqlite" && Kern.musterFuer("x.rar") === null);
 }
 {
+  /* Stufe 5 · Tresor und Gäste-Sperre (ohne Browser) — dasselbe Schloss wie im Browser */
+  const ein = (await Kern.einwerfen(await beispielProjekt())).dateien, r = await Kern.pruefe(ein);
+  const g = await Kern.saubereKopie(ein, { ergebnis: r, wahl: {}, dateiWahl: {}, mustermappe: true });
+  ok("Mustermappe: kein entfernter Wert darin (Klaus' Test 2026-10-29: Beispielprojekt und Mustertabelle hatten dieselbe erfundene Mail)",
+    g.nach.originalTreffer.length === 0 && g.sauber.some((d) => d.mappe), JSON.stringify(g.nach.originalTreffer));
+  const zr = await Kern.pruefe([{ pfad: "p/a.txt", bytes: new TextEncoder().encode("Wir wohnen in Musterdorf.\n") }], { begriffe: ["Musterdorf"] });
+  const zg = await Kern.saubereKopie([{ pfad: "p/a.txt", bytes: new TextEncoder().encode("Wir wohnen in Musterdorf.\n") }], { ergebnis: zr, wahl: {}, dateiWahl: {}, mustermappe: true }, { begriffe: ["Musterdorf"] });
+  ok("Mustermappe: steht ein entfernter Wert zufällig darin, bleibt die Datei weg (mit Grund) — die Kopie ist trotzdem sauber",
+    zg.nach.originalTreffer.length === 0 && zg.bericht.weggelassen.some((w) => /^MUSTERMAPPE\//.test(w.pfad) && /zufällig/.test(w.grund)) && zg.sauber.some((d) => d.mappe),
+    JSON.stringify(zg.nach.originalTreffer) + " " + JSON.stringify(zg.bericht.weggelassen));
+  const datei = await Kern.verschliesse(g.zuordnung, ein, "lang-genug-123", { quelle: "musterapp", jetzt: "2026-10-29" });
+  const roh = new TextDecoder().decode(datei), werte = Object.values(g.zuordnung).flatMap((z) => z.werte);
+  ok("Tresor: eine Datei; ohne Code steht darin nur Kennung und Datum — kein Wert, kein Name der Quelle",
+    roh.startsWith('{"kennung":"' + Kern.TRESOR_KENNUNG + '"') && werte.length > 10 && !werte.some((w) => roh.includes(w)) && !roh.includes("musterapp"));
+  const kopf = Kern.tresorKopf(datei, "2026-12-01");
+  ok("Tresor: Ablauf nach 30 Tagen, danach „abgelaufen“ — ohne Code lesbar", kopf.ablauf === "2026-11-28" && kopf.abgelaufen && !Kern.tresorKopf(datei, "2026-11-01").abgelaufen && Kern.tresorKopf(new TextEncoder().encode("{}")) === null);
+  const o = await Kern.oeffne(datei, "lang-genug-123");
+  let gleich = o.originale.length >= 10;
+  for (const d of o.originale) { const e = ein.find((x) => x.pfad === d.pfad); const b = e && (e.bytes || await e.lesen()); if (!b || Buffer.compare(Buffer.from(b), Buffer.from(d.bytes)) !== 0) gleich = false; }
+  ok("Tresor: mit dem Code wieder offen — Zuordnung gleich, Originale Byte für Byte gleich, node_modules nicht darin",
+    JSON.stringify(o.zuordnung) === JSON.stringify(g.zuordnung) && gleich && o.quelle === "musterapp" && !o.originale.some((d) => /node_modules/.test(d.pfad)));
+  let falsch = ""; try { await Kern.oeffne(datei, "lang-genug-124"); } catch (e) { falsch = e.message; }
+  ok("Tresor: falscher Code heißt „code“ (AES-GCM prüft mit), nie ein halber Inhalt", falsch === "code", falsch);
+  ok("Code: unter 4 Zeichen abgelehnt, unter 12 als „schwach“ gemeldet", !Kern.codeGuete("abc").ok && Kern.codeGuete("abcd").stufe === "schwach" && Kern.codeGuete("abcdefghijkl").stufe === "gut");
+  ok("Gäste-Sperre: drei Versuche frei, dann wachsende Wartezeit (30 s, 1, 2 min …), höchstens 30 min",
+    [0, 1, 2, 3, 4, 5, 20].map(Kern.sperrWartezeit).join() === "0,0,0,30000,60000,120000,1800000");
+  const sp = await Kern.sperrPaket({ dateien: ein.slice(0, 4), wahl: { a: { weg: "marke" } } }, "abcd"), zur = await Kern.sperrAuf(sp, "abcd");
+  let spFalsch = ""; try { await Kern.sperrAuf(sp, "abce"); } catch (e) { spFalsch = e.message; }
+  ok("Gäste-Sperre: das Paket ist verschlüsselt; mit dem Code dieselben Dateien und Entscheidungen, ohne nicht",
+    !/Erika|erika|Hamburg/.test(JSON.stringify(sp)) && zur.dateien.length === 4 && zur.wahl.a.weg === "marke" && spFalsch === "code");
+  const k = "gefuehlt|ORT|hamburg", z = "Wir wohnen in Hamburg.";
+  const v = (weg, wert) => Kern.vorschau(r, { [k]: { weg, wert } }, k, "docs/a.md", z).text;
+  ok("Vorschau einer Wahl: Marke, Musterwert, eigener Wert, behalten — wie beim Reinigen",
+    /in ⟦ORT-\d⟧\./.test(v("marke")) && /in Musterstadt\./.test(v("muster")) && v("eigen", "lalala") === "Wir wohnen in lalala." && v("behalten") === z && /⟦ORT-\d⟧/.test(v("auto")),
+    [v("marke"), v("muster"), v("eigen", "lalala"), v("auto")].join(" | "));
+}
+{
   /* Stufe 4 · Kästen, versteckter Text, Rauschen (rein rechnerisch, ohne Browser) */
   const leer = (w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4).fill(255) });
   const posten = [{ art: "MAIL", artName: "E-Mail", weg: "auto", werte: ["anna@beispiel.example"], marke: "⟦MAIL-1⟧", muster: "muster1@beispiel.example" }];
@@ -436,6 +474,9 @@ function messen() {
   for (let n = tw.nextNode(); n; n = tw.nextNode()) {
     const e = n.parentElement;
     if (!n.textContent.trim() || !sichtbar(e) || e.closest(".ziehen")) continue;
+    /* Text in zugeklappten <details> ist nicht zu sehen (Chromium verbirgt ihn ohne display: none) */
+    let zu = false; for (let d = e.closest("details"); d; d = d.parentElement && d.parentElement.closest("details")) if (!d.open && !(e.closest("summary") && e.closest("summary").parentElement === d)) { zu = true; break; }
+    if (zu) continue;
     const r = document.createRange(); r.selectNodeContents(n);
     for (const q of r.getClientRects()) {
       if (q.width < 2 || q.height < 2 || q.bottom < 0 || q.top > H || q.right < 0 || q.left > W) continue;
@@ -527,6 +568,18 @@ await seite.setViewportSize({ width: 1280, height: 800 });
 await seite.click("#beispiel");
 await seite.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden, null, { timeout: 30000 });
 ok("Beispielprojekt: Funde gebündelt angezeigt", await seite.evaluate(() => document.querySelectorAll(".buendel").length > 5 && !!document.querySelector('.buendel[data-art="MAIL"] [data-wert]')));
+/* Befund Klaus 2026-10-29: Auskunft sieht nicht aus wie ein Knopf, Erklärungen erst hinter ⓘ. */
+ok("Kopfzeile „Geprüft · Dateien · Funde“ ist Auskunft: kein Rand, kein Grund, kleine Schrift", await seite.evaluate(() => {
+  const li = Array.from(document.querySelectorAll("#zahlen li"));
+  return li.length >= 5 && li.every((e) => { const s = getComputedStyle(e); return parseFloat(s.borderTopWidth) === 0 && /rgba\(0, 0, 0, 0\)|transparent/.test(s.backgroundColor) && parseFloat(s.fontSize) <= 13 && e.tagName !== "BUTTON"; });
+}));
+ok("Erklärungen stehen hinter ⓘ: zu, bis jemand tippt; der Tipp klappt nur die Erklärung, nicht die Gruppe", await seite.evaluate(() => {
+  const alle = Array.from(document.querySelectorAll("[data-erklaerung]"));
+  const zu = alle.length >= 4 && alle.every((p) => p.hidden);
+  const g = document.querySelector('details.gruppe[data-gruppe="hart"]'), k = g.querySelector("summary .info-knopf"), p = document.getElementById(k.getAttribute("aria-controls"));
+  k.click(); const offen = !p.hidden && k.getAttribute("aria-expanded") === "true" && g.open;
+  k.click(); return zu && offen && p.hidden && g.open;
+}));
 ok("Beispielprojekt: Inventur zeigt Marken und Stufen", await seite.evaluate(() => !!document.querySelector('[data-marke="GIT"]') && !!document.querySelector('[data-marke="ENV"]') && !!document.querySelector('[data-stufe="1"]')));
 ok("Beispielprojekt: node_modules steht als „nicht gelesen“ da", await seite.evaluate(() => /nicht gelesen/.test((document.querySelector('[data-pfad="musterapp/node_modules/"]') || {}).textContent || "")));
 ok("Beispielprojekt: Gruppe „Gefühlte Metadaten“ mit Kennzeichen und Ordnerpfad", await seite.evaluate(() => {
@@ -776,6 +829,113 @@ await seite.setViewportSize({ width: 1280, height: 800 });
     JSON.stringify(g && { p: g.p, m: g.m, name: g.name, typ: g.typ, laenge: g.daten.length }));
   ok("Android-Hülle: Meldung „Gespeichert“", await s2.evaluate(() => /Gespeichert: musterapp-sauber\.zip/.test(document.querySelector("#meldung-text").textContent)));
   await ctx2.close();
+}
+{
+  /* Befund Klaus 2026-10-29 (zweite Runde) und Stufe 5 im Browser */
+  const ctx3 = await browser.newContext({ viewport: { width: 1280, height: 800 }, acceptDownloads: true }), s3 = await ctx3.newPage();
+  s3.on("request", (q) => { if (!q.url().startsWith(BASIS) && !q.url().startsWith("data:") && !q.url().startsWith("blob:")) netz.push(q.url()); });
+  s3.on("pageerror", (e) => konsole.push(String(e)));
+  s3.on("dialog", (d) => d.accept());
+  const bereit = () => s3.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden && document.querySelector(".buendel"), null, { timeout: 30000 });
+  const masse = async (satz, groessen) => { for (const [w, h] of groessen) { await s3.setViewportSize({ width: w, height: h }); await s3.waitForTimeout(80); const f = await s3.evaluate(messen); ok(satz + " " + w + "×" + h + ": Vollbild, nichts quer, keine Schrift über Schrift", f.length === 0, f.slice(0, 3).join(" | ")); } await s3.setViewportSize({ width: 1280, height: 800 }); };
+  await s3.goto(BASIS + "?ohne-sw");
+  await s3.click("#beispiel"); await bereit();
+  ok("Inventur: Stufe, Marke und Funde nur farbig und fett — ohne Kasten, ohne Rand, ohne Grund", await s3.evaluate(() => {
+    const c = Array.from(document.querySelectorAll("#inventur .zeile2 .chip"));
+    return c.length > 20 && c.every((e) => { const s = getComputedStyle(e); return parseFloat(s.borderTopWidth) === 0 && /rgba\(0, 0, 0, 0\)|transparent/.test(s.backgroundColor) && parseFloat(s.paddingLeft) === 0; }) &&
+      c.filter((e) => /stufe|marke|funde/.test(e.className)).every((e) => +getComputedStyle(e).fontWeight >= 600);
+  }));
+  const SEL = 'select[data-schluessel="gefuehlt|ORT|hamburg"]', VOR = '[data-wahl-vorschau="gefuehlt|ORT|hamburg"]';
+  const vorher = await s3.evaluate((v) => document.querySelector(v).textContent, VOR);
+  const vorschauNach = async (weg) => { await s3.selectOption(SEL, weg); await s3.waitForTimeout(150); return s3.evaluate((v) => document.querySelector(v).textContent, VOR); };
+  const vMarke = await vorschauNach("marke"), vMuster = await vorschauNach("muster");
+  await s3.selectOption(SEL, "eigen");
+  const fokus = await s3.evaluate(() => !!document.activeElement && document.activeElement.classList.contains("eigen") && !document.activeElement.hidden);
+  await s3.keyboard.type("lalala"); await s3.waitForTimeout(150);
+  const vEigen = await s3.evaluate((v) => document.querySelector(v).textContent, VOR);
+  ok("Wahl je Fund: die Vorschau zeigt sofort, was aus der Zeile wird — Marke, Musterwert, eigener Wert",
+    /^Wird zu:.*⟦ORT-\d⟧/.test(vorher) && /⟦ORT-\d⟧/.test(vMarke) && /Musterstadt/.test(vMuster) && /lalala/.test(vEigen) && !/Hamburg/.test(vorher + vMarke + vMuster + vEigen), [vorher, vMarke, vMuster, vEigen].join(" | "));
+  ok("„Eigener Wert“ gewählt: der Cursor steht sofort im Eingabefeld", fokus);
+  await s3.click("#reinigen"); await s3.waitForSelector("[data-kopie]", { timeout: 60000 });
+  await s3.evaluate(() => window.__reiniger.oeffneAnsicht("musterapp/README.md", 4));
+  await s3.click("#ansicht-geteilt"); await s3.waitForSelector("[data-geteilt]", { timeout: 5000 }).catch(() => {});
+  ok("Vorher / nachher geteilt: Original links, saubere Kopie rechts, die Wahl bleibt gemerkt", await s3.evaluate(() => {
+    const t = document.querySelectorAll("[data-geteilt] > .ansicht-koerper");
+    return t.length === 2 && /erika\.mustermann/.test(t[0].textContent) && !/erika\.mustermann/.test(t[1].textContent) && t[0].getBoundingClientRect().right <= t[1].getBoundingClientRect().left + 1 &&
+      localStorage.getItem("reiniger-ansicht") === "geteilt";
+  }));
+  await masse("Geteilte Ansicht", [[360, 740], [740, 360], [1920, 1080]]);
+  await s3.click("#ansicht-geteilt");
+  ok("Einzelansicht wieder: Reiter Original / Saubere Kopie", await s3.evaluate(() => !document.querySelector("[data-geteilt]") && !!document.querySelector('.ansicht-reiter [data-fassung="sauber"]')));
+  await s3.click("#ansicht-zu");
+  /* Tresor verschließen (mit Originalen), als Datei laden, wieder öffnen */
+  await s3.fill("#tresor-code", "lang-genug-123"); await s3.fill("#tresor-code2", "lang-genug-123"); await s3.check("#tresor-originale");
+  const [dl] = await Promise.all([s3.waitForEvent("download", { timeout: 30000 }), s3.click("#tresor-zu")]);
+  const tb = new Uint8Array(readFileSync(await dl.path())), troh = Buffer.from(tb).toString();
+  ok("Tresor aus der Oberfläche: eine Datei *.rtresor, ohne Code kein Wert und kein Name lesbar; die Code-Felder sind wieder leer",
+    /^musterapp-tresor-\d{4}-\d\d-\d\d\.rtresor$/.test(dl.suggestedFilename()) && !!Kern.tresorKopf(tb) && !/Erika|Hamburg|erika|lalala/.test(troh) &&
+    await s3.evaluate(() => !document.querySelector("#tresor-code").value && !document.querySelector("#tresor-code2").value), dl.suggestedFilename());
+  await s3.click("#neu");
+  await s3.setInputFiles("#wahl-tresor", { name: dl.suggestedFilename(), mimeType: "application/octet-stream", buffer: Buffer.from(tb) });
+  await s3.waitForSelector("#tresor-auf-code");
+  await s3.fill("#tresor-auf-code", "falsch-falsch"); await s3.click("#tresor-auf");
+  await s3.waitForFunction(() => /passt nicht/.test(document.querySelector("#tresor-auf-meldung").textContent), null, { timeout: 20000 }).catch(() => {});
+  const falschAb = await s3.evaluate(() => /passt nicht/.test(document.querySelector("#tresor-auf-meldung").textContent) && !window.__reiniger.tresorInhalt());
+  await s3.fill("#tresor-auf-code", "lang-genug-123"); await s3.click("#tresor-auf"); await s3.waitForSelector("#tresor-zuordnung", { timeout: 20000 }).catch(() => {});
+  ok("Tresor öffnen: falscher Code abgewiesen; richtiger zeigt Zuordnung (Wert erst auf Tipp) und die Originale als Ordner", falschAb && await s3.evaluate(() => {
+    const w = document.querySelector("[data-tresor-wert]"); return !!w && document.querySelectorAll("[data-marke-zeile]").length > 5 && w.hidden && document.querySelectorAll("[data-original]").length >= 10;
+  }));
+  await s3.click("[data-wert-zeigen]");
+  ok("Tresor: „zeigen“ deckt den Wert einer Marke auf", await s3.evaluate(() => !document.querySelector("[data-tresor-wert]").hidden && document.querySelector("[data-tresor-wert]").textContent.length > 1));
+  await s3.click('[data-original="musterapp/README.md"]');
+  ok("Tresor: ein Original lässt sich ansehen", await s3.evaluate(() => /erika\.mustermann@beispiel\.example/.test(document.querySelector("#tresor-datei").textContent)));
+  await masse("Tresor offen", [[320, 640], [740, 360]]);
+  await s3.click("#tresor-schliessen");
+  ok("Tresor schließen: Inhalt aus dem Speicher und aus der Seite", await s3.evaluate(() => !window.__reiniger.tresorInhalt() && document.querySelector("#tresor").hidden && !document.querySelector("#tresor").textContent));
+  /* Gäste-Sperre */
+  await s3.click("#beispiel"); await bereit();
+  await s3.selectOption(SEL, "marke");
+  await s3.click("#sperren");
+  ok("Gäste-Sperre: erster Tipp fragt nach einem Code (zweimal), mit Hinweis „durchprobieren“", await s3.evaluate(() => !document.querySelector("#sperre").hidden && !document.querySelector("#sperre-code2").hidden && /durchprobieren/.test(document.querySelector("#sperre-klein").textContent)));
+  await masse("Sperr-Code festlegen", [[320, 640], [740, 360]]);
+  await s3.fill("#sperre-code", "abcd"); await s3.fill("#sperre-code2", "abcd"); await s3.click("#sperre-ok");
+  const sofort = await s3.evaluate(() => ({ zu: !document.querySelector("#sperre").hidden, buendel: document.querySelectorAll(".buendel").length, erg: !!window.__reiniger.ergebnis(), ein: window.__reiniger.eingeworfen().length,
+    inert: document.querySelector("#haupt").inert && document.querySelector(".kopf").inert, text: /erika|Hamburg/i.test(document.getElementById("app").textContent) }));
+  ok("Gäste-Sperre: Anzeige sofort weg — keine Funde in der Seite, nichts Offenes im Speicher, dahinter nichts bedienbar",
+    sofort.zu && sofort.buendel === 0 && !sofort.erg && sofort.ein === 0 && sofort.inert && !sofort.text, JSON.stringify(sofort));
+  await s3.waitForFunction(() => window.__reiniger.sperrZustand().paket, null, { timeout: 20000 });
+  ok("Gäste-Sperre: verschlüsselt nur im Speicher, der Code selbst ist vergessen, nichts abgelegt", await s3.evaluate(async () => {
+    const z = window.__reiniger.sperrZustand(); let ls = 0; try { ls = Object.keys(localStorage).filter((k) => !/^reiniger-(thema|ansicht)$/.test(k)).length; } catch { ls = 0; }
+    return z.gesperrt && z.paket && !z.code && ls === 0 && (await indexedDB.databases()).length === 0;
+  }));
+  await masse("Gesperrt", [[320, 640], [740, 360], [1920, 1080]]);
+  for (let i = 1; i <= 2; i++) {
+    await s3.fill("#sperre-code", "falsch"); await s3.click("#sperre-ok");
+    await s3.waitForFunction((n) => window.__reiniger.sperrZustand().fehlversuche === n, i, { timeout: 20000 });
+  }
+  await s3.fill("#sperre-code", "abcd"); await s3.click("#sperre-ok");
+  await s3.waitForFunction(() => !window.__reiniger.sperrZustand().gesperrt && document.querySelector(".buendel") && document.querySelector("#fortschritt").hidden, null, { timeout: 30000 }).catch(() => {});
+  ok("Gäste-Sperre: mit dem Code wieder offen — dieselben Funde, die Entscheidung ist noch da", await s3.evaluate((sel) => document.querySelector("#sperre").hidden && document.querySelectorAll(".buendel").length > 5 &&
+    (document.querySelector(sel) || {}).value === "marke" && !document.querySelector("#haupt").inert, SEL));
+  await s3.click("#sperren");
+  ok("Gäste-Sperre: das zweite Mal schließt der Knopf sofort, ohne Frage", await s3.evaluate(() => !document.querySelector("#sperre").hidden && document.querySelector("#sperre-code2").hidden && !document.querySelector(".buendel")));
+  await s3.waitForFunction(() => window.__reiniger.sperrZustand().paket, null, { timeout: 20000 });
+  for (let i = 1; i <= 3; i++) {
+    await s3.fill("#sperre-code", "falsch"); await s3.click("#sperre-ok");
+    await s3.waitForFunction((n) => window.__reiniger.sperrZustand().fehlversuche === n, i, { timeout: 20000 });
+  }
+  ok("Gäste-Sperre: nach drei falschen Versuchen Wartezeit, der Knopf ist gesperrt", await s3.evaluate(() => { const z = window.__reiniger.sperrZustand();
+    return z.wartenBis - Date.now() > 20000 && document.querySelector("#sperre-ok").disabled && /Nächster Versuch in/.test(document.querySelector("#sperre-meldung").textContent); }));
+  await s3.click("#sperre-verwerfen");
+  ok("Gäste-Sperre: „Code vergessen“ verwirft alles — die App ist leer", await s3.evaluate(() => { const z = window.__reiniger.sperrZustand();
+    return !z.gesperrt && !z.paket && document.querySelector("#sperre").hidden && !document.querySelector("#einwurf").hidden && !window.__reiniger.ergebnis(); }));
+  /* Dunkel etwas heller (Klaus 2026-10-29): Grund nicht mehr fast schwarz */
+  await s3.emulateMedia({ colorScheme: "dark" });
+  ok("Dunkel: heller als vorher (Grund ≥ #1a2b3d), Papier hebt sich ab", await s3.evaluate(() => {
+    const v = (x) => getComputedStyle(document.documentElement).getPropertyValue(x).trim(), hell = (h) => { const n = parseInt(h.slice(1), 16); return ((n >> 16) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 1000; };
+    return hell(v("--grund")) >= 39 && hell(v("--papier")) > hell(v("--grund"));
+  }));
+  await ctx3.close();
 }
 ok("Kein Netz: keine einzige Anfrage nach außen", netz.length === 0, netz.join(", "));
 ok("Keine Fehler in der Konsole", konsole.length === 0, konsole.slice(0, 3).join(" | "));
