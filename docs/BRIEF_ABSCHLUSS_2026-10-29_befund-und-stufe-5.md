@@ -7,7 +7,17 @@ Bilder: [`bilder-stufe-5/`](bilder-stufe-5/) (hell, dunkel, Handy).
 
 ## Veröffentlicht (Fassung 9)
 
-DOWNLOADS
+| Fassung | Wo | Stand |
+|---|---|---|
+| PWA, Fassung 9 | https://lausiklauskn-png.github.io/project-cleaner-pro/ — „Aktualisieren“ im Kopf tippen | main `f53fef1` |
+| Android-Testfassung | [Projekt-Reiniger-Pro-Test-9.apk](https://github.com/lausiklauskn-png/project-cleaner-pro/releases/download/testfassung/Projekt-Reiniger-Pro-Test-9.apk) · 21.902.230 B | `f53fef1` |
+| Windows-Testfassung | [Projekt-Reiniger-Pro-Test-9-Windows-Setup.exe](https://github.com/lausiklauskn-png/project-cleaner-pro/releases/download/testfassung/Projekt-Reiniger-Pro-Test-9-Windows-Setup.exe) · 13.066.477 B | `f53fef1` |
+
+Release-Seite: https://github.com/lausiklauskn-png/project-cleaner-pro/releases/tag/testfassung (veröffentlicht 07:34 UTC; jede neue Fassung auf main ersetzt sie). SHA-256 laut GitHub:
+APK `9c74b8e17e46c5e16a090b0f2154fbe396917bcb541e98069603a765cffd46fd`,
+Setup `7ba3103f4ad1c5c8585ca5e39002af6f1df2cd368592c2bf1394fbcfd24015f7` (die `.sha256`-Dateien liegen daneben).
+Vor der APK die alte Testfassung deinstallieren (Debug-Schlüssel); Windows: „Weitere Informationen → Trotzdem ausführen“ (unsigniert).
+⚠ Die Downloads wurden von hier aus nicht nachgeladen und nicht am Gerät gestartet; Bau auf GitHub grün (beide Teile).
 
 ## Was neu ist
 
@@ -46,7 +56,11 @@ DOWNLOADS
 
 ## Stunden (zum Eintragen ins Fahrtenbuch)
 
-ARBEITSZEIT
+| Datum | von–bis (UTC) | Dauer | Repo | Was |
+|---|---|---|---|---|
+| 2026-10-29 | 06:31–07:40 | ≈ 1 h 10 min | project-cleaner-pro | Befund (zwei Runden), Mustermappe-Fehler, Stufe 5 (Tresor, Gäste-Sperre), Hereinladen/Herausladen, Proben, Testfassung 9 (#10, #11, #12) |
+
+Nicht ins Fahrtenbuch eingetragen: es liegt in Kimhub, das an diese Sitzung nicht angehängt ist.
 
 ## Nächste Sitzung
 
