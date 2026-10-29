@@ -116,14 +116,14 @@ $("#sperren").addEventListener("click", () => sperren());
 
 /* Ziehen und Loslassen, auch ganze Ordner. Übersprungene Ordner werden nicht geöffnet. */
 let ziehZaehler = 0;
-addEventListener("dragenter", (e) => { e.preventDefault(); if (!laeuft && !gesperrt) { ziehZaehler++; $("#ziehen").hidden = false; } });
+addEventListener("dragenter", (e) => { e.preventDefault(); if (!laeuft && !gesperrt) { ziehZaehler++; $("#ziehen").textContent = $("#arbeit").hidden && $("#import").hidden ? "Loslassen zum Prüfen" : "Loslassen zum Hereinladen"; $("#ziehen").hidden = false; } });
 addEventListener("dragleave", () => { if (--ziehZaehler <= 0) { ziehZaehler = 0; $("#ziehen").hidden = true; } });
 addEventListener("dragover", (e) => e.preventDefault());
 addEventListener("drop", async (e) => {
   e.preventDefault(); ziehZaehler = 0; $("#ziehen").hidden = true;
   if (laeuft || gesperrt) return;
   const items = Array.from(e.dataTransfer.items || []).map((i) => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
-  if (!items.length) { const l = ausDateiListe(e.dataTransfer.files || []); if (l.length) starte(l); return; }
+  if (!items.length) { abgelegt(ausDateiListe(e.dataTransfer.files || [])); return; }
   const liste = [];
   const lies = (ordner) => new Promise((ok) => { const r = ordner.createReader(), alle = []; const weiter = () => r.readEntries((t) => { if (!t.length) ok(alle); else { alle.push(...t); weiter(); } }, () => ok(alle)); weiter(); });
   async function gehe(eintrag, pfad) {
@@ -135,8 +135,14 @@ addEventListener("drop", async (e) => {
     }
   }
   for (const i of items) await gehe(i, i.name);
-  if (liste.length) starte(liste);
+  abgelegt(liste);
 });
+/* Abgelegt: auf der Startfläche sofort prüfen; im Arbeitsbildschirm (oder bei offenem Fenster) ins Fenster „Dateien hereinladen“. */
+function abgelegt(liste) {
+  if (!liste.length) return;
+  if ($("#arbeit").hidden && $("#import").hidden) return starte(liste);
+  importOeffnen("datei"); importDazu(liste);
+}
 
 /* ── Prüfen ──────────────────────────────────────────────── */
 function quelleVon(liste) {
@@ -145,23 +151,26 @@ function quelleVon(liste) {
   return ordner.size === 1 && String(liste[0].pfad).includes("/") ? { ikon: "ordner", name: [...ordner][0] } : { ikon: "datei", name: liste.length + " Dateien" };
 }
 
-async function starte(liste) {
+async function starte(liste, opt = {}) {
   if (laeuft || gesperrt) return;
   /* Eine einzelne Tresor-Datei wird nicht geprüft, sondern geöffnet (Stufe 5). */
   if (liste.length === 1 && /\.rtresor$/i.test(liste[0].pfad)) return tresorZeigen(liste[0]);
   laeuft = true;
-  quelle = quelleVon(liste);
+  quelle = opt.quelle || quelleVon(liste);
   $("#einwurf").hidden = true; $("#arbeit").hidden = false; $("#neu").hidden = false;
   $("#zahlen").replaceChildren(); $("#hinweise").replaceChildren(); $("#befunde").replaceChildren(); $("#inventur").replaceChildren();
   const fs = $("#fortschritt"); fs.hidden = false;
   try {
     const ein = await Kern.einwerfen(liste);
-    eingeworfen = ein.dateien; gereinigt = null;
-    for (const k of Object.keys(wahl)) delete wahl[k];
-    for (const k of Object.keys(dateiWahl)) delete dateiWahl[k];
-    mappeBeilegen = false; begriffe.length = 0; textCache.clear(); texterkennung = false;
-    if (window.PrueferAnhang) window.PrueferAnhang.pfade({ tesseract: null });
-    ergebnis = await Kern.pruefe(ein.dateien, {
+    eingeworfen = ein.dateien; gereinigt = null; textCache.clear();
+    /* Dazugenommen (Fenster „Dateien hereinladen“): Entscheidungen, eigene Namen und Texterkennung bleiben. */
+    if (!opt.behalten) {
+      for (const k of Object.keys(wahl)) delete wahl[k];
+      for (const k of Object.keys(dateiWahl)) delete dateiWahl[k];
+      mappeBeilegen = false; begriffe.length = 0; texterkennung = false;
+      if (window.PrueferAnhang) window.PrueferAnhang.pfade({ tesseract: null });
+    }
+    ergebnis = await Kern.pruefe(ein.dateien, { begriffe, texterkennung,
       fortschritt: (nr, gesamt, pfad) => { $("#fortschritt-text").textContent = "Lese " + nr + " von " + gesamt + ": " + pfad; const b = $("#fortschritt-balken"); b.max = gesamt; b.value = nr; },
     });
     ergebnis.hinweise.unshift(...ein.hinweise);
@@ -415,7 +424,7 @@ async function oeffneAnsicht(pfad, zeile, werte, fassung) {
   a.hidden = false;
   for (const box of a.querySelectorAll(".ansicht-koerper")) { const ziel = box.querySelector("li.ziel") || box.querySelector("mark"); if (ziel) ziel.scrollIntoView({ block: "center" }); }
 }
-addEventListener("keydown", (e) => { if (e.key === "Escape") schliesseAnsicht(); });
+addEventListener("keydown", (e) => { if (e.key !== "Escape") return; if (!$("#import").hidden) importZu(); else schliesseAnsicht(); });
 
 /* Vorschau eines Bildes oder einer PDF (bis 5 Seiten) — nur Bildpunkte, nichts wird ausgeführt. */
 async function vorschauFuellen(ziel, bytes, art) {
@@ -726,15 +735,15 @@ function zeigeInventur() {
     el("ul", { class: "datei" }, ...zeilen));
 }
 
-for (const k of document.querySelectorAll(".reiter-knopf")) k.addEventListener("click", () => {
+for (const k of document.querySelectorAll("#reiter .reiter-knopf")) k.addEventListener("click", () => {
   $("#spalten").dataset.zeige = k.dataset.reiter;
-  for (const x of document.querySelectorAll(".reiter-knopf")) x.setAttribute("aria-pressed", String(x === k));
+  for (const x of document.querySelectorAll("#reiter .reiter-knopf")) x.setAttribute("aria-pressed", String(x === k));
 });
 
 /* ── Installieren und Aktualisieren (Klaus 2026-10-28) ─────────────────────
    Ablauf und Texte übernommen aus dem Auslieferungsprüfer (assets/installieren.js, dort seit 2026-09-30
    am Tablet getragen), hier mit Strich-Symbolen und ohne Inline-Stile (CSP). */
-export const APP_FASSUNG = "8";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
+export const APP_FASSUNG = "9";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
 let installEreignis = null;
 function alsApp() {
   try { return matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: window-controls-overlay)").matches || matchMedia("(display-mode: minimal-ui)").matches || navigator.standalone === true; }
@@ -803,7 +812,7 @@ if (!HUELLE && "serviceWorker" in navigator && /^https?:$/.test(location.protoco
   navigator.serviceWorker.register("sw.js").then((reg) => reg.update().catch(() => {})).catch(() => {});
 
 /* nur für die Proben */
-window.__reiniger = { oeffneAnsicht, APP_FASSUNG, starte, sperrZustand: () => ({ gesperrt, paket: !!sperrPaketJetzt, code: sperrCode !== null, fehlversuche, wartenBis }), tresorInhalt: () => tresorOffen, ergebnis: () => ergebnis, gereinigt: () => gereinigt, eingeworfen: () => eingeworfen, beispielProjekt, dateiWahl, Kern };
+window.__reiniger = { importListe: () => importListe.map((d) => d.pfad), oeffneAnsicht, APP_FASSUNG, starte, sperrZustand: () => ({ gesperrt, paket: !!sperrPaketJetzt, code: sperrCode !== null, fehlversuche, wartenBis }), tresorInhalt: () => tresorOffen, ergebnis: () => ergebnis, gereinigt: () => gereinigt, eingeworfen: () => eingeworfen, beispielProjekt, dateiWahl, Kern };
 
 /* ══ Stufe 5 · Tresor (Klaus 2026-10-28) ═════════════════════════════════════════════════════════════
    Eine verschlüsselte Datei, in der App wie ein Ordner. Darin auf Wunsch die Originale und die Zuordnung.
@@ -941,12 +950,12 @@ function sperrFlaeche(modus) {
     : "Alles Offene liegt verschlüsselt nur im Speicher. Neu laden oder Schließen verwirft es.";
   $("#sperre-code").value = ""; $("#sperre-code2").value = ""; $("#sperre-meldung").textContent = "";
   s.hidden = false;
-  for (const x of [".kopf", "#haupt", "#ansicht", "#tresor", "#meldung"]) { const e = $(x); if (e) e.inert = true; }
+  for (const x of [".kopf", "#haupt", "#ansicht", "#tresor", "#meldung", "#import"]) { const e = $(x); if (e) e.inert = true; }
   setTimeout(() => $("#sperre-code").focus(), 0);
 }
 function sperrFlaecheWeg() {
   $("#sperre").hidden = true; sperrModus = "";
-  for (const x of [".kopf", "#haupt", "#ansicht", "#tresor", "#meldung"]) { const e = $(x); if (e) e.inert = false; }
+  for (const x of [".kopf", "#haupt", "#ansicht", "#tresor", "#meldung", "#import"]) { const e = $(x); if (e) e.inert = false; }
 }
 function sperren() {
   if (gesperrt || laeuft) { if (laeuft) melde("Erst die laufende Prüfung abwarten, dann sperren."); return; }
@@ -962,6 +971,7 @@ async function zuschliessen() {
   /* 2. Alles Offene aus der Anzeige und aus dem Speicher. */
   for (const id of ["#befunde", "#inventur", "#zahlen", "#hinweise", "#ansicht", "#meldung-text"]) $(id).replaceChildren();
   $("#meldung").hidden = true; schliesseAnsicht(); tresorSchliessen(); ocrBeenden();
+  importListe.length = 0; $("#import-text").value = ""; $("#import-name").value = ""; importZu(); importMalen();
   ergebnis = null; gereinigt = null; eingeworfen = []; textCache.clear();
   for (const k of Object.keys(wahl)) delete wahl[k];
   for (const k of Object.keys(dateiWahl)) delete dateiWahl[k];
@@ -1023,4 +1033,121 @@ $("#sperre-abbrechen").addEventListener("click", () => { if (sperrModus === "fes
 $("#sperre-verwerfen").addEventListener("click", () => {
   if (!confirm("Alles Offene verwerfen? Ohne den Code lässt es sich nicht wiederholen. Danach ist die App leer.")) return;
   sperrPaketJetzt = null; fehlversuche = 0; wartenBis = 0; clearInterval(warteUhr); gesperrt = false; sperrFlaecheWeg(); zuruecksetzen();
+});
+
+/* ══ Dateien hereinladen und herausladen (Klaus 2026-10-29: „leicht zu finden … Datei ablegen und dann scannen … da kann es
+   ruhig ein Fenster geben“). Vorbild Auslieferungsprüfer: eine Ablagefläche mit Dateiwahl, daneben ein Feld zum Einfügen,
+   dann „Prüfen“ und „Leeren“ — und Ziehen nie als einziger Weg (am Tablet gibt es kein Ziehen). Nichts verlässt das Gerät. */
+const importListe = [];
+let eingefuegtNr = 0;
+function importOeffnen(teil) {
+  if (gesperrt) return;
+  $("#import").hidden = false; importReiter(teil || "datei"); importMalen();
+  setTimeout(() => (teil === "text" ? $("#import-text") : $("#import-pruefen").disabled ? $('label[for="import-dateien"]') : $("#import-pruefen")).focus(), 0);
+}
+function importZu() { $("#import").hidden = true; }
+function importReiter(teil) {
+  $("#import-reiter-datei").setAttribute("aria-pressed", String(teil !== "text"));
+  $("#import-reiter-text").setAttribute("aria-pressed", String(teil === "text"));
+  $("#import-ablage").hidden = teil === "text"; $("#import-text-teil").hidden = teil !== "text";
+}
+/* Einzelne Dateien landen im Projektordner, wenn das Projekt einer ist (README.md → musterapp/README.md). */
+function importPfad(pfad) {
+  const dazu = eingeworfen.length && $("#import-dazu").checked && quelle && quelle.ikon === "ordner" && !String(pfad).includes("/");
+  return dazu ? quelle.name + "/" + pfad : pfad;
+}
+function importDazu(liste) {
+  for (const d of liste) {
+    const i = importListe.findIndex((x) => x.pfad === d.pfad);
+    if (i >= 0) importListe.splice(i, 1, d); else importListe.push(d);
+  }
+  importMalen();
+}
+function importMalen() {
+  const ul = $("#import-liste");
+  ul.replaceChildren(...importListe.map((d) => {
+    const weg = el("button", { type: "button", class: "knopf klein-knopf", "aria-label": d.pfad + " wieder herausnehmen" }, ikon("weg"));
+    weg.addEventListener("click", () => { importListe.splice(importListe.indexOf(d), 1); importMalen(); });
+    return el("li", { "data-import": d.pfad }, el("div", { class: "titel-zeile" }, el("span", { class: "pfad", text: d.pfad }), weg),
+      el("span", { class: "satz", text: d.nichtGeoeffnet ? "Ordner — wird nicht gelesen" : gross(d.groesse != null ? d.groesse : d.bytes ? d.bytes.length : 0) }));
+  }));
+  $("#import-liste-titel").hidden = !importListe.length;
+  $("#import-liste-titel").textContent = "Bereit zum Prüfen (" + importListe.length + ")";
+  $("#import-pruefen").disabled = !importListe.length || laeuft;
+  $("#import-dazu-wahl").hidden = !eingeworfen.length;
+}
+/* Eingefügter Text wird eine Datei; die Endung verrät, wie geprüft wird (SVG, HTML, JSON oder Text). */
+function textAlsDatei(text, name) {
+  const t = String(text || "");
+  if (!t.trim()) return null;
+  let n = String(name || "").trim().replace(/[\\/:*?"<>|]+/g, "_");
+  if (!n) {
+    let endung = "txt";
+    if (/^\s*(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*(<!DOCTYPE svg[^>]*>\s*)?<svg[\s>]/i.test(t)) endung = "svg";
+    else if (/^\s*(<!doctype html|<html[\s>])/i.test(t)) endung = "html";
+    else if (/^\s*[{[]/.test(t)) { try { JSON.parse(t); endung = "json"; } catch { /* Text */ } }
+    n = "eingefuegt-" + (++eingefuegtNr) + "." + endung;
+  }
+  const bytes = new TextEncoder().encode(t);
+  return { pfad: n, groesse: bytes.length, bytes };
+}
+async function importPruefen() {
+  if (!importListe.length || laeuft) return;
+  const dazu = eingeworfen.length && $("#import-dazu").checked;
+  const neu = importListe.splice(0).map((d) => Object.assign({}, d, { pfad: importPfad(d.pfad) }));
+  importZu(); importMalen();
+  if (!dazu) return starte(neu);
+  const pfade = new Set(neu.map((d) => d.pfad));
+  const alte = eingeworfen.filter((d) => !pfade.has(d.pfad));
+  return starte([...alte, ...neu], { behalten: true, quelle: { ikon: quelle.ikon, name: quelle.name.replace(/ \+ \d+ Dateie?n?$/, "") + " + " + anzahl(neu.length, "Datei", "Dateien") } });
+}
+$("#hereinladen").addEventListener("click", () => importOeffnen("datei"));
+$("#text-einfuegen").addEventListener("click", () => importOeffnen("text"));
+$("#import-zu").addEventListener("click", importZu);
+$("#import").addEventListener("click", (e) => { if (e.target === $("#import")) importZu(); });
+$("#import-reiter-datei").addEventListener("click", () => importReiter("datei"));
+$("#import-reiter-text").addEventListener("click", () => importReiter("text"));
+for (const id of ["#import-dateien", "#import-ordner"]) $(id).addEventListener("change", (e) => { const l = ausDateiListe(e.target.files); e.target.value = ""; importDazu(l); });
+$("#import-text-dazu").addEventListener("click", () => {
+  const d = textAlsDatei($("#import-text").value, $("#import-name").value);
+  if (!d) { $("#import-text").focus(); return; }
+  importDazu([d]); $("#import-text").value = ""; $("#import-name").value = "";
+});
+$("#import-pruefen").addEventListener("click", importPruefen);
+$("#import-leeren").addEventListener("click", () => { importListe.length = 0; $("#import-text").value = ""; $("#import-name").value = ""; importMalen(); });
+const ablageFlaeche = $("#import-ablage");
+for (const n of ["dragenter", "dragover"]) ablageFlaeche.addEventListener(n, () => ablageFlaeche.classList.add("drueber"));
+for (const n of ["dragleave", "drop"]) ablageFlaeche.addEventListener(n, () => ablageFlaeche.classList.remove("drueber"));
+
+/* Einfügen (Strg+V, am Tablet „Einfügen“): Dateien und Bilder aus der Zwischenablage, sonst Text/SVG als Datei.
+   In einem Eingabefeld bleibt Einfügen, was es ist. */
+addEventListener("paste", (e) => {
+  if (gesperrt || laeuft) return;
+  const ziel = e.target;
+  if (ziel && ziel.closest && ziel.closest("input, textarea, select, [contenteditable]")) return;
+  const cd = e.clipboardData;
+  if (!cd) return;
+  const neu = Array.from(cd.files || []).map((f) => {
+    const endung = ((f.type || "").split("/")[1] || "bin").replace("jpeg", "jpg").replace("svg+xml", "svg").replace(/[^\w]+/g, "");
+    const name = f.name && !/^image\.\w+$/i.test(f.name) ? f.name : "eingefuegt-" + (++eingefuegtNr) + "." + endung;
+    return { pfad: name, groesse: f.size, lesen: async () => new Uint8Array(await f.arrayBuffer()) };
+  });
+  if (!neu.length) {
+    const svg = Array.from(cd.types || []).includes("image/svg+xml") ? cd.getData("image/svg+xml") : "";
+    const d = textAlsDatei(svg || cd.getData("text/plain"), svg ? "eingefuegt-" + (++eingefuegtNr) + ".svg" : "");
+    if (d) neu.push(d);
+  }
+  if (!neu.length) return;
+  e.preventDefault();
+  importOeffnen("datei"); importDazu(neu);
+});
+
+/* Herausladen: die saubere Kopie als ZIP — gibt es sie noch nicht, wird sie erst gebaut (mit Nachprüfung). */
+$("#herausladen").addEventListener("click", async () => {
+  if (laeuft || !ergebnis) return;
+  $("#spalten").dataset.zeige = "befunde";
+  for (const x of document.querySelectorAll("#reiter .reiter-knopf")) x.setAttribute("aria-pressed", String(x.dataset.reiter === "befunde"));
+  if (!gereinigt) { if (!$("#reinigen")) return melde("Es gibt nichts zu reinigen."); await reinigen(); }
+  const k = document.querySelector('[data-laden$="-sauber.zip"]');
+  if (k) { k.scrollIntoView({ block: "center" }); k.click(); }
 });

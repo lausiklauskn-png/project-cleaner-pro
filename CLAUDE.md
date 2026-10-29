@@ -6,7 +6,7 @@ oder nach GitHub gehen. Kein Build-Schritt. Der Plan steht im Brief:
 er ist die Quelle, diese Datei ist nur der Anker. Am Ende jeder Sitzung: Brief nachziehen und einen
 Kurzauftrag zum Kopieren ausgeben.
 
-## Stand: Stufen 1–5 + Testfassungen APK/Windows + Befund 1 (2026-10-29) · nächster Schritt: Klaus testet Fassung 8, dann Stufe 6
+## Stand: Stufen 1–5 + Hereinladen + Testfassungen APK/Windows, Fassung 9 (2026-10-29) · nächster Schritt: Klaus testet Fassung 9, dann Stufe 6
 
 | Datei | Rolle |
 |---|---|
@@ -45,16 +45,19 @@ Kurzauftrag zum Kopieren ausgeben.
   Speicher, Code vergessen; drei Versuche frei, dann wachsende Wartezeit. Neu laden = alles weg.
 - **Auskunft ist kein Knopf (Klaus 2026-10-29):** Zahlen, Stufen, Marken, Größen nur als Text (farbig/fett), keine Pillen und Rahmen.
   Erklärungen hinter **ⓘ** (`info()` in app.js). Beim Wählen je Fund zeigt „Wird zu:“ sofort die Zeile danach (`Kern.vorschau`).
+- **Hereinladen (Klaus 2026-10-29, Vorbild Auslieferungsprüfer):** Leiste oben im Arbeitsbildschirm („Dateien hereinladen“ /
+  „Saubere Kopie herausladen“), Fenster `#import` mit Ablagefläche, Dateiwahl und Einfügen-Feld; Strg+V überall außer in Feldern.
+  Ziehen nie als einziger Weg (Tablet). Im Arbeitsbildschirm ersetzt Ablegen nie still.
 - **Mustermappe:** ihre erfundenen Werte dürfen nie einem Projektwert gleichen; trifft es zufällig, bleibt die Datei weg (Probe).
 - **Kontrast und Schrift (Klaus 2026-10-29):** jede Schrift ≥ 4,5 : 1 in Hell **und** Dunkel (Probe `tests/kontrast.mjs`),
   weiße Schrift nur auf dunklem Grund; keine Schrift über Schrift, keine doppelten Leerzeilen (Probe in `messen`).
-  Bildschirmfotos aller Zustände: `docs/bilder-stufe-4/`.
+  Bildschirmfotos aller Zustände: `docs/bilder-stufe-4/`, `docs/bilder-stufe-5/`.
 
 ## Prüfen
 
 ```bash
-npm test             # 266 grün · 0 ROT (2026-10-29, Stufe 5, Befund 1, Fassung 8)
-npm run gegenprobe   # 65 Fälle, Anker 0 tot; 2026-10-29 voll gefahren: die 17 neuen + 11 berührte alte = 28 gefangen · 0 blind
+npm test             # 281 grün · 0 ROT (2026-10-29, Stufe 5, Hereinladen, Fassung 9)
+npm run gegenprobe   # 69 Fälle, Anker 0 tot; 2026-10-29 voll gefahren: 21 neue + 11 berührte alte = 32 gefangen · 0 blind
                      # (die übrigen 37 nicht neu gefahren; ein voller Lauf dauert hier ~2 h — einzeln: NUR_FALL=NAME)
 ```
 

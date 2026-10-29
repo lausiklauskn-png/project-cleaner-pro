@@ -370,3 +370,35 @@ mark.ersatz { background: var(--gut-grund); color: var(--gut); outline: 1px soli
 .vorschau-zeile { display: block; padding: 4px 8px; background: var(--grund); border-radius: 6px; font-size: .82rem; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--schrift); }
 .tresor-karte { grid-template-columns: minmax(0, 1fr); }
 .tresor-karte > * { min-width: 0; }
+
+/* Hereinladen / Herausladen (Klaus 2026-10-29): immer oben im Arbeitsbildschirm, leicht zu finden */
+.arbeit { grid-template-rows: auto auto auto auto auto minmax(0, 1fr); }
+.ein-aus { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 7px var(--abstand); background: var(--papier); border-bottom: 1px solid var(--linie); min-width: 0; }
+.ein-aus-satz { font-size: .8rem; color: var(--leise); min-width: 0; overflow-wrap: anywhere; }
+.nur-maus { display: none; }
+@media (hover: hover) and (pointer: fine) { .nur-maus { display: inline; } }
+@media (hover: none), (pointer: coarse) { .ein-aus-satz { display: none; } }
+
+/* Fenster „Dateien hereinladen“ (Vorbild Auslieferungsprüfer: Ablagefläche, Einfügen-Feld, Prüfen / Leeren) */
+.fenster-grund { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; padding: 12px; background: rgb(4 16 30 / .55); }
+.fenster-grund[hidden] { display: none; }
+.fenster { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; width: min(680px, 100%); max-height: 100%; min-width: 0; overflow: hidden;
+  background: var(--papier); color: var(--schrift); border: 1px solid var(--linie); border-radius: 14px; box-shadow: 0 18px 50px rgb(0 0 0 / .35); }
+.fenster-kopf { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--linie); min-width: 0; }
+.fenster-kopf h2 { margin: 0; font-size: 1.1rem; color: var(--titel); min-width: 0; }
+.fenster > .ansicht-reiter { padding: 8px 14px 0; }
+.fenster-koerper { overflow: auto; min-height: 0; padding: 12px 14px; display: grid; gap: 10px; align-content: start; }
+.fenster-fuss { justify-content: flex-start; padding: 10px 14px; border-top: 1px solid var(--linie); }
+.ablage { display: grid; justify-items: center; gap: 10px; text-align: center; padding: 22px 14px; border: 2px dashed var(--k2); border-radius: 12px; background: var(--flaeche2); min-width: 0; }
+.ablage.drueber { background: var(--blau-grund); border-color: var(--petrol); }
+.ablage-satz { margin: 0; font-weight: 600; color: var(--titel); overflow-wrap: anywhere; }
+.ablage .klein { margin: 0; font-size: .82rem; color: var(--leise); overflow-wrap: anywhere; }
+.einfuegen { display: grid; gap: 6px; min-width: 0; }
+.einfuegen label { font-size: .9rem; font-weight: 600; color: var(--titel); }
+#import-text { width: 100%; min-height: 9em; resize: vertical; font: .85rem/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace; padding: 8px 10px; border: 1px solid var(--linie); border-radius: 8px; background: var(--papier); color: var(--schrift); }
+#import-name { flex: 1 1 12em; min-width: 0; font: inherit; font-size: .86rem; min-height: 30px; padding: 3px 8px; border: 1px solid var(--linie); border-radius: 7px; background: var(--papier); color: var(--schrift); }
+.import-liste-titel { margin: 4px 0 0; font-size: .95rem; color: var(--titel); }
+#import-liste:empty { display: none; }
+#import-liste .knopf { flex: none; padding: 3px 6px; }
+#import-liste .titel-zeile { justify-content: space-between; flex-wrap: nowrap; }
+#import-liste .pfad { min-width: 0; overflow-wrap: anywhere; }

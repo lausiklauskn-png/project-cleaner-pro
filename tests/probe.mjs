@@ -937,6 +937,64 @@ await seite.setViewportSize({ width: 1280, height: 800 });
   }));
   await ctx3.close();
 }
+{
+  /* Hereinladen und herausladen (Klaus 2026-10-29, Vorbild Auslieferungsprüfer) */
+  const ctx4 = await browser.newContext({ viewport: { width: 360, height: 740 }, acceptDownloads: true }), s4 = await ctx4.newPage();
+  s4.on("request", (q) => { if (!q.url().startsWith(BASIS) && !q.url().startsWith("data:") && !q.url().startsWith("blob:")) netz.push(q.url()); });
+  s4.on("pageerror", (e) => konsole.push(String(e)));
+  const fertig = () => s4.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden && document.querySelector(".buendel"), null, { timeout: 30000 });
+  await s4.goto(BASIS + "?ohne-sw");
+  await s4.click("#beispiel"); await fertig();
+  ok("Hereinladen: im Arbeitsbildschirm oben sichtbar, auch am Handy (360 px), mit Wort — kein bloßes Symbol", await s4.evaluate(() => {
+    const k = document.querySelector("#hereinladen"), r = k.getBoundingClientRect(); return r.width > 80 && r.top < 200 && /Dateien hereinladen/.test(k.textContent) && !!document.querySelector("#herausladen");
+  }));
+  await s4.click("#hereinladen");
+  ok("Hereinladen: öffnet ein Fenster mit Ablagefläche, „Dateien wählen“, „Ordner wählen“ und „Text einfügen“", await s4.evaluate(() =>
+    !document.querySelector("#import").hidden && !!document.querySelector('label[for="import-dateien"]') && !!document.querySelector('label[for="import-ordner"]') && !!document.querySelector("#import-reiter-text") && document.querySelector("#import-pruefen").disabled));
+  for (const [w, h] of [[320, 640], [740, 360], [1280, 800]]) { await s4.setViewportSize({ width: w, height: h }); await s4.waitForTimeout(60); const f = await s4.evaluate(messen); ok("Fenster Hereinladen " + w + "×" + h + ": Vollbild, nichts quer, keine Schrift über Schrift", f.length === 0, f.slice(0, 3).join(" | ")); }
+  await s4.setViewportSize({ width: 360, height: 740 });
+  await s4.setInputFiles("#import-dateien", { name: "notiz.txt", mimeType: "text/plain", buffer: Buffer.from("Termin mit quaxelbrunn@beispiel.example\n") });
+  ok("Hereinladen: die gewählte Datei steht in der Liste, „Prüfen“ wird frei, „Dazunehmen“ ist angeboten", await s4.evaluate(() =>
+    window.__reiniger.importListe().join() === "notiz.txt" && !document.querySelector("#import-pruefen").disabled && !document.querySelector("#import-dazu-wahl").hidden && document.querySelector("#import-dazu").checked));
+  await s4.selectOption('select[data-schluessel="gefuehlt|ORT|hamburg"]', "marke").catch(() => {});
+  await s4.click("#import-pruefen"); await fertig();
+  ok("Dazugenommen und geprüft: die neue Datei liegt im Projektordner, ihre Mail ist gefunden, die alten Funde bleiben", await s4.evaluate(() => {
+    const r = window.__reiniger.ergebnis(); return r.befunde.some((b) => b.pfad === "musterapp/notiz.txt" && b.wert === "quaxelbrunn@beispiel.example") && r.befunde.some((b) => b.wert === "erika.mustermann@beispiel.example") &&
+      document.querySelector("#import").hidden && /musterapp \+ 1 Datei/.test(document.querySelector("[data-quelle]").textContent);
+  }));
+  /* Einfügen aus der Zwischenablage: SVG-Text und ein Bild */
+  await s4.evaluate(() => {
+    const dt = new DataTransfer(); dt.setData("text/plain", '<svg xmlns="http://www.w3.org/2000/svg"><text>Anna Quaxelbrunn, anna@beispiel.example</text></svg>');
+    document.body.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  ok("Einfügen (Strg+V): SVG-Text wird eine .svg-Datei im Fenster", await s4.evaluate(() => !document.querySelector("#import").hidden && /^eingefuegt-\d+\.svg$/.test(window.__reiniger.importListe()[0] || "")), await s4.evaluate(() => window.__reiniger.importListe().join()));
+  await s4.evaluate(async () => {
+    const c = document.createElement("canvas"); c.width = 4; c.height = 4; const b = await new Promise((ok) => c.toBlob(ok, "image/png"));
+    const dt = new DataTransfer(); dt.items.add(new File([b], "image.png", { type: "image/png" }));
+    document.body.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  ok("Einfügen: ein Bild aus der Zwischenablage kommt dazu (eigener Name, nicht „image.png“)", await s4.evaluate(() => { const l = window.__reiniger.importListe(); return l.length === 2 && /^eingefuegt-\d+\.png$/.test(l[1]); }));
+  await s4.click("#import-reiter-text");
+  await s4.fill("#import-text", "Ruf an: +49 30 9876543"); await s4.click("#import-text-dazu");
+  ok("Text einfügen: aus dem Feld wird eine .txt-Datei, das Feld ist danach leer", await s4.evaluate(() => { const l = window.__reiniger.importListe(); return l.length === 3 && /\.txt$/.test(l[2]) && !document.querySelector("#import-text").value; }));
+  await s4.uncheck("#import-dazu");
+  await s4.click("#import-pruefen"); await s4.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden && !window.__reiniger.ergebnis().befunde.some((b) => /musterapp/.test(b.pfad)), null, { timeout: 30000 }).catch(() => {});
+  ok("Neu prüfen (ohne Dazunehmen): nur die eingefügten Dateien, Mail im SVG gefunden", await s4.evaluate(() => {
+    const r = window.__reiniger.ergebnis(); return r.inventur.length === 3 && r.befunde.some((b) => /\.svg$/.test(b.pfad) && b.wert === "anna@beispiel.example") && r.befunde.some((b) => b.art === "TELEFON");
+  }));
+  /* Ablegen im Arbeitsbildschirm: ins Fenster, nicht sofort ersetzen */
+  await s4.evaluate(() => { const dt = new DataTransfer(); dt.items.add(new File(["x@beispiel.example"], "abgelegt.txt", { type: "text/plain" })); document.body.dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true })); });
+  await s4.waitForTimeout(150);
+  ok("Ablegen im Arbeitsbildschirm: die Datei landet im Fenster „Dateien hereinladen“ (nichts wird still ersetzt)", await s4.evaluate(() =>
+    !document.querySelector("#import").hidden && window.__reiniger.importListe().join() === "abgelegt.txt" && window.__reiniger.ergebnis().inventur.length === 3));
+  await s4.click("#import-leeren");
+  ok("Leeren: die Liste ist leer, „Prüfen“ wieder gesperrt", await s4.evaluate(() => !window.__reiniger.importListe().length && document.querySelector("#import-pruefen").disabled));
+  await s4.keyboard.press("Escape");
+  ok("Esc schließt das Fenster", await s4.evaluate(() => document.querySelector("#import").hidden));
+  const [dl] = await Promise.all([s4.waitForEvent("download", { timeout: 60000 }).catch(() => null), s4.click("#herausladen")]);
+  ok("Herausladen: baut die saubere Kopie (mit Nachprüfung) und lädt das ZIP", !!dl && /-sauber\.zip$/.test(dl.suggestedFilename()) && await s4.evaluate(() => !!window.__reiniger.gereinigt()), dl ? dl.suggestedFilename() : "kein Download");
+  await ctx4.close();
+}
 ok("Kein Netz: keine einzige Anfrage nach außen", netz.length === 0, netz.join(", "));
 ok("Keine Fehler in der Konsole", konsole.length === 0, konsole.slice(0, 3).join(" | "));
 await browser.close(); server.close();
