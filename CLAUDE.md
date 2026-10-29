@@ -6,7 +6,7 @@ oder nach GitHub gehen. Kein Build-Schritt. Der Plan steht im Brief:
 er ist die Quelle, diese Datei ist nur der Anker. Am Ende jeder Sitzung: Brief nachziehen und einen
 Kurzauftrag zum Kopieren ausgeben.
 
-## Stand: Stufen 1–7 + Hereinladen + Vorführung + Testfassungen APK/Windows, Fassung 11 (2026-10-29) · nächster Schritt: Klaus testet Fassung 11 und gibt den Befund zu Fassung 10/11 in den Auftrag (lag zu Stufe 7 nicht vor)
+## Stand: Stufen 1–7 + Befund 11 (Basic/Pro, Mikrofon), Fassung 12 (2026-10-29) · nächster Schritt: Klaus testet Fassung 12 (Basic + Pro-APK), dann Stufe 8 oder 9
 
 | Datei | Rolle |
 |---|---|
@@ -30,6 +30,7 @@ Kurzauftrag zum Kopieren ausgeben.
 - **Bild (Klaus 2026-10-28):** der Kristall (`icons/kristall-quelle.png`) ist App-Icon, Favicon und Logo; auf
   leeren Flächen steht er groß mit **„CLEANER“** in weißer Schrift darunter. Icon A (Kacheln im Kreispfeil) ist
   damit abgelöst. Alle Größen baut `node tools/icons-bauen.mjs` — **nie von Hand**; sonst meldet die Probe „veraltet“.
+  Pro (APK/Windows): goldener Kristall aus `icons/kristall-pro-quelle.png`, gleiches Werkzeug.
 - **Vollbild:** `100dvh`, keine Höchstbreite, `display: standalone`. Die Probe misst bei 320×640, 360×740,
   412×915, 768×1024, 1280×800, 740×360 (Handy quer) und 1920×1080 in drei Zuständen (Einwurf, Funde, Inventur):
   nichts quer, nichts ragt über seinen Kasten, keine Beschriftung abgeschnitten, kein Knopf bricht um, App füllt das Fenster.
@@ -64,14 +65,22 @@ Kurzauftrag zum Kopieren ausgeben.
   (`--streng`: auch Mail/IBAN/Telefon/Schlüssel). **Seine Ausgabe nennt nie einen Wert** (Probe). Eingeworfen wird eine Sperrliste
   geladen, nicht geprüft; gespeichert wird sie nicht.
 - **Mustermappe:** ihre erfundenen Werte dürfen nie einem Projektwert gleichen; trifft es zufällig, bleibt die Datei weg (Probe).
+- **Basic und Pro (Klaus 2026-10-29, Befund 11):** Browser/PWA = **„Projekt-Reiniger Basic“** (blauer Kristall); APK und Windows = **„Projekt-Reiniger Pro“**
+  (goldener Kristall `icons/kristall-pro-quelle.png`, Gold auf Dunkel über `data-ausgabe="pro"`). Eine Codebasis — app.js schaltet in der Hülle um.
+  Neben dem Namen die **Versionsnummer** `v` + `APP_FASSUNG` (APK `build.gradle` liest sie, Windows `tauri.conf.json` = `N.0.0`, Probe vergleicht);
+  in Pro ist sie der Update-Knopf (vorerst Link zur Testfassung, später Klaus' Server).
+- **Kopf rechts nur Symbole** (Klaus 2026-10-29): ⓘ Auskunft, Darstellung (Bildschirm/Sonne/Mond), Aktualisieren, großes Schloss; Erklärung als `title`.
+- **Mikrofon im Suchfeld** (Technik aus Meine-Familienakte): Browser = Web Speech (Chrome → Google; das steht am Knopf und in der Auskunft — nie
+  verschweigen), APK = Androids Sprachfenster (`SprachePlugin`, Plugin-Name `ProSpeech`, offline bevorzugt, kein Mikrofon-Recht), Windows noch keins.
+- **Knöpfe erklären sich:** `title` und für das Tablet zusätzlich ⓘ („Was machen diese Knöpfe?“).
 - **Kontrast und Schrift (Klaus 2026-10-29):** jede Schrift ≥ 4,5 : 1 in Hell **und** Dunkel (Probe `tests/kontrast.mjs`),
   weiße Schrift nur auf dunklem Grund; keine Schrift über Schrift, keine doppelten Leerzeilen (Probe in `messen`).
-  Bildschirmfotos aller Zustände: `docs/bilder-stufe-4/`, `docs/bilder-stufe-5/`, `docs/bilder-stufe-6/`, `docs/bilder-stufe-7/`.
+  Bildschirmfotos aller Zustände: `docs/bilder-stufe-4/`, `docs/bilder-stufe-5/`, `docs/bilder-stufe-6/`, `docs/bilder-stufe-7/`, `docs/bilder-befund-11/`.
 
 ## Prüfen
 
 ```bash
-npm test             # 360 grün · 0 ROT (2026-10-29 spät, Stufe 7, Fassung 11)
+npm test             # 384 grün · 0 ROT (2026-10-29 Nacht, Befund 11, Fassung 12)
 npm run gegenprobe   # 93 Fälle; Stufe 7: 12 neue = 12 gefangen · 0 blind (SPDICHT fand einen echten Fehler); davor 12 + 32 gefangen
                      # (die übrigen 37 nicht neu gefahren; ein voller Lauf dauert hier ~2 h — einzeln: NUR_FALL=NAME)
 ```

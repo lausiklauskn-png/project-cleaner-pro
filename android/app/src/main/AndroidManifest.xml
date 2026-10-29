@@ -38,4 +38,8 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Kein Mikrofon-Recht: das Mikrofon im Suchfeld nutzt Androids Sprachfenster (Android 11+ braucht diese Abfrage). -->
+    <queries>
+        <intent><action android:name="android.speech.action.RECOGNIZE_SPEECH" /></intent>
+    </queries>
 </manifest>

@@ -49,9 +49,9 @@ export const PINS = {
 console.log("A · ohne Browser");
 for (const [p, s] of Object.entries(PINS)) ok("Pin " + p, existsSync(join(WURZEL, p)) && sha(p) === s, "neu kopieren, nicht abwandeln");
 
-ok("Icons sind aus der aktuellen Quelle gebaut (sonst: node tools/icons-bauen.mjs)",
-  lies("icons/quelle.sha256").trim() === sha("icons/kristall-quelle.png"), "veraltet");
-for (const p of ["icon-192.png", "icon-512.png", "maskable-512.png", "apple-touch-icon.png", "favicon-32.png", "favicon-48.png", "logo-96.png", "kristall.webp"])
+ok("Icons sind aus der aktuellen Quelle gebaut — Basic (blau) und Pro (gold) (sonst: node tools/icons-bauen.mjs)",
+  lies("icons/quelle.sha256").trim() === sha("icons/kristall-quelle.png") + "\n" + sha("icons/kristall-pro-quelle.png"), "veraltet");
+for (const p of ["icon-192.png", "icon-512.png", "maskable-512.png", "apple-touch-icon.png", "favicon-32.png", "favicon-48.png", "logo-96.png", "kristall.webp", "logo-pro-96.png", "kristall-pro.webp", "kristall-pro-gross.webp"])
   ok("Icon da: " + p, existsSync(join(WURZEL, "icons", p)));
 function pngGroesse(p) { const b = readFileSync(join(WURZEL, p)); return [b.readUInt32BE(16), b.readUInt32BE(20)]; }
 ok("icon-512 ist 512×512", pngGroesse("icons/icon-512.png").join() === "512,512");
@@ -567,6 +567,21 @@ const { beispielProjekt } = await import(pathToFileURL(join(WURZEL, "assets/beis
   const wf = lies(".github/workflows/waechter.yml");
   ok("GitHub-Prüfung: läuft bei push und pull_request, ist für andere Repos aufrufbar (workflow_call, Geheimnis REINIGER_SPERRLISTE), liest nur, holt die ganze Geschichte",
     /\n  push:/.test(wf) && /\n  pull_request:/.test(wf) && /workflow_call:\s*\n\s*secrets:\s*\n\s*REINIGER_SPERRLISTE:/.test(wf) && /contents: read/.test(wf) && /fetch-depth: 0/.test(wf) && /--ci/.test(wf) && !/contents: write/.test(wf));
+}
+
+{
+  /* Befund 11 (Klaus 2026-10-29): Basic = Browser, Pro = APK/Windows; die Versionsnummer folgt APP_FASSUNG überall */
+  const F = (/APP_FASSUNG = "(\d+)"/.exec(lies("assets/app.js")) || [])[1];
+  ok("Basic/Pro: PWA heißt „Projekt-Reiniger Basic“, APK und Windows „Projekt-Reiniger Pro“",
+    JSON.parse(lies("manifest.json")).name === "Projekt-Reiniger Basic" && /<title>Projekt-Reiniger Basic<\/title>/.test(lies("index.html")) &&
+    JSON.parse(lies("capacitor.config.json")).appName === "Projekt-Reiniger Pro" && JSON.parse(lies("windows/src-tauri/tauri.conf.json")).productName === "Projekt-Reiniger Pro");
+  ok("Versionsnummer: APK (build.gradle liest APP_FASSUNG), Windows (tauri.conf " + F + ".0.0) und die Seite (v" + F + ") gleich",
+    /APP_FASSUNG = "\(\\d\+\)"/.test(lies("android/app/build.gradle")) && JSON.parse(lies("windows/src-tauri/tauri.conf.json")).version === F + ".0.0" && lies("index.html").includes(">v" + F + "<"));
+  const rs = lies("windows/src-tauri/src/main.rs");
+  ok("Windows-Hülle: genau ein Befehl für die Seite, ohne Parameter, mit fester Adresse der Testfassung", (rs.match(/#\[tauri::command\]/g) || []).length === 1 && /fn testfassung_oeffnen\(\)/.test(rs) && /releases\/tag\/testfassung/.test(rs));
+  const an = lies("android/app/src/main/AndroidManifest.xml"), sp = lies("android/app/src/main/java/de/familyprojekt/projektreiniger/pro/SprachePlugin.java");
+  ok("Android-Mikrofon: Sprachfenster des Systems (ProSpeech), Gerät bevorzugt, KEIN Mikrofon-Recht", /registerPlugin\(SprachePlugin\.class\)/.test(lies("android/app/src/main/java/de/familyprojekt/projektreiniger/pro/MainActivity.java")) &&
+    /EXTRA_PREFER_OFFLINE, true/.test(sp) && /RECOGNIZE_SPEECH/.test(an) && !/RECORD_AUDIO/.test(an));
 }
 
 /* ── B · im Browser ─────────────────────────────────────────────── */
@@ -1355,6 +1370,80 @@ await seite.setViewportSize({ width: 1280, height: 800 });
   await s7.click("#sperren"); await s7.fill("#sperre-code", "1234"); await s7.fill("#sperre-code2", "1234"); await s7.click("#sperre-ok"); await s7.waitForTimeout(300);
   ok("Gäste-Sperre: das Sperrliste-Fenster (mit den Werten) ist sofort leer und weg", await s7.evaluate(() => document.querySelector("#sperrfenster").hidden && !document.querySelector("#sperrfenster").childElementCount));
   await ctx7.close();
+}
+{
+  /* Befund 11 · Kopf, Mikrofon, Knopf-Erklärungen (Basic im Browser) */
+  const ctx8 = await browser.newContext({ viewport: { width: 1280, height: 800 } }), s8 = await ctx8.newPage();
+  s8.on("request", (q) => { if (!q.url().startsWith(BASIS) && !q.url().startsWith("data:") && !q.url().startsWith("blob:")) netz.push(q.url()); });
+  s8.on("pageerror", (e) => konsole.push(String(e)));
+  await s8.addInitScript(() => { window.__sprache = null;
+    class Stub { constructor() { window.__sprache = this; } start() { this.gestartet = true; } stop() { this.gestoppt = true; } abort() {} }
+    window.SpeechRecognition = Stub; });
+  await s8.goto(BASIS + "?ohne-sw");
+  ok("Kopf (Basic): „Projekt-Reiniger Basic“ und die Versionsnummer v" + "N" + "; Auskunft, Darstellung, Aktualisieren, Sperren nur als Symbol (mit Erklärung beim Darüberfahren)", await s8.evaluate(() => {
+    const t = (id) => document.querySelector(id).textContent.trim();
+    const nurSymbol = ["#lokal", "#thema", "#aktualisieren", "#sperren"].every((id) => { const k = document.querySelector(id); return !k.textContent.trim() && k.querySelector("svg") && k.title && k.getAttribute("aria-label"); });
+    return /Projekt-Reiniger Basic/.test(document.querySelector(".marke").textContent) && t("#fassung") === "v" + window.__reiniger.APP_FASSUNG && nurSymbol &&
+      document.querySelector("#lokal").getBoundingClientRect().left > innerWidth / 2;
+  }));
+  ok("Sperren: das Schloss ist groß genug (mindestens 26 px)", await s8.evaluate(() => document.querySelector("#sperren svg").getBoundingClientRect().width >= 26));
+  await s8.click("#beispiel"); await s8.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden && document.querySelector(".buendel"), null, { timeout: 30000 });
+  ok("Mikrofon steht in der Zeile des Suchfelds, klein (Symbol), mit Hinweis, dass im Browser der Sprachdienst zuhört", await s8.evaluate(() => {
+    const k = document.querySelector("#diktat"), f = document.querySelector("#begriff");
+    return !!k && k.parentElement === f.parentElement && !k.textContent.trim() && /Google/.test(k.title) && Math.abs(k.getBoundingClientRect().top - f.getBoundingClientRect().top) < 12;
+  }));
+  await s8.click("#diktat");
+  const an = await s8.evaluate(() => ({ p: document.querySelector("#diktat").getAttribute("aria-pressed"), h: document.querySelector("#diktat-hinweis").textContent, s: !!(window.__sprache && window.__sprache.gestartet && window.__sprache.lang === "de-DE") }));
+  await s8.evaluate(() => { const r = window.__sprache; r.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: "Quirin Zapf" }], { isFinal: true, length: 1 })] }); r.onend(); });
+  const nach = await s8.evaluate(() => ({ v: document.querySelector("#begriff").value, p: document.querySelector("#diktat").getAttribute("aria-pressed"), h: document.querySelector("#diktat-hinweis").textContent }));
+  ok("Mikrofon: Tippen startet (Deutsch, „Hört zu …“, Hinweis auf Google), das Gehörte steht im Suchfeld, danach „Suchen“ tippen",
+    an.p === "true" && an.s && /Hört zu/.test(an.h) && /Google/.test(an.h) && nach.v === "Quirin Zapf" && nach.p === "false" && /Suchen/.test(nach.h), JSON.stringify([an, nach]));
+  await s8.click("#diktat"); await s8.click("#diktat");
+  ok("Mikrofon: noch einmal tippen beendet sofort", await s8.evaluate(() => document.querySelector("#diktat").getAttribute("aria-pressed") === "false" && window.__sprache.gestoppt));
+  await s8.click("#diktat");
+  await s8.evaluate(() => window.__sprache.onerror({ error: "not-allowed" }));
+  ok("Mikrofon verweigert: laut „bitte tippen“, Knopf wieder aus", await s8.evaluate(() => /verweigert.*tippen/.test(document.querySelector("#diktat-hinweis").textContent) && document.querySelector("#diktat").getAttribute("aria-pressed") === "false"));
+  for (const [w, h] of [[320, 640], [1280, 800]]) { await s8.setViewportSize({ width: w, height: h }); await s8.waitForTimeout(60); const f = await s8.evaluate(messen); ok("Funde mit Mikrofon " + w + "×" + h + ": nichts quer, keine Schrift über Schrift", f.length === 0, f.slice(0, 3).join(" | ")); }
+  await s8.setViewportSize({ width: 1280, height: 800 });
+  await s8.click("#reinigen"); await s8.waitForSelector("#sperrliste-bauen", { timeout: 60000 });
+  ok("Knöpfe nach dem Reinigen erklären sich: Hinweis beim Darüberfahren (Stellenplan, Bericht, Eigene Werte, Sperrliste) und hinter ⓘ für das Tablet", await s8.evaluate(() => {
+    const t = (sel) => (document.querySelector(sel) || {}).title || "";
+    const zeile = [...document.querySelectorAll(".kopie .titel-zeile")].find((z) => /Was machen diese Knöpfe/.test(z.textContent));
+    const erkl = zeile && document.getElementById(zeile.querySelector(".info-knopf").getAttribute("aria-controls"));
+    return /WO etwas ersetzt wurde/.test(t('[data-laden="REINIGER-STELLENPLAN.txt"]')) && /Bericht:/.test(t('[data-laden="REINIGER-BERICHT.txt"]')) && /Platzhalter/.test(t("#zurueckbauen")) && /Fingerabdrücke/.test(t("#sperrliste-bauen")) &&
+      !!erkl && /Stellenplan:/.test(erkl.textContent) && /Sperrliste herausladen:/.test(erkl.textContent);
+  }));
+  await ctx8.close();
+}
+{
+  /* Befund 11 · Pro (Android-Hülle, nachgestellt): Name, Gold, goldener Kristall, Versionsnummer als Knopf, Mikrofon über das Sprachfenster */
+  const ctx9 = await browser.newContext({ viewport: { width: 1280, height: 800 } }), s9 = await ctx9.newPage();
+  s9.on("request", (q) => { if (!q.url().startsWith(BASIS) && !q.url().startsWith("data:") && !q.url().startsWith("blob:")) netz.push(q.url()); });
+  s9.on("pageerror", (e) => konsole.push(String(e)));
+  await s9.addInitScript(() => { window.__aufrufe = []; window.Capacitor = { isNativePlatform: () => true,
+    nativePromise: (p, m, o) => { window.__aufrufe.push({ p, m, o }); return Promise.resolve(p === "ProSpeech" ? { cancelled: false, text: "Quirin Zapf" } : { gespeichert: true }); } }; });
+  await s9.goto(BASIS, { waitUntil: "load" });
+  ok("Pro: „Projekt-Reiniger Pro“, goldener Kristall (Logo und erste Seite), Gold auf Dunkel im Kopf", await s9.evaluate(() =>
+    document.documentElement.dataset.ausgabe === "pro" && /Projekt-Reiniger Pro/.test(document.querySelector(".marke").textContent) && document.title === "Projekt-Reiniger Pro" &&
+    /logo-pro-96\.png$/.test(document.querySelector(".marke img").src) && /kristall-pro\.webp$/.test(document.querySelector(".einwurf .kristall").currentSrc || document.querySelector(".einwurf .kristall").src) &&
+    !!document.querySelector("#installieren") && /2b2110|43, 33, 16/.test(getComputedStyle(document.querySelector(".kopf")).backgroundImage)));
+  for (const t of ["hell", "dunkel"]) { await s9.evaluate((t) => { document.documentElement.dataset.thema = t; }, t); const f = await s9.evaluate(kontrast); ok("Kontrast Pro, erste Seite (" + t + ")", f.length === 0, f.slice(0, 3).join(" | ")); }
+  await s9.evaluate(() => { delete document.documentElement.dataset.thema; });
+  await s9.click("#fassung");
+  ok("Pro: die Versionsnummer ist ein Knopf — Meldung mit Fassung und Link zur Testfassung (öffnet den Browser, die App geht nicht selbst ins Netz)", await s9.evaluate(() => {
+    const a = document.querySelector("#fassung-holen"); return document.querySelector("#fassung").tagName === "BUTTON" && !document.querySelector("#meldung").hidden &&
+      /Fassung \d+/.test(document.querySelector("#meldung-text").textContent) && !!a && /releases\/tag\/testfassung$/.test(a.href) && /deinstallieren/.test(document.querySelector("#meldung-text").textContent); }));
+  await s9.click("#meldung-zu");
+  await s9.click("#beispiel"); await s9.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden && document.querySelector(".buendel"), null, { timeout: 30000 });
+  for (const t of ["hell", "dunkel"]) { await s9.evaluate((t) => { document.documentElement.dataset.thema = t; }, t); const f = await s9.evaluate(kontrast); ok("Kontrast Pro, Funde (" + t + ")", f.length === 0, f.slice(0, 3).join(" | ")); }
+  await s9.evaluate(() => { delete document.documentElement.dataset.thema; });
+  await s9.click("#diktat");
+  await s9.waitForFunction(() => document.querySelector("#begriff").value === "Quirin Zapf", null, { timeout: 5000 }).catch(() => {});
+  ok("Pro: Mikrofon über Androids Sprachfenster (ProSpeech, Deutsch) — ohne Hinweis auf Google, das Gehörte steht im Feld", await s9.evaluate(() => {
+    const c = window.__aufrufe.find((x) => x.p === "ProSpeech"); return !!c && c.m === "listen" && c.o.language === "de-DE" && document.querySelector("#begriff").value === "Quirin Zapf" && !/Google/.test(document.querySelector("#diktat").title); }));
+  const f = await s9.evaluate(messen);
+  ok("Pro 1280×800: nichts quer, keine Schrift über Schrift", f.length === 0, f.slice(0, 3).join(" | "));
+  await ctx9.close();
 }
 ok("Kein Netz: keine einzige Anfrage nach außen", netz.length === 0, netz.join(", "));
 ok("Keine Fehler in der Konsole", konsole.length === 0, konsole.slice(0, 3).join(" | "));

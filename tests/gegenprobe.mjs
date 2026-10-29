@@ -109,6 +109,10 @@ const FAELLE = [
   ["SPAPPLADEN", "assets/app.js", "      if (bytes && Kern.istSperrliste(", "      if (false && Kern.istSperrliste(", /geladen statt geprüft/],
   ["SPAPPSPERRE", "assets/app.js", "rueckbauSchliessen(); sperrfensterSchliessen(); ocrBeenden();", "rueckbauSchliessen(); ocrBeenden();", /Sperrliste-Fenster \(mit den Werten\)/],
   ["SPAPPVORWAHL", "assets/reiniger-kern.js", "export const SPERR_NICHT_VORGEWAEHLT = [\"DATUM\", \"ORT\", \"PLZ-ORT\", \"EIGENNAME\", \"HOCHSCHULE\"];", "export const SPERR_NICHT_VORGEWAEHLT = [];", /Ort und Datum nicht/],
+  /* Befund 11 · Basic/Pro, Mikrofon, Knopf-Erklärungen */
+  ["B11PRO", "assets/app.js", "  document.documentElement.dataset.ausgabe = \"pro\";\n", "", /Pro: „Projekt-Reiniger Pro“/],
+  ["B11GOOGLE", "assets/app.js", "const DIKTAT_NETZ = HUELLE ? \"\" : \"Im Browser hört der Sprachdienst des Browsers zu — bei Chrome geht die Sprache dafür an Google. Fremde Namen lieber tippen.\";", "const DIKTAT_NETZ = \"\";", /Mikrofon/],
+  ["B11KNOPF", "assets/app.js", "  stellenplan: \"Stellenplan: eine Liste, WO etwas ersetzt wurde", "  stellenplan: \"Stellenplan: eine Liste, wo etwas ersetzt wurde", /Knöpfe nach dem Reinigen erklären sich/],
 ];
 const nur = process.env.NUR_FALL;
 let gefangen = 0, schlecht = 0;

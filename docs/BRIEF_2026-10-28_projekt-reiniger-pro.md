@@ -1,6 +1,6 @@
 # Brief: Projekt-Reiniger Pro
 
-Stand 2026-10-29 (spät), **Stufen 1–7 gebaut**, Fassung 11 (Abschnitte „Stufe 1/2/3/4/5/6/7 · gebaut“ unten). Die App reinigt:
+Stand 2026-10-29 (Nacht), **Stufen 1–7 gebaut**, Fassung 12, **Befund 11 eingearbeitet** (Abschnitte „Stufe 1/2/3/4/5/6/7 · gebaut“ unten). Die App reinigt:
 einwerfen oder **hereinladen** (Fenster: wählen, ablegen, einfügen) → Funde ansehen (antippen = Datei an der Stelle) → je Fund
 entscheiden (mit **Vorschau**, was aus der Zeile wird) → saubere Kopie als ZIP mit Stellenplan und Bericht → Nachprüfung →
 **herausladen** → auf Wunsch **Tresor** (verschlüsselte Datei mit Zuordnung und Originalen) → **Zurückbauen** (Stufe 6: die
@@ -9,10 +9,10 @@ die App sofort. PDF und Bilder werden neu gezeichnet, Word/Excel/PowerPoint als 
 Neu auf der ersten Seite: **„So geht's“** — eine Vorführung, in der ein Finger die echte App bedient (Schritt 1–4).
 Neu in Stufe 7: aus der Zuordnung eine **Sperrliste** herausladen (nur Fingerabdrücke, keine Werte) und den **Git-Wächter**
 einrichten, der jeden Commit und Push mit einem dieser Werte oder einer Tresor-Datei anhält — auch als GitHub-Prüfung.
-Klaus' Befund zu Fassung 9 ist eingearbeitet. ⚠ **Ein Befund zu Fassung 10 lag in der Sitzung von Stufe 7 nicht vor** (kein Issue,
-kein Kommentar, nichts im Auftrag) — er ist offen. Nächster Schritt: Klaus testet Fassung 11 (Vorführung, „Neu“ links, Zurückbauen,
-Sperrliste, Git-Wächter in einem eigenen Repo) und gibt den Befund **in den Auftrag**; danach Stufe 8 (APK/Windows fertig machen)
-oder der Einbau in die Familienakte (Stufe 9). Der Brief lebt **hier** im Repo
+Klaus' Befunde zu Fassung 9 und 11 sind eingearbeitet (Fassung 10: „funktioniert gut“). **Basic** = Browser/PWA (blauer Kristall),
+**Pro** = APK und Windows (goldener Kristall, Gold auf Dunkel). Nächster Schritt: Klaus testet Fassung 12 (Basic im Browser, Pro als
+APK aus der Testfassung) und gibt den Befund in den Auftrag; danach Stufe 8 (APK/Windows fertig: eigener Schlüssel, Update über
+Klaus' Server, Mikrofon unter Windows) oder Stufe 9 (Familienakte). Der Brief lebt **hier** im Repo
 `project-cleaner-pro`; die Fassung im Sende-Prüfer ist eingefroren und zeigt hierher.
 
 ## Anlass
@@ -730,6 +730,26 @@ dann nicht erreichbar, obwohl die CLAUDE.md „immer sichtbar“ verlangt. Jetzt
   Merge selbst. Werte, die zerteilt oder verschlüsselt sind (Base64), findet die Liste nicht. Nicht gemessen: an Klaus' echten Repos,
   unter Windows (Hooks brauchen `node` im Pfad), große Repos in der GitHub-Prüfung.
 
+## Befund zu Fassung 11 (Klaus 2026-10-29, Nacht) · Fassung 12
+
+Fassung 10/11: *„Funktioniert gut.“*
+
+| Klaus | umgesetzt |
+|---|---|
+| *„Ein Mikrofon ins Suchfeld … nicht so groß, auf die Reihe, wo das Suchfeld ist … Technik von meiner Familienakte.“* | Mikrofon-Symbol in der Zeile „Fehlender Name …“. Technik aus Meine-Familienakte (`lib/browser-dictation.ts`, `FamilienakteSpeechPlugin`): im **Browser** die Spracherkennung des Browsers; in der **APK** Androids Sprachfenster (Plugin `ProSpeech`, `SprachePlugin.java`, Erkennung auf dem Gerät bevorzugt, kein Mikrofon-Recht). Tippen startet, noch einmal tippen beendet, das Gehörte steht im Feld, dann „Suchen“. ⚠ **Ehrlich:** im Browser schickt Chrome die Sprache an Google — das ist der einzige Weg, auf dem hier etwas das Gerät verlässt; es steht am Knopf, beim Start und in der Auskunft ⓘ. **Windows:** noch kein Mikrofon (die Familienakte nutzt dort die Windows-Spracherkennung über einen eigenen Befehl — noch nicht übernommen). |
+| *„Die Versionsnummer oben … die APK-App wird Pro genannt. Diese hier … Projektreiniger Basic.“* | Browser/PWA: **„Projekt-Reiniger Basic“** + **v12**. APK und Windows: **„Projekt-Reiniger Pro“** + **v12** als Knopf. Die Nummer ist überall `APP_FASSUNG` (APK: `build.gradle` liest sie, Windows: `tauri.conf.json` 12.0.0 — Probe vergleicht). |
+| *„… die Versionsnummer, die dann ein Aktualisierungsbutton wird bei der Pro-Variante … vorerst über einen Download-Link.“* | Pro: Tipp auf **v12** → Meldung mit Fassung und Knopf „Testfassung-Seite öffnen“ (GitHub, Vorab-Veröffentlichung `testfassung`; Android öffnet den Browser, Windows über einen festen Befehl der Hülle). Die App selbst lädt nichts. Das automatische Update über Klaus' Server kommt später. ⚠ Testfassungen ohne eigenen Schlüssel: vor dem Installieren der neuen APK die alte deinstallieren (die Meldung sagt es). |
+| *„Tooltips für die Knöpfe … ich weiß nicht, was Stellenplan bedeutet … Sperrliste herausladen.“* | Jeder Knopf nach dem Reinigen trägt eine Erklärung beim Darüberfahren; weil es am Tablet kein Darüberfahren gibt, zusätzlich **„Was machen diese Knöpfe?“ ⓘ** mit allen fünf Erklärungen (Saubere Kopie, Stellenplan, Bericht, Eigene Werte einsetzen, Sperrliste). |
+| *„Lokal … als Informationsbutton nach rechts, nicht ‚Lokal‘ draufschreiben.“* | ⓘ rechts im Kopf, ohne Wort; die Auskunft nennt Ausgabe und Fassung. |
+| *„Aktualisieren: nur das Zeichen. Sperren: nur das Schloss, groß genug. Farbmodi: Sonne und Mond.“* | Kopf rechts nur Symbole: ⓘ, Darstellung (Bildschirm = wie das Gerät, Sonne = hell, Mond = dunkel), Aktualisieren (Pfeile), **großes offenes Schloss** (28 px). Erklärung jeweils beim Darüberfahren. „Installieren“ behält sein Wort (nicht genannt). |
+| Bild: goldener Kristall — *„das soll auch die Hauptfarbgebung für das Pro-Programm werden, ab APK aufwärts, Windows.“* | `icons/kristall-pro-quelle.png`; `tools/icons-bauen.mjs` baut daraus Android-Symbole, Startbild und Windows-Symbol, dazu `logo-pro-96.png` und `kristall-pro*.webp`. In der Hülle: `data-ausgabe="pro"` → Kopf und erste Seite Gold auf Dunkel, Hauptknöpfe und Titel goldbraun; Kontrast hell/dunkel gemessen. Basic bleibt blau. |
+
+- **Proben:** `npm test` 384 grün · 0 ROT (+24: Basic/Pro-Namen, Versionsnummer in APK/Windows/Seite, Windows-Befehl, Android-Mikrofon ohne Mikrofon-Recht,
+  Kopf nur Symbole, Schlossgröße, Mikrofon im Browser (Start, Text, Stopp, verweigert), Knopf-Erklärungen, Pro-Hülle: Name, Gold, Kontrast, Versions-Knopf, Sprachfenster).
+  Bilder: `docs/bilder-befund-11/`. Gegenproben B11PRO, B11GOOGLE, B11KNOPF: 3 gefangen · 0 blind.
+- ⚠ Nicht gemessen: Mikrofon am echten Tablet (Browser und APK), das Sprachfenster auf Klaus' Gerät (offline?), der Link aus der APK,
+  der Windows-Befehl (nur gebaut auf GitHub, nicht gestartet).
+
 ## Grenzen (vorab benannt)
 
 - Die Suche arbeitet mit Mustern und Listen. Sie findet viel, aber **nicht garantiert alles**.
@@ -739,7 +759,9 @@ dann nicht erreichbar, obwohl die CLAUDE.md „immer sichtbar“ verlangt. Jetzt
 
 ## Offen
 
-- ⚠ **Befund zu Fassung 10** (Vorführung, „Neu“ links, Zurückbauen): lag in der Stufe-7-Sitzung nicht vor — bitte in den Kurzauftrag schreiben.
+- Pro: Update über Klaus' eigenen Server (wie Familienakte: unterschrieben, geprüft) statt Link; eigener Schlüssel für die APK, Signatur für Windows.
+- Mikrofon unter Windows (Windows-Spracherkennung wie in der Familienakte).
+- ✅ Befund zu Fassung 10: „funktioniert gut“ (Klaus 2026-10-29, Nacht).
 - Git-Wächter in Klaus' Repos einrichten (je Repo: `--einrichten` am Rechner, Workflow-Datei, Geheimnis `REINIGER_SPERRLISTE`) — Klaus entscheidet, welche.
 
 - Eigene Adresse (Unterdomain) oder fürs Erste github.io?

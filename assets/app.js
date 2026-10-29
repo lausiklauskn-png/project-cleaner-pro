@@ -35,11 +35,13 @@ const IKONEN = {
   weiter: "M9 6l6 6-6 6",
   hell: "M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4",
   dunkel: "M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z",
-  auto: "M12 3a9 9 0 1 0 0 18z M12 3a9 9 0 0 1 0 18",
+  auto: "M3 4h18v12H3z M8 20h8 M12 16v4",      // Bildschirm: Darstellung wie das Gerät
   schloss: "M6 11h12v10H6z M8.5 11V8a3.5 3.5 0 0 1 7 0v3 M12 15v2",
   tresor: "M4 5h16v14H4z M4 19v2 M20 19v2 M13 12a2 2 0 1 0-4 0a2 2 0 1 0 4 0z M13 12h3",
   auge: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z",
   info: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 11v6 M12 7.5v.5",
+  mikro: "M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z M5.5 11a6.5 6.5 0 0 0 13 0 M12 17.5V21 M9 21h6",
+  halt: "M7 7h10v10H7z",
 };
 function ikon(name) {
   const NS = "http://www.w3.org/2000/svg", s = document.createElementNS(NS, "svg"), p = document.createElementNS(NS, "path");
@@ -67,6 +69,19 @@ const gross = (n) => n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(1).r
 const HUELLE = window.Capacitor && typeof window.Capacitor.isNativePlatform === "function" && window.Capacitor.isNativePlatform() ? "android"
   : /^tauri\.localhost$/.test(location.hostname) || !!window.__TAURI_INTERNALS__ ? "windows" : "";
 if (HUELLE) document.documentElement.dataset.huelle = HUELLE;
+/* Basic = Browser/PWA, Pro = App-Hülle (APK, Windows) — Klaus 2026-10-29. Pro trägt den goldenen Kristall und Gold auf Dunkel. */
+const AUSGABE = HUELLE ? "Pro" : "Basic";
+const BILD = HUELLE ? { logo: "icons/logo-pro-96.png", kristall: "icons/kristall-pro.webp", gross: "icons/kristall-pro-gross.webp" }
+  : { logo: "icons/logo-96.png", kristall: "icons/kristall.webp", gross: "icons/kristall-gross.webp" };
+if (HUELLE) {
+  document.documentElement.dataset.ausgabe = "pro";
+  document.title = "Projekt-Reiniger Pro";
+  for (const x of document.querySelectorAll(".marke .ausgabe")) x.textContent = "Pro";
+  document.querySelector("#marke").setAttribute("aria-label", "Projekt-Reiniger Pro, zum Anfang");
+  document.querySelector("#marke img").src = BILD.logo;
+  const k = document.querySelector(".einwurf .kristall"); if (k) { k.src = BILD.kristall; k.srcset = BILD.kristall + " 640w, " + BILD.gross + " 1254w"; }
+  const sb = document.querySelector(".sperre-bild"); if (sb) sb.src = BILD.kristall;
+}
 /* Bytes als Base64 (in Stücken, damit große Dateien nicht den Stapel sprengen). */
 function alsBase64(bytes) { let s = ""; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); }
 /* Eine Datei hinausgeben: im Browser und unter Windows als Download, unter Android über „Speichern unter“ (Plugin der Hülle). */
@@ -203,7 +218,7 @@ async function nochmal() {
 }
 
 function zuruecksetzen() {
-  ergebnis = null; eingeworfen = []; gereinigt = null; textCache.clear(); schliesseAnsicht(); tresorSchliessen(); rueckbauSchliessen(); sperrfensterSchliessen();
+  diktatStopp(); ergebnis = null; eingeworfen = []; gereinigt = null; textCache.clear(); schliesseAnsicht(); tresorSchliessen(); rueckbauSchliessen(); sperrfensterSchliessen();
   $("#arbeit").hidden = true; $("#einwurf").hidden = false; $("#neu").hidden = true;
   $("#befunde").replaceChildren(); $("#inventur").replaceChildren();
 }
@@ -218,7 +233,7 @@ const SCHICHTEN = [
 
 function leerBild(satz) {
   return el("div", { class: "leer", "data-leer": "" },
-    el("img", { src: "icons/kristall.webp", width: "640", height: "640", alt: "" }),
+    el("img", { src: BILD.kristall, width: "640", height: "640", alt: "" }),
     el("p", { class: "wort", "aria-hidden": "true", text: "CLEANER" }),
     el("p", { text: satz }));
 }
@@ -305,8 +320,78 @@ function werkzeugLeiste() {
   }
   return el("div", { class: "werkzeuge" },
     el("div", { class: "knoepfe" }, auf, zu, ocr),
-    el("div", { class: "begriff-zeile" }, feld, dazu),
+    el("div", { class: "begriff-zeile" }, feld, diktatKnopf(feld), dazu, diktatHinweis()),
     chips.length ? el("div", { class: "zeile2" }, el("span", { class: "satz", text: "Selbst eingetragen:" }), ...chips) : null);
+}
+
+/* ── Mikrofon im Suchfeld (Klaus 2026-10-29, Technik aus Meine-Familienakte lib/browser-dictation.ts) ──
+   Browser: die Spracherkennung des Browsers (Web Speech). Ehrlich: Chrome schickt die Sprache dafür an Google — das ist
+   der einzige Weg, auf dem hier etwas das Gerät verlässt, und nur, wenn jemand das Mikrofon antippt. Deshalb steht es am
+   Knopf und beim Start da. Pro-App (Android): Androids Sprachfenster (Plugin „ProSpeech“, auf dem Gerät bevorzugt);
+   die App nimmt nichts selbst auf und braucht keine Mikrofon-Berechtigung. Gespeichert wird nichts. */
+if (HUELLE === "android") {
+  const P = window.Capacitor && window.Capacitor.Plugins || {};
+  const hoeren = (o) => P.ProSpeech && P.ProSpeech.listen ? P.ProSpeech.listen(o) : window.Capacitor.nativePromise("ProSpeech", "listen", o);
+  class AndroidSprache {
+    constructor() { this.lang = "de-DE"; this.einmal = true; this.onresult = null; this.onerror = null; this.onend = null; this.aus = false; }
+    start() {
+      this.aus = false;
+      hoeren({ language: "de-DE", prompt: "Namen oder Begriff sprechen" }).then((r) => {
+        if (this.aus) return;
+        const t = String(r && r.text || "").trim();
+        if (t) this.onresult && this.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: t }], { isFinal: true, length: 1 })] });
+        else this.onerror && this.onerror({ error: "no-speech" });
+        this.onend && this.onend();
+      }).catch((e) => { if (this.aus) return; const c = String(e && (e.code || e.message) || ""); this.onerror && this.onerror({ error: /UNAVAILABLE/.test(c) ? "audio-capture" : /BUSY/.test(c) ? "aborted" : "not-allowed" }); this.onend && this.onend(); });
+    }
+    stop() { this.aus = true; this.onend && this.onend(); }
+    abort() { this.stop(); }
+  }
+  window.SpeechRecognition = AndroidSprache; window.webkitSpeechRecognition = AndroidSprache;
+}
+/* Windows-Hülle: WebView2 hat keine brauchbare Spracherkennung; die Familienakte nutzt dort die Windows-Spracherkennung (SAPI)
+   über einen eigenen Befehl — noch nicht übernommen. Bis dahin dort kein Mikrofon (statt eines Knopfs, der nur scheitert). */
+const Sprache = () => HUELLE === "windows" ? null : window.SpeechRecognition || window.webkitSpeechRecognition || null;
+const DIKTAT_NETZ = HUELLE ? "" : "Im Browser hört der Sprachdienst des Browsers zu — bei Chrome geht die Sprache dafür an Google. Fremde Namen lieber tippen.";
+let diktat = null;
+function diktatHinweis() { return el("p", { class: "diktat-hinweis", id: "diktat-hinweis", "aria-live": "polite", hidden: true }); }
+function diktatSagen(text, fehler) { const h = $("#diktat-hinweis"); if (!h) return; h.textContent = text; h.hidden = !text; if (fehler) h.dataset.fehler = ""; else delete h.dataset.fehler; }
+function diktatStopp() {
+  const d = diktat; diktat = null;
+  if (d) { d.r.onend = null; d.r.onresult = null; d.r.onerror = null; try { d.r.stop(); } catch { try { d.r.abort(); } catch { /* Tippen geht weiter */ } } }
+  const k = $("#diktat"); if (k) { k.setAttribute("aria-pressed", "false"); k.title = "Mikrofon: Namen oder Begriff einsprechen"; }
+}
+function diktatKnopf(feld) {
+  const S = Sprache();
+  if (!S) return null;                                    // kein Weg da (z. B. Firefox): kein Knopf, Tippen bleibt
+  const k = el("button", { type: "button", class: "knopf klein-knopf nur-ikon diktat", id: "diktat", "aria-pressed": "false",
+    "aria-label": "Mikrofon: Namen oder Begriff einsprechen", title: "Mikrofon: Namen oder Begriff einsprechen" + (DIKTAT_NETZ ? " — " + DIKTAT_NETZ : "") }, ikon("mikro"));
+  k.addEventListener("click", () => {
+    if (diktat) { diktatStopp(); diktatSagen(""); return; }
+    if (!HUELLE && navigator.onLine === false) { diktatSagen("Offline — bitte tippen.", true); return; }
+    if (window.isSecureContext === false) { diktatSagen("Spracheingabe braucht eine sichere Adresse (https) — bitte tippen.", true); return; }
+    let r;
+    try { r = new (Sprache())(); } catch { diktatSagen("Mikrofon konnte nicht starten — bitte tippen.", true); return; }
+    const basis = feld.value.trim();
+    diktat = { r };
+    r.lang = "de-DE"; r.interimResults = true; r.continuous = false;
+    r.onresult = (e) => {
+      if (!diktat || diktat.r !== r) return;
+      const t = []; for (let i = 0; i < e.results.length; i++) { const x = e.results[i] && e.results[i][0] && e.results[i][0].transcript; if (x && x.trim()) t.push(x.trim()); }
+      feld.value = [basis, ...t].filter(Boolean).join(" ").trim();
+    };
+    r.onerror = (e) => {
+      const f = e && e.error;
+      const satz = f === "not-allowed" || f === "service-not-allowed" ? "Mikrofonzugriff verweigert — bitte tippen." : f === "audio-capture" ? "Kein Mikrofon verfügbar — bitte tippen." :
+        f === "network" ? "Sprachdienst nicht erreichbar — bitte tippen." : f === "no-speech" ? "Nichts gehört — noch einmal antippen oder tippen." : f === "aborted" ? "" : "Diktat unterbrochen — noch einmal antippen oder tippen.";
+      diktatStopp(); diktatSagen(satz, !!satz && f !== "no-speech");
+    };
+    r.onend = () => { if (!diktat || diktat.r !== r) return; diktatStopp(); diktatSagen(feld.value.trim() ? "Gehört. „Suchen“ tippen, um danach zu suchen." : ""); feld.focus(); };
+    k.setAttribute("aria-pressed", "true"); k.title = "Zuhören beenden";
+    diktatSagen("Hört zu … (noch einmal tippen beendet)" + (DIKTAT_NETZ ? " · " + DIKTAT_NETZ : ""));
+    try { r.start(); } catch { diktatStopp(); diktatSagen("Mikrofon konnte nicht starten — bitte tippen.", true); }
+  });
+  return k;
 }
 
 /* Texterkennung anschalten: Tesseract aus vendor/tesseract/ (byte-1:1 aus Workflow PDF Pro). Der Worker wird
@@ -677,8 +762,8 @@ async function reinigen() {
   knopf.disabled = false;
   const n = gereinigt.nach, gut = !n.originalTreffer.length && !n.offen.length;
   const name = (eingeworfen[0] && eingeworfen[0].pfad.includes("/") ? eingeworfen[0].pfad.split("/")[0] : "projekt").replace(/[^\w.-]+/g, "_") || "projekt";
-  const laden = (text, datei, bytes, typ) => {
-    const k = knopfMit({ class: "knopf", "data-laden": datei }, "laden", text);
+  const laden = (text, datei, bytes, typ, erklaerung) => {
+    const k = knopfMit({ class: "knopf", "data-laden": datei, title: erklaerung || null }, "laden", text);
     k.addEventListener("click", () => hinausgeben(datei, bytes, typ));
     return k;
   };
@@ -707,15 +792,31 @@ async function reinigen() {
       el("li", { text: "Bewusst behalten: " + n.behalten + " · weggelassen: " + gereinigt.bericht.weggelassen.length + " · .git entfernt: " + gereinigt.bericht.gitDateien + " Dateien" })),
     n.offen.length ? el("ol", { class: "offen-liste" }, ...n.offen.slice(0, 50).map((b) => el("li", { text: b.artName + ": " + (b.wert !== b.satz ? b.wert : b.satz) + " (" + b.stellen.map((s) => s.pfad).slice(0, 3).join(", ") + ")" }))) : null,
     el("div", { class: "knoepfe" },
-      laden("Saubere Kopie (ZIP)", zipName, gereinigt.zip, "application/zip"), teilen,
-      laden("Stellenplan", Kern.STELLENPLAN_DATEI, beilage(Kern.STELLENPLAN_DATEI), "text/plain"),
-      laden("Bericht", Kern.BERICHT_DATEI, beilage(Kern.BERICHT_DATEI), "text/plain"),
-      (() => { const k = knopfMit({ class: "knopf", id: "zurueckbauen" }, "zurueck", "Eigene Werte einsetzen …");
+      laden("Saubere Kopie (ZIP)", zipName, gereinigt.zip, "application/zip", ERKLAER.kopie), teilen,
+      laden("Stellenplan", Kern.STELLENPLAN_DATEI, beilage(Kern.STELLENPLAN_DATEI), "text/plain", ERKLAER.stellenplan),
+      laden("Bericht", Kern.BERICHT_DATEI, beilage(Kern.BERICHT_DATEI), "text/plain", ERKLAER.bericht),
+      (() => { const k = knopfMit({ class: "knopf", id: "zurueckbauen", title: ERKLAER.eigene }, "zurueck", "Eigene Werte einsetzen …");
         k.addEventListener("click", () => rueckbauOeffnen([...gereinigt.sauber, ...gereinigt.beilagen].map((d) => ({ pfad: d.pfad, bytes: d.bytes })), { name, zuordnung: gereinigt.zuordnung })); return k; })(),
-      (() => { const k = knopfMit({ class: "knopf", id: "sperrliste-bauen" }, "schloss", "Sperrliste herausladen …");
+      (() => { const k = knopfMit({ class: "knopf", id: "sperrliste-bauen", title: ERKLAER.sperrliste }, "schloss", "Sperrliste herausladen …");
         k.addEventListener("click", () => sperrfensterOeffnen(gereinigt.zuordnung, { name })); return k; })()),
+    /* Was die Knöpfe tun (Klaus 2026-10-29: „ich weiß nicht, was Stellenplan bedeutet“) — am Tablet gibt es kein Darüberfahren, deshalb auch hinter ⓘ. */
+    ...(([ik, erkl]) => [el("div", { class: "titel-zeile" }, el("span", { class: "klein", text: "Was machen diese Knöpfe?" }), ik), erkl])(knopfErklaerung()),
     tresorKarte(name),
     ...(([ik, erkl]) => [el("div", { class: "titel-zeile" }, el("span", { class: "klein", text: "Was liegt im ZIP?" }), ik), erkl])(info("Stellenplan und Bericht liegen auch im ZIP (dort stehen die Kästen der neu gezeichneten Blätter mit Seite und Lage). Sie nennen keine Werte. Die Zuordnung (welche Marke für welchen Wert steht) bleibt nur hier im Speicher — sie verschwindet mit „Neu“. Aufbewahren lässt sie sich nur verschlüsselt im Tresor.", "Stellenplan und Bericht"))));
+}
+
+/* Erklärungen der Knöpfe nach dem Reinigen: als Hinweis beim Darüberfahren (title) und als Liste hinter ⓘ. */
+const ERKLAER = {
+  kopie: "Saubere Kopie (ZIP): dein Projekt ohne die gefundenen Angaben — das kannst du weitergeben oder einer KI zeigen.",
+  stellenplan: "Stellenplan: eine Liste, WO etwas ersetzt wurde (Datei, Zeile) und WOMIT (z. B. ⟦NAME-1⟧) — nie, was dort stand. Damit lassen sich die Stellen später wieder füllen („Eigene Werte einsetzen“).",
+  bericht: "Bericht: was geprüft, ersetzt, neu gezeichnet und weggelassen wurde, und was die Nachprüfung gefunden hat — zum Nachlesen, ohne Werte.",
+  eigene: "Eigene Werte einsetzen: die Platzhalter (⟦ORT-1⟧ …) in der sauberen Kopie mit deinen eigenen Angaben füllen, oder einzelne Stellen mit dem Original zurückholen.",
+  sperrliste: "Sperrliste herausladen: die gefundenen fremden Werte als Fingerabdrücke (ohne Klartext). Damit hält der Git-Wächter jeden Commit an, in dem einer davon auftaucht, und die App findet sie bei jeder Prüfung wieder.",
+};
+function knopfErklaerung() {
+  const [ik, p] = info("", "die Knöpfe");
+  p.replaceChildren(...["kopie", "stellenplan", "bericht", "eigene", "sperrliste"].map((k) => { const [kopf, ...rest] = ERKLAER[k].split(": "); return el("span", { class: "knopf-erklaerung" }, el("b", { text: kopf + ": " }), rest.join(": ")); }));
+  return [ik, p];
 }
 
 function zeigeInventur() {
@@ -757,7 +858,7 @@ for (const k of document.querySelectorAll("#reiter .reiter-knopf")) k.addEventLi
 /* ── Installieren und Aktualisieren (Klaus 2026-10-28) ─────────────────────
    Ablauf und Texte übernommen aus dem Auslieferungsprüfer (assets/installieren.js, dort seit 2026-09-30
    am Tablet getragen), hier mit Strich-Symbolen und ohne Inline-Stile (CSP). */
-export const APP_FASSUNG = "11";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
+export const APP_FASSUNG = "12";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
 let installEreignis = null;
 function alsApp() {
   try { return matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: window-controls-overlay)").matches || matchMedia("(display-mode: minimal-ui)").matches || navigator.standalone === true; }
@@ -765,7 +866,7 @@ function alsApp() {
 }
 /* Meldung in Absätzen (Leerzeile im Text = neuer Absatz), nie als Text mit doppelten Zeilenumbrüchen. */
 function melde(text) { $("#meldung-text").replaceChildren(...String(text).split(/\n\s*\n/).map((t) => el("p", { text: t.trim() }))); $("#meldung").hidden = false; }
-$("#lokal").addEventListener("click", () => melde("Lokal: alles bleibt auf diesem Gerät. Nichts geht ins Netz, nichts wird ausgeführt, nichts gespeichert.\n\nDas Original wird nie verändert. Die saubere Kopie geht nur als Download hinaus."));
+$("#lokal").addEventListener("click", () => melde("Projekt-Reiniger " + AUSGABE + ", Fassung " + APP_FASSUNG + ". Alles bleibt auf diesem Gerät. Nichts geht ins Netz, nichts wird ausgeführt, nichts gespeichert." + (DIKTAT_NETZ ? " Einzige Ausnahme: das Mikrofon im Suchfeld — im Browser hört dafür der Sprachdienst des Browsers zu (bei Chrome: Google)." : "") + "\n\nDas Original wird nie verändert. Die saubere Kopie geht nur als Download hinaus."));
 $("#einwurf-info").addEventListener("click", () => { const p = $("#einwurf-erklaerung"); p.hidden = !p.hidden; $("#einwurf-info").setAttribute("aria-expanded", String(!p.hidden)); });
 $("#meldung-zu").addEventListener("click", () => { $("#meldung").hidden = true; });
 function installKnopf() { const k = $("#installieren"); k.hidden = alsApp() || !!HUELLE; k.dataset.lage = alsApp() ? "app" : installEreignis ? "angeboten" : "nicht-angeboten"; }
@@ -802,15 +903,38 @@ async function aktualisieren() {
 $("#aktualisieren").addEventListener("click", aktualisieren);
 /* In der Android- und Windows-Hülle kommt eine neue Fassung als neue App — dort gibt es nichts zu installieren oder zu aktualisieren. */
 if (HUELLE) $("#aktualisieren").hidden = true;
-$("#aktualisieren").title = "Neue Fassung holen (jetzt: Fassung " + APP_FASSUNG + ")";
+$("#aktualisieren").title = "Aktualisieren: neue Fassung holen (jetzt: Fassung " + APP_FASSUNG + ")";
+/* Versionsnummer neben dem Namen. In der Pro-App (Android, Windows) ist sie der Knopf zur neuen Fassung (Klaus 2026-10-29) —
+   vorerst ein Link zur Testfassung bei GitHub; das Update über Klaus' eigenen Server kommt später. */
+const TESTFASSUNG_SEITE = "https://github.com/lausiklauskn-png/project-cleaner-pro/releases/tag/testfassung";
+(() => {
+  const f = $("#fassung");
+  if (!HUELLE) { f.textContent = "v" + APP_FASSUNG; f.title = "Versionsnummer: Fassung " + APP_FASSUNG; return; }
+  const k = el("button", { type: "button", class: "fassung", id: "fassung", title: "Fassung " + APP_FASSUNG + " — tippen: neue Fassung holen", "aria-label": "Fassung " + APP_FASSUNG + ", neue Fassung holen", text: "v" + APP_FASSUNG });
+  k.addEventListener("click", () => {
+    melde("Projekt-Reiniger Pro, Fassung " + APP_FASSUNG + ".\n\nNeue Fassungen liegen bei GitHub unter „Testfassung“. Die App selbst geht dafür nicht ins Netz — der Knopf unten öffnet die Seite im Browser.\n\n" +
+      (HUELLE === "android" ? "Wichtig, solange es Testfassungen sind (ohne eigenen Schlüssel): vor dem Installieren der neuen APK die alte Pro-App deinstallieren, sonst lehnt Android sie ab."
+        : "Das Windows-Setup ist noch nicht unterschrieben: Windows warnt beim Start („Weitere Informationen“ → „Trotzdem ausführen“). Das Setup ersetzt die alte Fassung."));
+    /* Android: der Link öffnet den Browser (die Hülle lässt fremde Adressen nicht in sich). Windows: ein fester Befehl der Hülle. */
+    const a = HUELLE === "windows"
+      ? el("button", { type: "button", class: "knopf haupt-knopf", id: "fassung-holen" }, ikon("laden"), "Testfassung-Seite öffnen")
+      : el("a", { class: "knopf haupt-knopf", id: "fassung-holen", href: TESTFASSUNG_SEITE, rel: "noopener" }, ikon("laden"), "Testfassung-Seite öffnen");
+    if (HUELLE === "windows") a.addEventListener("click", () => {
+      const T = window.__TAURI_INTERNALS__;
+      (T && T.invoke ? T.invoke("testfassung_oeffnen") : Promise.reject(new Error("keine Hülle"))).catch(() => melde("Die Seite ließ sich nicht öffnen. Von Hand: " + TESTFASSUNG_SEITE));
+    });
+    $("#meldung-text").append(a);
+  });
+  f.replaceWith(k);
+})();
 /* Liegt eine neue Fassung bereit, wird der Knopf hervorgehoben. */
 if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("controllerchange", () => { const k = $("#aktualisieren"); k.dataset.neu = ""; k.title = "Neue Fassung da — tippen zum Laden"; });
 
 /* Hell oder dunkel (Klaus 2026-10-29): Automatisch (wie das Gerät) → Hell → Dunkel. Gemerkt wird nur diese Wahl. */
-const THEMEN = [["", "auto", "Automatisch"], ["hell", "hell", "Hell"], ["dunkel", "dunkel", "Dunkel"]];
+const THEMEN = [["", "auto", "Automatisch (wie das Gerät)"], ["hell", "hell", "Hell"], ["dunkel", "dunkel", "Dunkel"]];
 function themaZeigen() {
   const jetzt = document.documentElement.dataset.thema || "", [, sym, wort] = THEMEN.find((t) => t[0] === jetzt) || THEMEN[0];
-  const k = $("#thema"); k.replaceChildren(ikon(sym), el("span", { class: "t", text: wort }));
+  const k = $("#thema"); k.replaceChildren(ikon(sym));     // nur das Symbol (Klaus 2026-10-29): Sonne, Mond, halb = wie das Gerät
   k.title = "Darstellung: " + wort + " — tippen zum Wechseln"; k.setAttribute("aria-label", "Darstellung: " + wort + ", wechseln"); k.dataset.thema = jetzt || "auto";
 }
 $("#thema").addEventListener("click", () => {
@@ -997,7 +1121,7 @@ async function zuschliessen() {
     quelle, warAktiv: !!ergebnis, hatteKopie: !!gereinigt };
   /* 2. Alles Offene aus der Anzeige und aus dem Speicher. */
   for (const id of ["#befunde", "#inventur", "#zahlen", "#hinweise", "#ansicht", "#meldung-text"]) $(id).replaceChildren();
-  $("#meldung").hidden = true; schliesseAnsicht(); tresorSchliessen(); rueckbauSchliessen(); sperrfensterSchliessen(); ocrBeenden();
+  $("#meldung").hidden = true; diktatStopp(); schliesseAnsicht(); tresorSchliessen(); rueckbauSchliessen(); sperrfensterSchliessen(); ocrBeenden();
   importListe.length = 0; $("#import-text").value = ""; $("#import-name").value = ""; importZu(); importMalen();
   ergebnis = null; gereinigt = null; eingeworfen = []; textCache.clear();
   for (const k of Object.keys(wahl)) delete wahl[k];
