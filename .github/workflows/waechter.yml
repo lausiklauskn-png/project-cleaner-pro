@@ -1,0 +1,51 @@
+# Git-Wächter (Projekt-Reiniger Pro, Stufe 7): prüft jeden neuen Commit — Dateien, Nachricht, Autor.
+# Hält an bei Werten von der Sperrliste und bei Tresor-Dateien (.rtresor). Die Ausgabe nennt nie einen Wert.
+#
+# In einem anderen Repo von Klaus (Datei .github/workflows/waechter.yml dort):
+#
+#   name: Git-Wächter
+#   on: [push, pull_request]
+#   jobs:
+#     waechter:
+#       uses: lausiklauskn-png/project-cleaner-pro/.github/workflows/waechter.yml@main
+#       secrets: inherit
+#
+# Die Sperrliste liegt als Geheimnis REINIGER_SPERRLISTE (Inhalt der JSON-Datei) im Repo oder in der Organisation —
+# nie als Datei im Repo. Ohne Geheimnis prüft der Wächter nur auf Tresor-Dateien und zeigt Hinweise.
+name: Git-Wächter
+
+on:
+  push:
+  pull_request:
+  workflow_call:
+    secrets:
+      REINIGER_SPERRLISTE:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  waechter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      # Das Werkzeug selbst: in diesem Repo aus dem eigenen Stand, in anderen Repos aus project-cleaner-pro (main).
+      - uses: actions/checkout@v4
+        if: github.repository != 'lausiklauskn-png/project-cleaner-pro'
+        with:
+          repository: lausiklauskn-png/project-cleaner-pro
+          ref: main
+          path: .reiniger-werkzeug
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Neue Commits prüfen
+        env:
+          REINIGER_SPERRLISTE: ${{ secrets.REINIGER_SPERRLISTE }}
+          VORHER: ${{ github.event.pull_request.base.sha || github.event.before }}
+          NACHHER: ${{ github.event.pull_request.head.sha || github.sha }}
+          BASIS: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ -f .reiniger-werkzeug/tools/git-waechter.mjs ]; then W=.reiniger-werkzeug/tools/git-waechter.mjs; else W=tools/git-waechter.mjs; fi
+          node "$W" --ci

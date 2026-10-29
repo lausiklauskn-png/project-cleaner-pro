@@ -62,8 +62,9 @@
         <input type="file" id="wahl-ordner" webkitdirectory multiple hidden>
         <input type="file" id="wahl-tresor" hidden>
         <p class="klein titel-zeile">Oder hierher ziehen oder einfügen (Strg+V). <button type="button" class="knopf info-knopf auf-dunkel" id="einwurf-info" aria-expanded="false" aria-controls="einwurf-erklaerung" aria-label="Erklärung: was sich einwerfen lässt" title="Erklärung"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 11v6 M12 7.5v.5"/></svg></button></p>
-        <p class="klein erklaerung" id="einwurf-erklaerung" hidden>Auch Apps (APK, JAR), TAR/GZ und gespeicherte Internetseiten (HTML mit Ordner). <code>node_modules</code> und Build-Ordner werden nicht gelesen.</p>
+        <p class="klein erklaerung" id="einwurf-erklaerung" hidden>Auch Apps (APK, JAR), TAR/GZ und gespeicherte Internetseiten (HTML mit Ordner). <code>node_modules</code> und Build-Ordner werden nicht gelesen. Eine Sperrliste (<code>reiniger-sperrliste.json</code>) wird geladen, nicht geprüft — sie sucht danach bei jeder Prüfung mit.</p>
         <p class="klein" id="kern-fehlt" hidden></p>
+        <p class="klein sperrliste-satz" id="sperrliste-satz" hidden></p>
       </div>
     </section>
 
@@ -91,6 +92,7 @@
   <div class="meldung" id="meldung" role="status" hidden><button type="button" class="knopf" id="meldung-zu" aria-label="Meldung schließen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12 M18 6L6 18"/></svg></button><div id="meldung-text"></div></div>
   <section class="ansicht" id="tresor" hidden aria-label="Tresor"></section>
   <section class="ansicht" id="zurueck" hidden aria-label="Zurückbauen"></section>
+  <section class="ansicht" id="sperrfenster" hidden aria-label="Sperrliste"></section>
   <section class="sperre" id="sperre" hidden aria-label="Gesperrt" aria-modal="true" role="dialog">
     <div class="sperre-karte">
       <img class="sperre-bild" src="icons/kristall.webp" width="640" height="640" alt="">

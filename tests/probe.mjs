@@ -1,4 +1,4 @@
-/* Projekt-Reiniger Pro — die Probe (Stufen 1–5).
+/* Projekt-Reiniger Pro — die Probe (Stufen 1–7).
  *
  *   node tests/probe.mjs            alles
  *   BILDER=<ordner> node tests/…    legt Bildschirmfotos ab
@@ -458,6 +458,115 @@ const { beispielProjekt } = await import(pathToFileURL(join(WURZEL, "assets/beis
 {
   const r = await Kern.pruefe([{ pfad: "a.txt", bytes: new TextEncoder().encode("x@beispiel.example") }], { werkzeuge: {} });
   ok("ohne Modul 25: laut „UNGEPRÜFT“, nicht sauber", r.hinweise.some((h) => /Modul 25.*UNGEPRÜFT/.test(h)) && /ungeprüft/.test(r.inventur[0].ungeprueft));
+}
+
+{
+  /* Stufe 7 · Sperrliste (Kern): nur Fingerabdrücke, Suche über Wortfolgen, Vorfilter */
+  const T = new TextEncoder();
+  let shaGleich = true;
+  for (const x of ["", "a", "x".repeat(55), "x".repeat(56), "x".repeat(64), "Erika Mustermann äöü ß €", "y".repeat(1000)]) if (Kern.sha256(T.encode(x)) !== createHash("sha256").update(x).digest("hex")) shaGleich = false;
+  ok("Stufe 7: SHA-256 im Kern rechnet wie node:crypto (auch an den Blockgrenzen 55/56/64)", shaGleich);
+  const werte = ["Quirin Zapf", "DE02 1203 0000 0000 2020 51", "quirin.zapf@post.example", "Hamburg", "ab", "eins zwei drei vier fünf sechs sieben acht neun zehn elf zwölf dreizehn"];
+  const b1 = Kern.sperrlisteBauen(werte), b2 = Kern.sperrlisteBauen(werte), roh = JSON.stringify(b1.liste);
+  ok("Sperrliste: kein Wert steht darin (auch nicht klein oder ohne Leerzeichen), jedes Mal ein anderes Salz",
+    !/quirin|zapf|hamburg|DE02|de021203|post\.example/i.test(roh) && b1.liste.gruppen[0].salz !== b2.liste.gruppen[0].salz && b1.liste.gruppen[0].abdruecke[0] !== b2.liste.gruppen[0].abdruecke[0], roh.slice(0, 200));
+  ok("Sperrliste: zu kurze und zu lange Werte werden nicht aufgenommen, sondern gezählt", b1.aufgenommen === 4 && b1.zuKurz === 1 && b1.zuLang === 1, JSON.stringify([b1.aufgenommen, b1.zuKurz, b1.zuLang]));
+  const L1 = b1.liste, tr = (t) => Kern.sperrTreffer(t, L1).map((x) => x.wert);
+  ok("Sperrliste findet Schreibweisen: GROSS, doppelte Leerzeichen, Zeilenumbruch, IBAN mit und ohne Leerzeichen, Telefon anders getrennt als in der Liste, Mail",
+    tr("Hallo QUIRIN  Zapf!").join() === "QUIRIN  Zapf" && tr("Quirin\nZapf").length === 1 && tr("IBAN DE02120300000000202051.").join() === "DE02120300000000202051" &&
+    tr("iban: de02 1203 0000 0000 2020 51").length === 1 && tr("<quirin.zapf@post.example>").join() === "quirin.zapf@post.example" &&
+    Kern.sperrTreffer("Tel. +49 30 1234 5678", Kern.sperrlisteBauen(["+4930 12345678"]).liste).length === 1, JSON.stringify([tr("Hallo QUIRIN  Zapf!"), tr("IBAN DE02120300000000202051.")]));
+  ok("Sperrliste: nur ganze Wörter — „Hamburger“, „Quirin Zapfen“ und „Quirin“ allein sind kein Treffer",
+    tr("Hamburger Hafen").length === 0 && tr("Quirin Zapfen").length === 0 && tr("Quirin kommt").length === 0 && tr("in Hamburg.").join() === "Hamburg");
+  ok("Sperrliste lesen: falsche Kennung, kaputter Fingerabdruck, kaputter Vorfilter → abgelehnt; Zusammenlegen zählt richtig",
+    !Kern.sperrlisteLesen('{"kennung":"X","gruppen":[]}') && !Kern.sperrlisteLesen(roh.replace(/"[0-9a-f]{64}"/, '"zz"')) && !Kern.sperrlisteLesen(roh.replace(/"vorfilter":"[^"]+"/, '"vorfilter":"AAAA"')) &&
+    !!Kern.sperrlisteLesen(T.encode(roh)) && Kern.sperrlisteGroesse(Kern.sperrlisteZusammen(L1, b2.liste)) === Kern.sperrlisteGroesse(L1) * 2 && Kern.sperrlisteGroesse(Kern.sperrlisteZusammen(L1, L1)) === Kern.sperrlisteGroesse(L1) &&
+    Kern.istSperrliste("x/" + Kern.SPERRLISTE_DATEI, T.encode(roh)) && !Kern.istSperrliste("a.json", T.encode('{"a":1}')));
+  const ohneFilter = JSON.parse(roh); delete ohneFilter.gruppen[0].vorfilter;
+  ok("Sperrliste ohne Vorfilter (von Hand gebaut) findet dasselbe — nur langsamer", Kern.sperrTreffer("Hallo Quirin Zapf, in Hamburg", Kern.sperrlisteLesen(ohneFilter)).length === 2);
+  const viel = "Lorem ipsum dolor sit amet, 12345 consectetur adipiscing elit, sed do eiusmod. ".repeat(13000);
+  const t0 = Date.now(); Kern.sperrTreffer(viel, L1); const ms = Date.now() - t0;
+  ok("Sperrliste: 1 MB Text in unter 3 s (Vorfilter, SHA-256 nur bei Verdacht)", ms < 3000, ms + " ms");
+  console.log("  ⓘ Sperrliste: 1 MB Text in " + ms + " ms");
+  /* in pruefe: ein Name ohne jeden Zusammenhang findet nur die Sperrliste; schon Gefundenes kommt nicht doppelt */
+  const proj = [{ pfad: "p/notiz.txt", bytes: T.encode("Gebaut von quirin zapf\nIBAN DE02120300000000202051\n") }, { pfad: "p/Quirin_Zapf/a.txt", bytes: T.encode("x") }];
+  const r = await Kern.pruefe(proj, { sperrliste: L1 });
+  const gs = r.buendel.filter((b) => b.art === "GESPERRT").flatMap((b) => b.stellen), iban = r.buendel.find((b) => b.art === "IBAN");
+  ok("Prüfen mit Sperrliste: „quirin zapf“ (ohne Muster, ohne Anrede) wird gefunden, Zeile stimmt, auch im Ordnernamen; die IBAN nur einmal (als IBAN, Zeichen „gesperrt“)",
+    gs.some((s) => s.zeile === 1 && s.pfad === "p/notiz.txt") && gs.some((s) => /Ordnernamen/.test(s.stelle || "")) && !!iban && iban.gesperrt && !r.buendel.some((b) => b.art === "GESPERRT" && /DE02/.test(b.wert)),
+    JSON.stringify(r.buendel.map((b) => [b.art, b.wert, b.gesperrt])));
+  const sk = await Kern.saubereKopie(proj, { ergebnis: r, wahl: {}, dateiWahl: {} }, { sperrliste: L1 });
+  const kopie = sk.sauber.map((d) => d.pfad + "\n" + new TextDecoder().decode(d.bytes)).join("\n");
+  ok("Reinigen mit Sperrliste: der gesperrte Wert ist in der Kopie ersetzt (auch im Ordnernamen), die Nachprüfung findet nichts", !/quirin|zapf/i.test(kopie) && sk.nach.originalTreffer.length === 0 && sk.nach.offen.length === 0,
+    kopie.slice(0, 200) + " " + JSON.stringify(sk.nach.offen.map((b) => b.wert)));
+  const rk = await Kern.pruefe([{ pfad: "a.txt", bytes: T.encode("x") }], { sperrliste: { kennung: "falsch" } });
+  ok("Prüfen mit kaputter Sperrliste: laut „NICHT benutzt“, nicht still", rk.hinweise.some((h) => /Sperrliste.*NICHT benutzt/.test(h)));
+  /* Wächter */
+  const w = await Kern.waechterPruefe([
+    { pfad: "src/a.js", bytes: T.encode("// Autor: Quirin Zapf\nconst x = 1;\n") },
+    { pfad: "node_modules/p/b.js", bytes: T.encode("quirin zapf") },
+    { pfad: "bild.bin", bytes: new Uint8Array([0, 1, 2, ...T.encode("..Quirin Zapf.."), 0, 0]) },
+    { pfad: "docs/sicherung.dat", bytes: T.encode('{"kennung":"' + Kern.TRESOR_KENNUNG + '","fassung":1,"erstellt":"2026-10-29","ablauf":"2026-11-28","paket":{"v":1,"salt":"a","iv":"b","ct":"c"}}') },
+    { pfad: "README.md", bytes: T.encode("Kontakt: anna@firma.de, muster1@beispiel.example, 01.01.2000\n") },
+  ], { sperrliste: L1, texte: [{ wo: "Commit-Nachricht", text: "Danke an Quirin Zapf" }] });
+  const wt = Kern.waechterText(w, { sperrliste: L1 });
+  ok("Wächter: hält an — Wert in Code (mit Zeile), in node_modules, in Binärdatei, in der Nachricht, Tresor auch unter falschem Namen",
+    w.halt.some((h) => h.pfad === "src/a.js" && h.zeile === 1) && w.halt.some((h) => /node_modules/.test(h.pfad)) && w.halt.some((h) => h.pfad === "bild.bin") &&
+    w.halt.some((h) => h.pfad === "Commit-Nachricht") && w.halt.some((h) => h.pfad === "docs/sicherung.dat" && /Tresor/.test(h.grund)), JSON.stringify(w.halt));
+  ok("Wächter: Mail ist nur Hinweis, Musterwerte und Datum zählen nicht; die Ausgabe nennt nie einen Wert",
+    w.hinweise.length === 1 && w.hinweise[0].art === "MAIL" && !/quirin|zapf|anna@firma|DE02/i.test(wt) && /ANGEHALTEN/.test(wt), wt);
+  const ws = await Kern.waechterPruefe([{ pfad: "README.md", bytes: T.encode("Kontakt: anna@firma.de\n") }], { streng: true });
+  const wf = await Kern.waechterPruefe([{ pfad: "README.md", bytes: T.encode("Kontakt: anna@firma.de\nQuirin Zapf\n") }], {});
+  ok("Wächter: --streng hält auch bei einer Mail an; ohne Sperrliste und ohne Tresor ist er frei", ws.halt.length === 1 && /E-Mail/.test(ws.halt[0].grund) && wf.halt.length === 0 && /frei/.test(Kern.waechterText(wf)));
+}
+{
+  /* Stufe 7 · das Werkzeug im echten Git: Hooks, Geschichte, Bereich, CI — in einem Wegwerf-Repo */
+  const { execFileSync, spawnSync } = await import("node:child_process");
+  const { mkdtempSync, writeFileSync: schreib, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const tmp = mkdtempSync(join(tmpdir(), "waechter-")), repo = join(tmp, "r"), heim = join(tmp, "heim");
+  const W = join(WURZEL, "tools/git-waechter.mjs");
+  const env = Object.assign({}, process.env, { HOME: heim, GIT_CONFIG_NOSYSTEM: "1", REINIGER_SPERRLISTE: "" });
+  const g = (...a) => spawnSync("git", a, { cwd: repo, env, encoding: "utf8" });
+  const w = (...a) => spawnSync("node", [W, ...a], { cwd: repo, env, encoding: "utf8" });
+  try {
+    execFileSync("mkdir", ["-p", repo, heim]);
+    g("init", "-q", "-b", "main"); g("config", "user.name", "Test Person"); g("config", "user.email", "t@beispiel.example"); g("config", "commit.gpgsign", "false");
+    schreib(join(tmp, "werte.txt"), "Quirin Zapf\n# Kommentar\n");
+    const bau = w("--sperrliste-bauen", join(tmp, "werte.txt"), "--aus", join(repo, ".git", "reiniger-sperrliste.json"));
+    const ein = w("--einrichten", ".");
+    schreib(join(repo, "a.txt"), "hallo\n"); g("add", "a.txt");
+    const c1 = g("commit", "-qm", "erster");
+    schreib(join(repo, "b.txt"), "von quirin zapf\n"); g("add", "b.txt");
+    const c2 = g("commit", "-qm", "zweiter");
+    const nachC2 = g("log", "--oneline").stdout.trim().split("\n").length;
+    g("reset", "-q", "b.txt"); rmSync(join(repo, "b.txt"));
+    const c3 = g("commit", "-q", "--allow-empty", "-m", "Gruß an Quirin Zapf");
+    schreib(join(repo, "c.rtresor"), "x"); g("add", "c.rtresor"); const c4 = g("commit", "-qm", "vierter"); g("reset", "-q", "c.rtresor"); rmSync(join(repo, "c.rtresor"));
+    ok("Git-Wächter: Sperrliste gebaut, drei Hooks eingerichtet (pre-commit, commit-msg, pre-push)", bau.status === 0 && ein.status === 0 &&
+      ["pre-commit", "commit-msg", "pre-push"].every((h) => existsSync(join(repo, ".git", "hooks", h))), bau.stderr + ein.stderr);
+    ok("pre-commit: frei bei harmlosem Commit; hält an bei gesperrtem Wert und bei einer Tresor-Datei — ohne den Wert zu nennen",
+      c1.status === 0 && c2.status !== 0 && nachC2 === 1 && /ANGEHALTEN/.test(c2.stderr) && !/quirin|zapf/i.test(c2.stderr) && c4.status !== 0 && /Tresor/.test(c4.stderr), c2.stderr.slice(0, 300));
+    ok("commit-msg: die Nachricht wird geprüft", c3.status !== 0 && /Commit-Nachricht/.test(c3.stderr), c3.stderr.slice(0, 200));
+    /* Geschichte: mit --no-verify hinein, dann wieder gelöscht — der Push hält trotzdem an */
+    g("init", "-q", "--bare", join(tmp, "fern.git")); g("remote", "add", "origin", join(tmp, "fern.git"));
+    schreib(join(repo, "geheim.txt"), "Quirin Zapf\n"); g("add", "geheim.txt"); g("commit", "-q", "--no-verify", "-m", "rein"); g("rm", "-q", "geheim.txt"); g("commit", "-qm", "raus");
+    const p1 = g("push", "-q", "origin", "main");
+    const fern = spawnSync("git", ["--git-dir", join(tmp, "fern.git"), "rev-parse", "--verify", "-q", "refs/heads/main"], { encoding: "utf8" });
+    ok("pre-push: ein Wert, der nur noch in der Geschichte steht (hinein mit --no-verify, danach gelöscht), hält den Push an", p1.status !== 0 && /ANGEHALTEN/.test(p1.stderr) && /geheim\.txt/.test(p1.stderr) && fern.status !== 0, p1.stderr.slice(0, 300));
+    const be = w("--bereich", "HEAD~2..HEAD"), al = w("--alles");
+    ok("--bereich prüft jeden Commit (hält an), --alles nur den letzten Stand (frei)", be.status === 1 && al.status === 0 && /frei/.test(al.stderr), be.stderr.slice(0, 200) + " | " + al.stderr.slice(0, 200));
+    const env2 = Object.assign({}, env, { VORHER: "0000000000000000000000000000000000000000", NACHHER: "HEAD", REINIGER_SPERRLISTE: readFileSync(join(repo, ".git", "reiniger-sperrliste.json"), "utf8") });
+    rmSync(join(repo, ".git", "reiniger-sperrliste.json"));
+    const ci = spawnSync("node", [W, "--ci"], { cwd: repo, env: Object.assign({}, env2, { GITHUB_ACTIONS: "true" }), encoding: "utf8" });
+    ok("--ci (GitHub, neuer Zweig, Liste aus dem Geheimnis): prüft die ganze Geschichte, hält an, Anmerkung ::error ohne Wert", ci.status === 1 && /::error file=geheim\.txt,line=1::Wert von der Sperrliste/.test(ci.stderr) && !/quirin|zapf/i.test(ci.stderr), ci.stderr.slice(0, 300));
+    const fremd = join(repo, ".git", "hooks", "pre-commit"); schreib(fremd, "#!/bin/sh\necho eigener\n");
+    const ein2 = w("--einrichten", ".");
+    ok("--einrichten überschreibt keinen fremden Hook (nur mit --ersetzen)", ein2.status === 0 && readFileSync(fremd, "utf8").includes("eigener") && /übersprungen: pre-commit/.test(ein2.stderr));
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
+  const wf = lies(".github/workflows/waechter.yml");
+  ok("GitHub-Prüfung: läuft bei push und pull_request, ist für andere Repos aufrufbar (workflow_call, Geheimnis REINIGER_SPERRLISTE), liest nur, holt die ganze Geschichte",
+    /\n  push:/.test(wf) && /\n  pull_request:/.test(wf) && /workflow_call:\s*\n\s*secrets:\s*\n\s*REINIGER_SPERRLISTE:/.test(wf) && /contents: read/.test(wf) && /fetch-depth: 0/.test(wf) && /--ci/.test(wf) && !/contents: write/.test(wf));
 }
 
 /* ── B · im Browser ─────────────────────────────────────────────── */
@@ -1194,6 +1303,58 @@ await seite.setViewportSize({ width: 1280, height: 800 });
   await s6.waitForTimeout(300);
   ok("Gäste-Sperre: das Zurückbau-Fenster ist sofort leer und weg", await s6.evaluate(() => document.querySelector("#zurueck").hidden && !document.querySelector("#zurueck").childElementCount && !window.__rueckbau()));
   await ctx6.close();
+}
+{
+  /* Stufe 7 · Sperrliste in der Oberfläche: aus der Zuordnung herausladen, einwerfen = laden, sucht beim Prüfen mit */
+  const ctx7 = await browser.newContext({ viewport: { width: 1280, height: 800 }, acceptDownloads: true }), s7 = await ctx7.newPage();
+  s7.on("request", (q) => { if (!q.url().startsWith(BASIS) && !q.url().startsWith("data:") && !q.url().startsWith("blob:")) netz.push(q.url()); });
+  s7.on("pageerror", (e) => konsole.push(String(e)));
+  await s7.goto(BASIS + "?ohne-sw");
+  await s7.click("#beispiel"); await s7.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden && document.querySelector(".buendel"), null, { timeout: 30000 });
+  await s7.click("#reinigen"); await s7.waitForSelector("#sperrliste-bauen", { timeout: 60000 });
+  await s7.click("#sperrliste-bauen");
+  ok("Sperrliste herausladen: Fenster mit je Marke einem Haken und dem Wert; Mail vorgewählt, Ort und Datum nicht", await s7.evaluate(() => {
+    const f = document.querySelector("#sperrfenster"), z = (art) => [...f.querySelectorAll("[data-sperr-zeile]")].filter((li) => li.textContent.includes(art));
+    return !f.hidden && f.querySelectorAll("[data-sperr-marke]").length > 10 && f.querySelectorAll(".haupt-knopf").length === 1 &&
+      z("E-Mail").every((li) => li.querySelector("input").checked) && z("Ort").length > 0 && z("Ort").every((li) => !li.querySelector("input").checked) && z("Datum").every((li) => !li.querySelector("input").checked);
+  }));
+  for (const [w, h] of [[320, 640], [740, 360], [1280, 800]]) { await s7.setViewportSize({ width: w, height: h }); await s7.waitForTimeout(60); const f = await s7.evaluate(messen); ok("Sperrliste-Fenster " + w + "×" + h + ": Vollbild, nichts quer, keine Schrift über Schrift", f.length === 0, f.slice(0, 3).join(" | ")); }
+  for (const t of ["hell", "dunkel"]) { await s7.evaluate((t) => { document.documentElement.dataset.thema = t; }, t); const f = await s7.evaluate(kontrast); ok("Kontrast Sperrliste-Fenster (" + t + ")", f.length === 0, f.slice(0, 3).join(" | ")); }
+  await s7.evaluate(() => { delete document.documentElement.dataset.thema; });
+  ok("Sperrliste-Fenster liegt unter dem Kopf — „Sperren“ bleibt greifbar", await s7.evaluate(() => {
+    const k = document.querySelector("#sperren").getBoundingClientRect(), z = document.querySelector("#sperrfenster").getBoundingClientRect();
+    const oben = document.elementFromPoint(k.left + k.width / 2, k.top + k.height / 2); return !!oben && !!oben.closest("#sperren") && z.top >= k.bottom - 1; }));
+  const [dl] = await Promise.all([s7.waitForEvent("download", { timeout: 30000 }), s7.click("#sperr-laden")]);
+  const listeRoh = readFileSync(await dl.path(), "utf8"), liste = Kern.sperrlisteLesen(listeRoh);
+  ok("Herausgeladen: „reiniger-sperrliste.json“, eine gültige Sperrliste, kein Wert darin — findet aber die Mail und den Rechnernamen, nicht Hamburg (nicht gewählt)",
+    dl.suggestedFilename() === Kern.SPERRLISTE_DATEI && !!liste && !/erika|mustermann|hamburg|DE02|desktop|beispiel/i.test(listeRoh) &&
+    Kern.sperrTreffer("an erika.mustermann@beispiel.example", liste).length === 1 && Kern.sperrTreffer("desktop 7qk2m9x", liste).length === 1 && Kern.sperrTreffer("in Hamburg", liste).length === 0 &&
+    await s7.evaluate(() => !!document.querySelector("[data-sperr-fertig]")), dl.suggestedFilename());
+  await s7.click("#sperrfenster-schliessen");
+  ok("Schließen: das Fenster ist leer und zu", await s7.evaluate(() => document.querySelector("#sperrfenster").hidden && !document.querySelector("#sperrfenster").childElementCount));
+  /* Einwerfen: die Liste wird geladen, nicht geprüft */
+  await s7.click("#neu");
+  await s7.setInputFiles("#wahl-dateien", { name: Kern.SPERRLISTE_DATEI, mimeType: "application/json", buffer: Buffer.from(listeRoh) });
+  await s7.waitForFunction(() => !!window.__sperrliste(), null, { timeout: 10000 }).catch(() => {});
+  ok("Sperrliste eingeworfen: geladen statt geprüft — erste Seite bleibt, Satz „Sperrliste geladen: N Fingerabdrücke“", await s7.evaluate(() =>
+    !!window.__sperrliste() && !document.querySelector("#einwurf").hidden && !window.__reiniger.ergebnis() && !document.querySelector("#sperrliste-satz").hidden &&
+    +document.querySelector("[data-sperrliste]").dataset.sperrliste === window.__sperrliste().groesse));
+  await s7.click("#meldung-zu").catch(() => {});
+  const f1 = await s7.evaluate(messen);
+  ok("Erste Seite mit geladener Sperrliste: nichts quer, keine Schrift über Schrift", f1.length === 0, f1.slice(0, 3).join(" | "));
+  for (const t of ["hell", "dunkel"]) { await s7.evaluate((t) => { document.documentElement.dataset.thema = t; }, t); const f = await s7.evaluate(kontrast); ok("Kontrast erste Seite mit Sperrliste-Satz (" + t + ")", f.length === 0, f.slice(0, 3).join(" | ")); }
+  await s7.evaluate(() => { delete document.documentElement.dataset.thema; });
+  await s7.setInputFiles("#wahl-dateien", { name: "notiz.txt", mimeType: "text/plain", buffer: Buffer.from("Gebaut auf desktop 7qk2m9x, Grüße\n") });
+  await s7.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden, null, { timeout: 30000 });
+  ok("Prüfen mit Sperrliste: der Rechnername in anderer Schreibweise wird als „Auf der Sperrliste“ gefunden", await s7.evaluate(() => !!document.querySelector('.buendel[data-art="GESPERRT"]')));
+  await s7.click("#neu");
+  await s7.click("#sperrliste-weg");
+  ok("„entfernen“: die Sperrliste ist weg", await s7.evaluate(() => !window.__sperrliste() && document.querySelector("#sperrliste-satz").hidden));
+  await s7.click("#beispiel"); await s7.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden && document.querySelector(".buendel"), null, { timeout: 30000 });
+  await s7.click("#reinigen"); await s7.waitForSelector("#sperrliste-bauen", { timeout: 60000 }); await s7.click("#sperrliste-bauen");
+  await s7.click("#sperren"); await s7.fill("#sperre-code", "1234"); await s7.fill("#sperre-code2", "1234"); await s7.click("#sperre-ok"); await s7.waitForTimeout(300);
+  ok("Gäste-Sperre: das Sperrliste-Fenster (mit den Werten) ist sofort leer und weg", await s7.evaluate(() => document.querySelector("#sperrfenster").hidden && !document.querySelector("#sperrfenster").childElementCount));
+  await ctx7.close();
 }
 ok("Kein Netz: keine einzige Anfrage nach außen", netz.length === 0, netz.join(", "));
 ok("Keine Fehler in der Konsole", konsole.length === 0, konsole.slice(0, 3).join(" | "));

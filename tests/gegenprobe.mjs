@@ -96,6 +96,19 @@ const FAELLE = [
   ["RBKOPF", "assets/app.css", ".ansicht { position: relative; grid-row: 2; grid-column: 1; z-index: 20;", ".ansicht { position: absolute; inset: 0; z-index: 20;", /Kopf mit „Sperren“ bleibt sichtbar/],
   ["RBEINWURF", "assets/app.js", "if (!ergebnis && !opt.behalten && !opt.pruefen && await Kern.stellenplanAus(ein.dateien)) {", "if (false) {", /Saubere Kopie eingeworfen/],
   ["VFDECKT", "assets/app.css", ".vorfuehrung { position: fixed; inset: 0;", ".vorfuehrung { position: fixed; inset: 0 40% 0 0;", /über der ganzen App|füllt genau das Fenster/],
+  /* Stufe 7 · Sperrliste und Git-Wächter */
+  ["SPDICHT", "assets/reiniger-kern.js", " || (n > 1 && alleZ && vielleicht(hD[k]) && g.set.has(abdruck(g.salz, dicht)))", "", /IBAN mit und ohne Leerzeichen/],
+  ["SPSALZ", "assets/reiniger-kern.js", "const salz = optionen.salz || zufallsSalz();", "const salz = optionen.salz || \"00000000000000000000000000000000\";", /anderes Salz/],
+  ["SPKLAR", "assets/reiniger-kern.js", "  const liste = { kennung: SPERRLISTE_KENNUNG, fassung: SPERRLISTE_FASSUNG, erstellt:", "  const liste = { werte, kennung: SPERRLISTE_KENNUNG, fassung: SPERRLISTE_FASSUNG, erstellt:", /kein Wert steht darin|kein Wert darin/],
+  ["SPPRUEFE", "assets/reiniger-kern.js", "    if (!sperr) return;\n", "    return;\n", /Prüfen mit Sperrliste/],
+  ["WTRESOR", "assets/reiniger-kern.js", "    if (istTresor(pfad, bytes)) { halte(", "    if (false) { halte(", /Tresor/],
+  ["WWERT", "assets/reiniger-kern.js", "SPERR_GRUND + (t ? \"\" : \" (Zeichenkette in der Datei)\"));", "SPERR_GRUND + \": \" + tr.wert);", /nennt nie einen Wert|ohne den Wert zu nennen/],
+  ["WGESCHICHTE", "tools/git-waechter.mjs", "const spanne = !fern || NULL_SHA.test(fern) ? [lokal, \"--not\", \"--remotes\"] : [fern + \"..\" + lokal];", "const spanne = [lokal, \"-n\", \"1\"];", /nur noch in der Geschichte/],
+  ["WNACHRICHT", "tools/git-waechter.mjs", "texte = [{ wo: \"Commit-Nachricht\", text:", "texte = [] || [{ wo: \"Commit-Nachricht\", text:", /commit-msg/],
+  ["WHOOK", "tools/git-waechter.mjs", "&& !hat(\"--ersetzen\")) { sag(", "&& false) { sag(", /fremden Hook/],
+  ["SPAPPLADEN", "assets/app.js", "      if (bytes && Kern.istSperrliste(", "      if (false && Kern.istSperrliste(", /geladen statt geprüft/],
+  ["SPAPPSPERRE", "assets/app.js", "rueckbauSchliessen(); sperrfensterSchliessen(); ocrBeenden();", "rueckbauSchliessen(); ocrBeenden();", /Sperrliste-Fenster \(mit den Werten\)/],
+  ["SPAPPVORWAHL", "assets/reiniger-kern.js", "export const SPERR_NICHT_VORGEWAEHLT = [\"DATUM\", \"ORT\", \"PLZ-ORT\", \"EIGENNAME\", \"HOCHSCHULE\"];", "export const SPERR_NICHT_VORGEWAEHLT = [];", /Ort und Datum nicht/],
 ];
 const nur = process.env.NUR_FALL;
 let gefangen = 0, schlecht = 0;

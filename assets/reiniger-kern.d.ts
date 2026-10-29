@@ -21,7 +21,7 @@ export interface Befund {
   schicht: Schicht;
   /** MAIL, TELEFON, IBAN, DATUM, SCHLUESSEL, NAME, VERFASSER, COPYRIGHT, BENUTZERPFAD, GIT-NAME, GIT-ADRESSE,
    *  gefühlt: ORT, HOCHSCHULE, FIRMA, ADRESSE, PLZ-ORT, KFZ, EIGENNAME, RECHNER, ORDNERPFAD,
-   *  oder eine Kennung aus pruefer-anhang.js */
+   *  GESPERRT (Stufe 7: Wert von der Sperrliste), oder eine Kennung aus pruefer-anhang.js */
   art: string;
   wert: string;
   pfad: string;
@@ -30,10 +30,12 @@ export interface Befund {
   satz?: string;
   /** Nur ein Vorschlag (Namen aus Anrede/Gruß, Vornamen aus der Liste) — nie sicher. */
   vorschlag?: boolean;
+  /** Stufe 7: derselbe Wert steht auch auf der Sperrliste. */
+  gesperrt?: boolean;
 }
 
 export interface Buendel {
-  schicht: Schicht; art: string; artName: string; wert: string; vorschlag: boolean; satz: string;
+  schicht: Schicht; art: string; artName: string; wert: string; vorschlag: boolean; satz: string; gesperrt?: boolean;
   anzahl: number; dateien: number;
   stellen: Array<{ pfad: string; zeile?: number; stelle?: string }>;
 }
@@ -72,7 +74,7 @@ export const ART_NAME: Record<string, string>;
 export const MARKE_NAME: Record<string, string>;
 export const STUFE_NAME: Record<number, string>;
 
-export function pruefe(dateien: Datei[], optionen?: { werkzeuge?: Werkzeuge; fortschritt?: (nr: number, gesamt: number, pfad: string) => void }): Promise<Ergebnis>;
+export function pruefe(dateien: Datei[], optionen?: { werkzeuge?: Werkzeuge; begriffe?: string[]; texterkennung?: boolean; sperrliste?: Sperrliste | null; fortschritt?: (nr: number, gesamt: number, pfad: string) => void }): Promise<Ergebnis>;
 export function einwerfen(liste: Datei[]): Promise<{ dateien: Datei[]; hinweise: string[] }>;
 export function zipDateien(bytes: Uint8Array, vorsilbe?: string): { dateien: Datei[]; hinweise: string[]; kaputt?: boolean };
 export function einordnen(pfad: string, art?: string): { stufe: 1 | 2 | 3; stufeName: string; marken: Marke[] };
@@ -107,7 +109,7 @@ export interface Entscheidungen {
   dateiWahl?: Record<string, DateiWeg>;
   mustermappe?: boolean;
 }
-export interface ReinigenOptionen { werkzeuge?: Werkzeuge & { Zeichner?: Zeichner; WFP?: unknown; PrueferMail?: unknown }; texterkennung?: boolean; begriffe?: string[]; fortschritt?: (nr: number, gesamt: number, pfad: string) => void; }
+export interface ReinigenOptionen { werkzeuge?: Werkzeuge & { Zeichner?: Zeichner; WFP?: unknown; PrueferMail?: unknown }; texterkennung?: boolean; begriffe?: string[]; sperrliste?: Sperrliste | null; fortschritt?: (nr: number, gesamt: number, pfad: string) => void; }
 export interface SaubereDatei { pfad: string; von?: string; bytes: Uint8Array; gereinigt?: number; unveraendert?: boolean; neu?: string; muster?: string; mappe?: boolean; }
 export interface Gereinigt {
   sauber: SaubereDatei[]; stellenplan: Stelle[];
@@ -196,3 +198,32 @@ export function werteAusZuordnung(zuordnung: Gereinigt["zuordnung"], plaetze: Pl
 /** Füllt die Platzhalter an den Stellen des Stellenplans (Text je Zeile, Datei-/Ordnernamen, Office-Textteile). Fehler: „kein-stellenplan“. */
 export function zurueckbauen(dateien: Datei[], werte: Record<string, string>, optionen?: { originale?: boolean }): Promise<{ dateien: Array<{ pfad: string; bytes: Uint8Array }>; bericht: RueckbauBericht; zip: Uint8Array }>;
 export function rueckbauText(bericht: RueckbauBericht): string;
+
+/* ── Stufe 7: Sperrliste und Git-Wächter ── */
+/** Eine Sperrliste: nur Fingerabdrücke (SHA-256 über Salz + feste Schreibweise), keine Werte. */
+export interface Sperrliste { kennung: string; fassung: number; erstellt: string; hinweis?: string;
+  gruppen: Array<{ salz: string; woerterMax: number; abdruecke: string[]; /** Bitfeld 2^16 Bit (Base64), nur Vorfilter */ vorfilter?: string }>; }
+export const SPERRLISTE_KENNUNG: string;
+export const SPERRLISTE_FASSUNG: number;
+export const SPERRLISTE_DATEI: string;
+export const SPERR_WOERTER_MAX: number;
+export const SPERR_ZEICHEN_MIN: number;
+export const SPERR_NICHT_VORGEWAEHLT: string[];
+export function sha256(bytes: Uint8Array): string;
+export function sperrForm(wert: string): { raum: string; dicht: string | null; woerter: number } | null;
+export function sperrlisteBauen(werte: string[], optionen?: { salz?: string; datum?: string }): { liste: Sperrliste; aufgenommen: number; zuKurz: number; zuLang: number };
+export function sperrlisteLesen(roh: Uint8Array | string | object): Sperrliste | null;
+export function istSperrliste(pfad: string, bytes: Uint8Array): boolean;
+export function sperrlisteZusammen(...listen: Array<Sperrliste | null | undefined>): Sperrliste;
+export function sperrlisteGroesse(liste: Sperrliste | null): number;
+export function sperrTreffer(text: string, liste: Sperrliste | null): Array<{ wert: string; index: number; ende: number }>;
+export interface WaechterErgebnis {
+  halt: Array<{ pfad: string; zeile?: number; grund: string }>;
+  hinweise: Array<{ pfad: string; zeile?: number; art: string; artName: string }>;
+  ungeprueft: Array<{ pfad: string; grund: string }>;
+  dateien: number; texte: number;
+}
+/** Der Git-Wächter: hält an bei Werten der Sperrliste und Tresor-Dateien (mit `streng` auch bei Mail, IBAN, Telefon, Schlüssel). Nennt nie Werte. */
+export function waechterPruefe(dateien: Array<{ pfad: string; bytes: Uint8Array }>, optionen?: { sperrliste?: Sperrliste | null; streng?: boolean; werkzeuge?: Werkzeuge;
+  texte?: Array<{ wo: string; text: string }>; fortschritt?: (nr: number, gesamt: number, pfad: string) => void }): Promise<WaechterErgebnis>;
+export function waechterText(r: WaechterErgebnis, optionen?: { sperrliste?: Sperrliste | null; streng?: boolean; alleHinweise?: boolean }): string;
