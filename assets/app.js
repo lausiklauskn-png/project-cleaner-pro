@@ -116,12 +116,12 @@ $("#sperren").addEventListener("click", () => sperren());
 
 /* Ziehen und Loslassen, auch ganze Ordner. Übersprungene Ordner werden nicht geöffnet. */
 let ziehZaehler = 0;
-addEventListener("dragenter", (e) => { e.preventDefault(); if (!laeuft && !gesperrt) { ziehZaehler++; $("#ziehen").textContent = $("#arbeit").hidden && $("#import").hidden ? "Loslassen zum Prüfen" : "Loslassen zum Hereinladen"; $("#ziehen").hidden = false; } });
+addEventListener("dragenter", (e) => { e.preventDefault(); if (!laeuft && !gesperrt && !vorfuehrung) { ziehZaehler++; $("#ziehen").textContent = $("#arbeit").hidden && $("#import").hidden ? "Loslassen zum Prüfen" : "Loslassen zum Hereinladen"; $("#ziehen").hidden = false; } });
 addEventListener("dragleave", () => { if (--ziehZaehler <= 0) { ziehZaehler = 0; $("#ziehen").hidden = true; } });
 addEventListener("dragover", (e) => e.preventDefault());
 addEventListener("drop", async (e) => {
   e.preventDefault(); ziehZaehler = 0; $("#ziehen").hidden = true;
-  if (laeuft || gesperrt) return;
+  if (laeuft || gesperrt || vorfuehrung) return;
   const items = Array.from(e.dataTransfer.items || []).map((i) => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
   if (!items.length) { abgelegt(ausDateiListe(e.dataTransfer.files || [])); return; }
   const liste = [];
@@ -162,6 +162,12 @@ async function starte(liste, opt = {}) {
   const fs = $("#fortschritt"); fs.hidden = false;
   try {
     const ein = await Kern.einwerfen(liste);
+    /* Stufe 6: eine saubere Kopie mit Stellenplan wird nicht noch einmal geprüft, sondern zum Füllen geöffnet („Doch prüfen“ geht). */
+    if (!ergebnis && !opt.behalten && !opt.pruefen && await Kern.stellenplanAus(ein.dateien)) {
+      fs.hidden = true; laeuft = false;
+      $("#einwurf").hidden = false; $("#arbeit").hidden = true; $("#neu").hidden = true;
+      return rueckbauOeffnen(ein.dateien, { name: quelle.name, liste });
+    }
     eingeworfen = ein.dateien; gereinigt = null; textCache.clear();
     /* Dazugenommen (Fenster „Dateien hereinladen“): Entscheidungen, eigene Namen und Texterkennung bleiben. */
     if (!opt.behalten) {
@@ -193,7 +199,7 @@ async function nochmal() {
 }
 
 function zuruecksetzen() {
-  ergebnis = null; eingeworfen = []; gereinigt = null; textCache.clear(); schliesseAnsicht(); tresorSchliessen();
+  ergebnis = null; eingeworfen = []; gereinigt = null; textCache.clear(); schliesseAnsicht(); tresorSchliessen(); rueckbauSchliessen();
   $("#arbeit").hidden = true; $("#einwurf").hidden = false; $("#neu").hidden = true;
   $("#befunde").replaceChildren(); $("#inventur").replaceChildren();
 }
@@ -699,7 +705,9 @@ async function reinigen() {
     el("div", { class: "knoepfe" },
       laden("Saubere Kopie (ZIP)", zipName, gereinigt.zip, "application/zip"), teilen,
       laden("Stellenplan", Kern.STELLENPLAN_DATEI, beilage(Kern.STELLENPLAN_DATEI), "text/plain"),
-      laden("Bericht", Kern.BERICHT_DATEI, beilage(Kern.BERICHT_DATEI), "text/plain")),
+      laden("Bericht", Kern.BERICHT_DATEI, beilage(Kern.BERICHT_DATEI), "text/plain"),
+      (() => { const k = knopfMit({ class: "knopf", id: "zurueckbauen" }, "zurueck", "Eigene Werte einsetzen …");
+        k.addEventListener("click", () => rueckbauOeffnen([...gereinigt.sauber, ...gereinigt.beilagen].map((d) => ({ pfad: d.pfad, bytes: d.bytes })), { name, zuordnung: gereinigt.zuordnung })); return k; })()),
     tresorKarte(name),
     ...(([ik, erkl]) => [el("div", { class: "titel-zeile" }, el("span", { class: "klein", text: "Was liegt im ZIP?" }), ik), erkl])(info("Stellenplan und Bericht liegen auch im ZIP (dort stehen die Kästen der neu gezeichneten Blätter mit Seite und Lage). Sie nennen keine Werte. Die Zuordnung (welche Marke für welchen Wert steht) bleibt nur hier im Speicher — sie verschwindet mit „Neu“. Aufbewahren lässt sie sich nur verschlüsselt im Tresor.", "Stellenplan und Bericht"))));
 }
@@ -743,7 +751,7 @@ for (const k of document.querySelectorAll("#reiter .reiter-knopf")) k.addEventLi
 /* ── Installieren und Aktualisieren (Klaus 2026-10-28) ─────────────────────
    Ablauf und Texte übernommen aus dem Auslieferungsprüfer (assets/installieren.js, dort seit 2026-09-30
    am Tablet getragen), hier mit Strich-Symbolen und ohne Inline-Stile (CSP). */
-export const APP_FASSUNG = "9";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
+export const APP_FASSUNG = "10";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
 let installEreignis = null;
 function alsApp() {
   try { return matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: window-controls-overlay)").matches || matchMedia("(display-mode: minimal-ui)").matches || navigator.standalone === true; }
@@ -914,7 +922,18 @@ function tresorMalen(meldung) {
     return el("li", {}, k2, el("span", { class: "satz", text: gross(d.bytes.length) }));
   });
   t.replaceChildren(kopf, el("div", { class: "ansicht-koerper" }, ...teile,
-    el("p", { class: "satz", text: "Offen nur im Speicher. „Schließen“, „Sperren“ oder „Neu“ werfen den Inhalt weg; die Datei bleibt verschlossen. Zurückbauen (eigene Werte an die Stellen setzen) kommt mit Stufe 6." }),
+    el("p", { class: "satz", text: "Offen nur im Speicher. „Schließen“, „Sperren“ oder „Neu“ werfen den Inhalt weg; die Datei bleibt verschlossen." }),
+    (() => {
+      const wahl = el("input", { type: "file", id: "rueckbau-wahl", accept: ".zip", hidden: true });
+      wahl.addEventListener("change", async () => {
+        const l = ausDateiListe(wahl.files); wahl.value = ""; if (!l.length) return;
+        const ein = await Kern.einwerfen(l);
+        if (!(await Kern.stellenplanAus(ein.dateien))) return melde("In dieser Datei liegt kein Stellenplan — das ist keine saubere Kopie des Projekt-Reinigers.");
+        rueckbauOeffnen(ein.dateien, { name: l[0].pfad.split("/").pop().replace(/(-sauber)?\.zip$/i, ""), zuordnung: o.zuordnung, ausTresor: true });
+      });
+      const [ik, erkl] = info("Die saubere Kopie (ZIP) wählen, die zu diesem Tresor gehört. Dann lassen sich einzelne Stellen mit dem Original füllen (z. B. das Impressum) oder alle mit eigenen Werten.", "Zurückbauen");
+      return el("div", { class: "rueckbau-tresor" }, el("div", { class: "titel-zeile" }, el("label", { class: "knopf", for: "rueckbau-wahl" }, ikon("zurueck"), "Saubere Kopie zurückbauen …"), ik), erkl, wahl);
+    })(),
     el("section", { class: "gruppe" }, el("h2", { text: "Zuordnung (" + marken.length + ")" }), el("ul", { class: "datei-plan", id: "tresor-zuordnung" }, ...zeilen)),
     el("section", { class: "gruppe" }, el("h2", { text: "Originale (" + o.originale.length + ")" }),
       o.originale.length ? el("ul", { class: "datei", id: "tresor-originale" }, ...dateien) : el("p", { class: "satz", text: "Ohne Originale verschlossen." }), ansicht)));
@@ -950,12 +969,12 @@ function sperrFlaeche(modus) {
     : "Alles Offene liegt verschlüsselt nur im Speicher. Neu laden oder Schließen verwirft es.";
   $("#sperre-code").value = ""; $("#sperre-code2").value = ""; $("#sperre-meldung").textContent = "";
   s.hidden = false;
-  for (const x of [".kopf", "#haupt", "#ansicht", "#tresor", "#meldung", "#import"]) { const e = $(x); if (e) e.inert = true; }
+  for (const x of [".kopf", "#haupt", "#ansicht", "#tresor", "#zurueck", "#meldung", "#import"]) { const e = $(x); if (e) e.inert = true; }
   setTimeout(() => $("#sperre-code").focus(), 0);
 }
 function sperrFlaecheWeg() {
   $("#sperre").hidden = true; sperrModus = "";
-  for (const x of [".kopf", "#haupt", "#ansicht", "#tresor", "#meldung", "#import"]) { const e = $(x); if (e) e.inert = false; }
+  for (const x of [".kopf", "#haupt", "#ansicht", "#tresor", "#zurueck", "#meldung", "#import"]) { const e = $(x); if (e) e.inert = false; }
 }
 function sperren() {
   if (gesperrt || laeuft) { if (laeuft) melde("Erst die laufende Prüfung abwarten, dann sperren."); return; }
@@ -970,7 +989,7 @@ async function zuschliessen() {
     quelle, warAktiv: !!ergebnis, hatteKopie: !!gereinigt };
   /* 2. Alles Offene aus der Anzeige und aus dem Speicher. */
   for (const id of ["#befunde", "#inventur", "#zahlen", "#hinweise", "#ansicht", "#meldung-text"]) $(id).replaceChildren();
-  $("#meldung").hidden = true; schliesseAnsicht(); tresorSchliessen(); ocrBeenden();
+  $("#meldung").hidden = true; schliesseAnsicht(); tresorSchliessen(); rueckbauSchliessen(); ocrBeenden();
   importListe.length = 0; $("#import-text").value = ""; $("#import-name").value = ""; importZu(); importMalen();
   ergebnis = null; gereinigt = null; eingeworfen = []; textCache.clear();
   for (const k of Object.keys(wahl)) delete wahl[k];
@@ -1122,7 +1141,7 @@ for (const n of ["dragleave", "drop"]) ablageFlaeche.addEventListener(n, () => a
 /* Einfügen (Strg+V, am Tablet „Einfügen“): Dateien und Bilder aus der Zwischenablage, sonst Text/SVG als Datei.
    In einem Eingabefeld bleibt Einfügen, was es ist. */
 addEventListener("paste", (e) => {
-  if (gesperrt || laeuft) return;
+  if (gesperrt || laeuft || vorfuehrung) return;
   const ziel = e.target;
   if (ziel && ziel.closest && ziel.closest("input, textarea, select, [contenteditable]")) return;
   const cd = e.clipboardData;
@@ -1151,3 +1170,194 @@ $("#herausladen").addEventListener("click", async () => {
   const k = document.querySelector('[data-laden$="-sauber.zip"]');
   if (k) { k.scrollIntoView({ block: "center" }); k.click(); }
 });
+
+/* ══ Vorführung „So geht's“ (Klaus 2026-10-29): kein Film, sondern die App selbst wird bedient — ein Finger
+   tippt auf die echten Knöpfe, Schritt 1 bis 4, mit dem erfundenen Beispielprojekt. Liegt über der App
+   (Vollbild oder geteilte Ansicht, wie die App gerade steht). Ein Tipp oder Esc beendet; danach steht wieder
+   die erste Seite da. Nichts geht hinaus: „Herausladen“ wird nur gezeigt, nicht ausgelöst. */
+let vorfuehrung = null;   // der laufende Durchlauf { aus, start } — jeder Durchlauf steuert nur sich selbst
+const VF_SCHRITTE = 4;
+function vfSatz(nr, text) {
+  $("#vf-schritt").textContent = nr ? "Schritt " + nr + " von " + VF_SCHRITTE + ":" : "";
+  $("#vf-text").textContent = text;
+}
+let vfZiel = null;
+function vfMarke(e) { if (vfZiel) vfZiel.classList.remove("vf-ziel"); vfZiel = e; if (e) e.classList.add("vf-ziel"); }
+/* Der Finger folgt seinem Ziel, auch wenn sich die Seite darunter verschiebt (Vorschau, Ergebnis, Rollen). */
+function vfFingerSetzen(druck) {
+  const f = $("#vf-finger");
+  if (!vfZiel) return;
+  const r = vfZiel.getBoundingClientRect();
+  if (!r.width && !r.height) return;
+  const x = Math.round(r.left + Math.min(r.width / 2, 60)), y = Math.round(r.top + r.height / 2);
+  if (!druck && +f.dataset.x === x && +f.dataset.y === y) return;
+  f.dataset.x = String(x); f.dataset.y = String(y);
+  f.style.transform = "translate(" + (x - 15) + "px," + (y - 2 + (druck ? 5 : 0)) + "px)" + (druck ? " scale(.92)" : "");
+  $("#vf-satz").classList.toggle("oben", y > innerHeight * 0.62);
+}
+async function vorfuehren() {
+  if (vorfuehrung || laeuft || gesperrt || ergebnis) return;
+  const v = vorfuehrung = { aus: false, start: Date.now() };
+  const dran = () => { if (v.aus) throw new Error("vorbei"); };
+  const warte = (ms) => new Promise((ok, nein) => setTimeout(() => (v.aus ? nein(new Error("vorbei")) : ok()), ms));
+  const folgen = () => { if (v.aus) return; vfFingerSetzen(false); requestAnimationFrame(folgen); };
+  const zeige = async (e) => {
+    dran();
+    e.scrollIntoView({ block: "center", inline: "nearest" });
+    $("#vf-finger").classList.remove("tippt");
+    vfMarke(e); vfFingerSetzen(false);
+    await warte(900);
+  };
+  const tippe = async (e) => {
+    await zeige(e);
+    const f = $("#vf-finger"), ring = $("#vf-ring");
+    f.classList.add("tippt"); vfFingerSetzen(true);
+    ring.style.left = f.dataset.x + "px"; ring.style.top = f.dataset.y + "px";
+    ring.classList.remove("an"); void ring.offsetWidth; ring.classList.add("an");
+    await warte(180);
+    vfFingerSetzen(false);
+    await warte(350);
+    f.classList.remove("tippt");
+  };
+  $("#vorfuehrung").hidden = false;
+  for (const x of [".kopf", "#haupt"]) { const e = $(x); if (e) e.inert = true; }
+  requestAnimationFrame(folgen);
+  try {
+    vfSatz(1, "Projekt einwerfen — ZIP, Dateien oder Ordner.");
+    await tippe($('label[for="wahl-dateien"]'));
+    vfSatz(1, "Hier: das erfundene Beispielprojekt.");
+    await starte(await beispielProjekt());
+    dran(); await warte(500);
+    vfSatz(2, "Die Funde ansehen — was persönlich ist, steht hier.");
+    await zeige($("#zahlen"));
+    const karte = [...document.querySelectorAll(".buendel")].find((b) => b.querySelector("select.weg:not([data-zeile-wahl])"));
+    if (karte) {
+      await zeige(karte.querySelector("[data-wert]") || karte);
+      const sel = karte.querySelector("select.weg:not([data-zeile-wahl])");
+      vfSatz(3, "Je Fund wählen, was daraus wird.");
+      await tippe(sel);
+      sel.value = "marke"; sel.dispatchEvent(new Event("change"));
+      vfSatz(3, "„Wird zu:“ zeigt sofort die Zeile danach.");
+      await zeige(karte.querySelector("[data-wahl-vorschau]") || sel);
+      await warte(600);
+    }
+    vfSatz(4, "Saubere Kopie bauen — danach wird sie noch einmal ganz durchsucht.");
+    const bauen = $("#reinigen");
+    if (bauen) { await tippe(bauen); await reinigen(); dran(); await zeige($("#kopie-ergebnis") || bauen); }
+    vfSatz(4, "Saubere Kopie herausladen — als ZIP, ohne die Werte.");
+    await tippe($("#herausladen"));
+    await warte(1200);
+    vfSatz(0, "Fertig. Jetzt dein Projekt einwerfen.");
+    await warte(1600);
+  } catch { /* beendet (Tipp, Esc) */ }
+  v.dauer = v.dauer || Date.now() - v.start;
+  vorfuehrungEnde(v);
+}
+/* Beenden: Anzeige sofort weg; zurück zur ersten Seite, sobald ein laufendes Prüfen oder Reinigen fertig ist. */
+function vorfuehrungEnde(v = vorfuehrung) {
+  if (!v || v !== vorfuehrung || v.ende) return;
+  v.ende = true; v.aus = true; v.dauer = v.dauer || Date.now() - v.start;
+  $("#vorfuehrung").hidden = true; vfMarke(null);
+  const f = $("#vf-finger"); f.style.transform = ""; f.dataset.x = f.dataset.y = ""; f.classList.remove("tippt"); $("#vf-ring").classList.remove("an");
+  for (const x of [".kopf", "#haupt"]) { const e = $(x); if (e) e.inert = false; }
+  const zurueck = () => {
+    if (laeuft) return setTimeout(zurueck, 100);
+    if (ergebnis) zuruecksetzen();
+    for (const k of Object.keys(wahl)) delete wahl[k];
+    window.__vorfuehrungDauer = v.dauer;
+    vorfuehrung = null;
+  };
+  zurueck();
+}
+$("#vorfuehren").addEventListener("click", vorfuehren);
+$("#vorfuehrung").addEventListener("pointerdown", (e) => { e.preventDefault(); vorfuehrungEnde(); });
+addEventListener("keydown", (e) => { if (vorfuehrung && !vorfuehrung.ende && (e.key === "Escape" || e.key === " " || e.key === "Enter")) { e.preventDefault(); vorfuehrungEnde(); } });
+window.__vorfuehrung = () => ({ laeuft: !!vorfuehrung, schritt: $("#vf-schritt").textContent, text: $("#vf-text").textContent, x: +$("#vf-finger").dataset.x || 0, y: +$("#vf-finger").dataset.y || 0 });
+
+/* ══ Stufe 6 · Zurückbauen, mit eigenen Werten füllen ════════════════════════════════════════════════════
+   Ein Fenster wie der Tresor. Die Plätze kommen aus dem Stellenplan der sauberen Kopie (Marke oder Musterwert,
+   nie der alte Wert). Je Platz ein Feld für den eigenen Wert; ist die Zuordnung da (gleich nach dem Reinigen oder
+   aus dem geöffneten Tresor), auch „Original“. Herausgeladen wird eine neue ZIP; die saubere Kopie bleibt, wie sie ist. */
+let rueckbau = null;
+function rueckbauSchliessen() {
+  rueckbau = null;
+  const z = $("#zurueck"); if (z) { z.replaceChildren(); z.hidden = true; }
+}
+async function rueckbauOeffnen(dateien, opt = {}) {
+  if (gesperrt) return;
+  const sp = await Kern.stellenplanAus(dateien);
+  if (!sp) return melde("In dieser Datei liegt kein Stellenplan — das ist keine saubere Kopie des Projekt-Reinigers.");
+  const plaetze = Kern.rueckbauPlaetze(sp.plan);
+  const originale = opt.zuordnung ? Kern.werteAusZuordnung(opt.zuordnung, plaetze) : {};
+  rueckbau = { dateien, plaetze, originale, name: (opt.name || "projekt").replace(/[^\w.-]+/g, "_"), liste: opt.liste || null, stellen: sp.plan.stellen.length };
+  rueckbauMalen();
+}
+function rueckbauMalen() {
+  const r = rueckbau, z = $("#zurueck");
+  const zu = knopfMit({ class: "knopf", id: "rueckbau-schliessen" }, "zurueck", "Schließen");
+  zu.addEventListener("click", rueckbauSchliessen);
+  const mitOriginal = Object.keys(r.originale).length;
+  const kaesten = r.plaetze.reduce((n, p) => n + p.kaesten, 0);
+  const kopf = el("div", { class: "ansicht-kopf" }, zu, el("span", { class: "pfad", text: "Zurückbauen: " + r.name }),
+    el("span", { class: "satz", text: anzahl(r.plaetze.length, "Platz", "Plätze") + " · " + anzahl(r.stellen, "Stelle", "Stellen") + " im Stellenplan" }));
+  const [ik, erkl] = info("Der Stellenplan sagt, wo eine Angabe ersetzt wurde und womit — nie, was dort stand. Trag hier deine eigenen Werte ein; sie kommen genau an diese Stellen (auch in Datei- und Ordnernamen und in Word, Excel, PowerPoint). " +
+    "Leer gelassen bleibt der Platzhalter. Graue Kästen in neu gezeichneten PDF-Seiten und Bildern bleiben — dort gibt es keinen Text mehr. Herausgeladen wird eine neue ZIP; nichts wird gespeichert.", "Zurückbauen");
+  const warnOriginal = warnZeile({ class: "rueckbau-warn", id: "rueckbau-warn", hidden: true }, "Mit Originalen ist die Kopie nicht mehr sauber — so nicht weitergeben.");
+  const zeilen = r.plaetze.map((p) => {
+    const feld = el("input", { type: "text", class: "rueckbau-wert", "data-wert-fuer": p.platz, placeholder: p.fuellbar ? "eigener Wert" : "nur Kasten — nicht füllbar", "aria-label": "Eigener Wert für " + p.zeigt + " (" + p.artName + ")", disabled: !p.fuellbar });
+    let orig = null;
+    if (p.fuellbar && r.originale[p.platz] != null) {
+      const box = el("input", { type: "checkbox", "data-original-fuer": p.platz });
+      box.addEventListener("change", () => { feld.disabled = box.checked; feld.placeholder = box.checked ? "Original aus der Zuordnung" : "eigener Wert"; warnOriginal.hidden = !document.querySelector("[data-original-fuer]:checked"); });
+      orig = el("label", { class: "wahl" }, box, el("span", { text: "Original" }));
+    }
+    return el("li", { "data-platz": p.platz },
+      el("div", { class: "titel-zeile" }, el("code", { text: p.zeigt }), el("span", { class: "satz", text: p.artName + " · " + p.anzahl + "× in " + anzahl(p.dateien, "Datei", "Dateien") + (p.kaesten ? " · " + anzahl(p.kaesten, "Kasten bleibt", "Kästen bleiben") : "") })),
+      el("div", { class: "begriff-zeile" }, feld, orig));
+  });
+  let alle = null;
+  if (mitOriginal) {
+    alle = knopfMit({ class: "knopf klein-knopf", id: "rueckbau-alle-originale" }, "zurueck", "Alle Originale zurückholen (" + mitOriginal + ")");
+    alle.addEventListener("click", () => { for (const b of document.querySelectorAll("[data-original-fuer]")) if (!b.checked) { b.checked = true; b.dispatchEvent(new Event("change")); } });
+  }
+  const laden = knopfMit({ class: "knopf haupt-knopf", id: "rueckbau-laden" }, "laden", "Gefüllte Kopie herausladen");
+  laden.addEventListener("click", rueckbauLaden);
+  let pruefen = null;
+  if (r.liste) {
+    pruefen = knopfMit({ class: "knopf", id: "rueckbau-pruefen" }, "lesen", "Doch prüfen");
+    pruefen.addEventListener("click", () => { const l = r.liste; rueckbauSchliessen(); starte(l, { pruefen: true }); });
+  }
+  z.replaceChildren(kopf, el("div", { class: "ansicht-koerper" },
+    el("div", { class: "titel-zeile" }, el("p", { class: "satz", text: "Eigene Werte an die Stellen setzen, die der Stellenplan nennt." + (mitOriginal ? " Oder einzelne Stellen mit dem Original zurückholen." : "") }), ik), erkl,
+    kaesten ? el("p", { class: "satz", text: anzahl(kaesten, "grauer Kasten", "graue Kästen") + " in neu gezeichneten Blättern " + (kaesten === 1 ? "bleibt" : "bleiben") + "." }) : null,
+    alle, warnOriginal,
+    el("ul", { class: "datei-plan rueckbau-liste", id: "rueckbau-liste" }, ...zeilen),
+    el("div", { class: "knoepfe" }, laden, pruefen),
+    el("div", { id: "rueckbau-ergebnis", "aria-live": "polite" })));
+  z.hidden = false;
+}
+async function rueckbauLaden() {
+  const r = rueckbau; if (!r) return;
+  const werte = {};
+  let originale = false;
+  for (const f of document.querySelectorAll("[data-wert-fuer]")) if (!f.disabled && f.value.trim()) werte[f.dataset.wertFuer] = f.value;
+  for (const b of document.querySelectorAll("[data-original-fuer]:checked")) { werte[b.dataset.originalFuer] = r.originale[b.dataset.originalFuer]; originale = true; }
+  const aus = $("#rueckbau-ergebnis");
+  if (!Object.keys(werte).length) { aus.replaceChildren(el("p", { class: "satz", text: "Noch kein Wert eingetragen." })); return; }
+  const k = $("#rueckbau-laden"); k.disabled = true; aus.replaceChildren(el("p", { class: "satz", text: "Fülle …" }));
+  let g;
+  try { g = await Kern.zurueckbauen(r.dateien, werte, { originale }); }
+  catch (e) { aus.replaceChildren(warnZeile({}, "Zurückbauen ging nicht (" + (e && e.message || e) + ").")); k.disabled = false; return; }
+  finally { k.disabled = false; }
+  const b = g.bericht, datei = r.name + (originale ? "-zurueckgebaut.zip" : "-gefuellt.zip");
+  aus.replaceChildren(el("div", { class: "kopie " + (originale ? "warn" : "gut"), "data-rueckbau": originale ? "original" : "eigen" },
+    el("h3", {}, ikon(originale ? "warn" : "haken"), el("span", { text: originale ? "Zurückgebaut — mit Originalen, NICHT sauber" : "Gefüllt mit eigenen Werten" })),
+    el("ul", {},
+      el("li", { "data-gefuellt": String(b.gefuellt), text: "Gefüllt: " + anzahl(b.gefuellt, "Stelle", "Stellen") + " in " + anzahl(b.dateienGeaendert, "Datei", "Dateien") }),
+      b.leer ? el("li", { text: "Leer gelassen (Platzhalter bleibt): " + b.leer }) : null,
+      b.kaesten ? el("li", { text: "Graue Kästen (bleiben): " + b.kaesten }) : null,
+      b.nichtGefunden.length ? el("li", { text: "Nicht gefunden: " + b.nichtGefunden.slice(0, 5).join(", ") + " — wurde die Kopie danach geändert?" }) : null),
+    el("p", { class: "satz", text: "Gespeichert wird nichts. Die Werte stehen nur in der neuen ZIP; " + Kern.RUECKBAU_DATEI + " darin nennt sie nicht." })));
+  await hinausgeben(datei, g.zip, "application/zip");
+}
+window.__rueckbau = () => rueckbau && { plaetze: rueckbau.plaetze.length, originale: Object.keys(rueckbau.originale).length, name: rueckbau.name };

@@ -42,6 +42,7 @@ code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-si
 
 /* Kopf: Verlauf Navy → #124e7f → #0a6664 (Ende etwas dunkler als #0d7775 der Familienakte: weiße Schrift braucht 4,5 : 1) */
 .kopf {
+  grid-row: 1; grid-column: 1;
   display: flex; align-items: center; gap: 10px; min-width: 0;
   padding: 8px var(--abstand); padding-top: max(8px, env(safe-area-inset-top));
   background: linear-gradient(90deg, var(--navy), #124e7f 55%, #0a6664); color: #fff;
@@ -66,7 +67,7 @@ code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-si
 .knopf.hell { min-height: 38px; background: rgb(0 20 40 / .35); color: #fff; border-color: rgb(255 255 255 / .45); }
 .knopf.hell:hover { background: rgb(0 20 40 / .5); border-color: #fff; }
 
-.haupt { min-height: 0; overflow: hidden; display: grid; }
+.haupt { grid-row: 2; grid-column: 1; min-height: 0; overflow: hidden; display: grid; }
 
 /* Einwurf: die leere Fläche — Kristall mit „CLEANER“ darunter (Klaus 2026-10-28) */
 .einwurf {
@@ -232,7 +233,8 @@ mark { background: #ffe08a; color: #1d1d1d; border-radius: 3px; padding: 0 1px; 
 .pfad-knopf { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0; cursor: pointer; color: var(--titel); font-family: inherit; text-decoration: underline; text-decoration-color: var(--linie); text-underline-offset: 3px; white-space: normal; }
 
 /* Datei ansehen (ganzes Fenster) */
-.ansicht { position: absolute; inset: 0; z-index: 20; display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--papier); min-width: 0; }
+/* Fenster (Datei, Tresor, Zurückbauen) liegen UNTER dem Kopf: „Sperren“ bleibt immer greifbar (CLAUDE.md, Stufe 5). */
+.ansicht { position: relative; grid-row: 2; grid-column: 1; z-index: 20; display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--papier); min-width: 0; }
 .ansicht[hidden] { display: none; }
 .ansicht-kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px var(--abstand); border-bottom: 1px solid var(--linie); background: var(--grund); min-width: 0; }
 .ansicht-kopf .pfad { flex: 1 1 12em; min-width: 0; overflow-wrap: anywhere; font-weight: 600; color: var(--titel); }
@@ -278,7 +280,7 @@ mark { background: #ffe08a; color: #1d1d1d; border-radius: 3px; padding: 0 1px; 
 .meldung p { margin: 0 0 8px; overflow-wrap: anywhere; }
 .meldung p:last-child { margin-bottom: 0; }
 #meldung-zu { float: right; margin: -2px -2px 4px 8px; padding: 3px 6px; }
-@media (max-width: 420px) { #neu .t { display: none; } #neu { padding: 3px 8px; } .kopf { gap: 6px; } }
+@media (max-width: 420px) { .kopf { gap: 6px; } }
 
 /* Stufe 4: Vorschau neu gezeichneter Blätter, Wahl je Datei */
 .vorschau { display: grid; gap: 12px; justify-items: center; padding: 8px 0; min-width: 0; }
@@ -321,7 +323,7 @@ mark { background: #ffe08a; color: #1d1d1d; border-radius: 3px; padding: 0 1px; 
 .wahl-vorschau { display: grid; gap: 2px; min-width: 0; }
 .vorschau-titel { font-size: .78rem; color: var(--leise); }
 mark.ersatz { background: var(--gut-grund); color: var(--gut); outline: 1px solid var(--gut-linie); font-weight: 600; }
-@media (max-width: 899px) { #neu .t, #sperren .t, #installieren .t, #aktualisieren .t { display: none; } #neu, #sperren, #installieren, #aktualisieren { padding: 3px 8px; } }
+@media (max-width: 899px) { #sperren .t, #installieren .t, #aktualisieren .t { display: none; } #sperren, #installieren, #aktualisieren { padding: 3px 8px; } }
 
 /* Stufe 5: Gäste-Sperre — deckt alles ab, Kristall wie die leere Fläche */
 .sperre { position: absolute; inset: 0; z-index: 60; display: grid; place-items: center; overflow: auto; padding: var(--abstand);
@@ -402,3 +404,33 @@ mark.ersatz { background: var(--gut-grund); color: var(--gut); outline: 1px soli
 #import-liste .knopf { flex: none; padding: 3px 6px; }
 #import-liste .titel-zeile { justify-content: space-between; flex-wrap: nowrap; }
 #import-liste .pfad { min-width: 0; overflow-wrap: anywhere; }
+
+/* ── Vorführung (Klaus 2026-10-29): liegt durchsichtig über der App, ein Finger bedient sie. Tippen beendet.
+   Sie füllt immer das Fenster der App — im Vollbild wie in der geteilten Ansicht. */
+.vorfuehrung { position: fixed; inset: 0; z-index: 60; cursor: pointer; background: transparent; touch-action: none; }
+.vf-finger { position: fixed; left: 0; top: 0; width: 44px; height: 52px; transform: translate(-200px, -200px); transition: transform .8s cubic-bezier(.45,.05,.3,1); pointer-events: none;
+  filter: drop-shadow(0 3px 6px rgb(0 0 0 / .35)); }
+.vf-finger path { fill: #ffffff; stroke: #0b3154; stroke-width: 2.2; stroke-linejoin: round; }
+.vf-finger.tippt { transition: transform .12s ease-in; }
+.vf-ring { position: fixed; left: 0; top: 0; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; border: 3px solid #087f7a; background: rgb(8 127 122 / .18);
+  opacity: 0; pointer-events: none; }
+.vf-ring.an { animation: vf-tipp .6s ease-out; }
+@keyframes vf-tipp { 0% { opacity: 1; transform: scale(.4); } 100% { opacity: 0; transform: scale(1.6); } }
+.vf-ziel { outline: 3px solid #f0c060 !important; outline-offset: 3px; border-radius: 8px; }
+.vf-satz { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); margin: 0; width: max-content; max-width: calc(100% - 24px);
+  padding: 9px 14px; border-radius: 12px; background: #0b3154; color: #ffffff; font-size: .95rem; line-height: 1.35; box-shadow: 0 6px 18px rgb(0 0 0 / .3);
+  pointer-events: none; overflow-wrap: anywhere; }
+.vf-satz.oben { bottom: auto; top: 14px; }
+.vf-satz b { color: #9fd0ff; }
+.vf-ende { display: block; font-size: .78rem; color: #c9d8e6; margin-top: 2px; }
+@media (prefers-reduced-motion: reduce) { .vf-finger { transition: none; } .vf-ring.an { animation-duration: .01s; } }
+
+/* Stufe 6: Zurückbauen */
+.rueckbau-liste code { font-weight: 600; color: var(--titel); overflow-wrap: anywhere; }
+.rueckbau-liste .begriff-zeile { margin-top: 4px; }
+.rueckbau-wert { flex: 1 1 12em; min-width: 0; }
+.rueckbau-warn { display: flex; gap: 6px; align-items: flex-start; margin: 8px 0; padding: 8px 10px; border-radius: 8px; background: var(--warn-grund); border: 1px solid var(--warn-linie); color: var(--warn); overflow-wrap: anywhere; }
+#zurueck .ansicht-kopf .satz { flex: 1 1 100%; margin: 0; font-size: .84rem; color: var(--leise); }
+#zurueck .knoepfe { margin-top: 12px; }
+.rueckbau-tresor { margin: 8px 0 12px; }
+@media (max-width: 380px) { .tresor-karte { padding: 10px 8px; } .tresor-karte .knopf { padding-left: 8px; padding-right: 8px; } }
