@@ -104,7 +104,7 @@ const FAELLE = [
   ["WTRESOR", "assets/reiniger-kern.js", "    if (istTresor(pfad, bytes)) { halte(", "    if (false) { halte(", /Tresor/],
   ["WWERT", "assets/reiniger-kern.js", "SPERR_GRUND + (t ? \"\" : \" (Zeichenkette in der Datei)\"));", "SPERR_GRUND + \": \" + tr.wert);", /nennt nie einen Wert|ohne den Wert zu nennen/],
   ["WGESCHICHTE", "tools/git-waechter.mjs", "const spanne = !fern || NULL_SHA.test(fern) ? [lokal, \"--not\", \"--remotes\"] : [fern + \"..\" + lokal];", "const spanne = [lokal, \"-n\", \"1\"];", /nur noch in der Geschichte/],
-  ["WNACHRICHT", "tools/git-waechter.mjs", "texte = [{ wo: \"Commit-Nachricht\", text:", "texte = [] && [{ wo: \"Commit-Nachricht\", text:", /commit-msg/],
+  ["WNACHRICHT", "tools/git-waechter.mjs", "texte = [{ wo: \"Commit-Nachricht\", text:", "texte = [] || [{ wo: \"Commit-Nachricht\", text:", /commit-msg/],
   ["WHOOK", "tools/git-waechter.mjs", "&& !hat(\"--ersetzen\")) { sag(", "&& false) { sag(", /fremden Hook/],
   ["SPAPPLADEN", "assets/app.js", "      if (bytes && Kern.istSperrliste(", "      if (false && Kern.istSperrliste(", /geladen statt geprüft/],
   ["SPAPPSPERRE", "assets/app.js", "rueckbauSchliessen(); sperrfensterSchliessen(); ocrBeenden();", "rueckbauSchliessen(); ocrBeenden();", /Sperrliste-Fenster \(mit den Werten\)/],

@@ -722,7 +722,7 @@ dann nicht erreichbar, obwohl die CLAUDE.md „immer sichtbar“ verlangt. Jetzt
 - **Kern** (ohne DOM, Typen in `.d.ts`): `sha256`, `sperrForm`, `sperrlisteBauen`, `sperrlisteLesen`, `istSperrliste`, `sperrlisteZusammen`,
   `sperrlisteGroesse`, `sperrTreffer`, `waechterPruefe`, `waechterText`; `pruefe(…, { sperrliste })` → Fundart `GESPERRT`.
 - **Proben:** `npm test` 360 grün · 0 ROT (+38: 14 Kern, 7 Werkzeug im echten Git mit Wegwerf-Repo und Wegwerf-Fernrepo, 1 Workflow,
-  16 Oberfläche). Gegenproben: 12 neue Fälle (siehe Abschlussbrief).
+  16 Oberfläche). Gegenproben: 12 neue Fälle, 12 gefangen · 0 blind (SPDICHT fand einen echten Fehler, siehe Abschlussbrief).
 - ⚠ **Grenzen, ehrlich:** Wer die Sperrliste hat, kann kurze Werte (Vornamen, Orte, Geburtsdaten) **durchprobieren** — das Salz
   verhindert nur vorbereitete Tabellen. Darum gehört sie nicht in ein öffentliches Repo, sondern in `.git/` oder ein GitHub-Geheimnis.
   `--no-verify` umgeht die Hooks (der Wächter sagt das offen) — dann fängt erst pre-push bzw. die GitHub-Prüfung, und die läuft **nach**

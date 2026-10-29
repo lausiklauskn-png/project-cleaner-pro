@@ -72,7 +72,7 @@ Kurzauftrag zum Kopieren ausgeben.
 
 ```bash
 npm test             # 360 grün · 0 ROT (2026-10-29 spät, Stufe 7, Fassung 11)
-npm run gegenprobe   # 93 Fälle; Stufe 7: 12 neue (SP…, W…) — Ergebnis im Abschlussbrief Stufe 7; davor 12 + 32 gefangen
+npm run gegenprobe   # 93 Fälle; Stufe 7: 12 neue = 12 gefangen · 0 blind (SPDICHT fand einen echten Fehler); davor 12 + 32 gefangen
                      # (die übrigen 37 nicht neu gefahren; ein voller Lauf dauert hier ~2 h — einzeln: NUR_FALL=NAME)
 ```
 
