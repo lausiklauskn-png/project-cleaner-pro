@@ -1,0 +1,19 @@
+[package]
+name = "projekt-reiniger-pro"
+version = "0.7.0"
+description = "Projekt-Reiniger Pro für Windows"
+edition = "2021"
+publish = false
+license = "UNLICENSED"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "=2.12.5", features = [] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

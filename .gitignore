@@ -1,1 +1,12 @@
 node_modules/
+# App-Hüllen: erzeugt, nie einchecken
+www/
+windows/dist/
+windows/node_modules/
+windows/src-tauri/target/
+windows/src-tauri/gen/
+android/app/build/
+android/build/
+android/.gradle/
+*.jks
+*.keystore

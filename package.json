@@ -5,7 +5,18 @@
   "scripts": {
     "test": "node tests/probe.mjs",
     "gegenprobe": "node tests/gegenprobe.mjs",
-    "icons": "node tools/icons-bauen.mjs"
+    "icons": "node tools/icons-bauen.mjs",
+    "build:web": "node tools/native/prepare-web.mjs",
+    "sync:android": "npm run build:web && cap sync android",
+    "build:android": "npm run sync:android && cd android && ./gradlew --no-daemon --max-workers=2 assembleDebug",
+    "build:windows": "npm ci --prefix windows && npm run tauri --prefix windows -- build --bundles nsis"
   },
-  "devDependencies": { "playwright-core": "^1.62.1" }
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3",
+    "playwright-core": "^1.62.1"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/core": "8.5.3"
+  }
 }

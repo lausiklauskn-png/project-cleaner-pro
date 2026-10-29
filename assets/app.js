@@ -49,6 +49,27 @@ const warnZeile = (attr, satz) => el(attr.tag || "p", Object.assign({}, attr, { 
 const anzahl = (n, eins, viele) => n + " " + (n === 1 ? eins : viele);
 const gross = (n) => n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(1).replace(".", ",") + " KB" : (n / 1048576).toFixed(1).replace(".", ",") + " MB";
 
+/* In welcher Hülle läuft die App? (eine Codebasis: Browser/PWA, Android über Capacitor, Windows über Tauri) */
+const HUELLE = window.Capacitor && typeof window.Capacitor.isNativePlatform === "function" && window.Capacitor.isNativePlatform() ? "android"
+  : /^tauri\.localhost$/.test(location.hostname) || !!window.__TAURI_INTERNALS__ ? "windows" : "";
+if (HUELLE) document.documentElement.dataset.huelle = HUELLE;
+/* Bytes als Base64 (in Stücken, damit große Dateien nicht den Stapel sprengen). */
+function alsBase64(bytes) { let s = ""; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); }
+/* Eine Datei hinausgeben: im Browser und unter Windows als Download, unter Android über „Speichern unter“ (Plugin der Hülle). */
+async function hinausgeben(name, bytes, typ) {
+  if (HUELLE === "android") {
+    const C = window.Capacitor, o = { name, typ, daten: alsBase64(bytes) };
+    try {
+      const r = C.Plugins && C.Plugins.Speichern ? await C.Plugins.Speichern.speichern(o) : await C.nativePromise("Speichern", "speichern", o);
+      melde(r && r.gespeichert ? "Gespeichert: " + name : "Nicht gespeichert — abgebrochen.");
+    } catch (e) { melde("Speichern ging nicht (" + (e && e.message || e) + ")."); }
+    return;
+  }
+  const url = URL.createObjectURL(new Blob([bytes], { type: typ }));
+  const a = el("a", { href: url, download: name }); document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
 let ergebnis = null, laeuft = false, eingeworfen = [], gereinigt = null, quelle = "", texterkennung = false;
 const wahl = {};                 // buendelSchluessel → { weg, wert }
 const dateiWahl = {};            // Pfad → neu | muster | weg | original (Dateien, die nicht Stelle für Stelle gereinigt werden)
@@ -572,11 +593,7 @@ async function reinigen() {
   const name = (eingeworfen[0] && eingeworfen[0].pfad.includes("/") ? eingeworfen[0].pfad.split("/")[0] : "projekt").replace(/[^\w.-]+/g, "_") || "projekt";
   const laden = (text, datei, bytes, typ) => {
     const k = knopfMit({ class: "knopf", "data-laden": datei }, "laden", text);
-    k.addEventListener("click", () => {
-      const url = URL.createObjectURL(new Blob([bytes], { type: typ }));
-      const a = el("a", { href: url, download: datei }); document.body.append(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
-    });
+    k.addEventListener("click", () => hinausgeben(datei, bytes, typ));
     return k;
   };
   const beilage = (p) => gereinigt.beilagen.find((b) => b.pfad === p).bytes;
@@ -648,7 +665,7 @@ for (const k of document.querySelectorAll(".reiter-knopf")) k.addEventListener("
 /* ── Installieren und Aktualisieren (Klaus 2026-10-28) ─────────────────────
    Ablauf und Texte übernommen aus dem Auslieferungsprüfer (assets/installieren.js, dort seit 2026-09-30
    am Tablet getragen), hier mit Strich-Symbolen und ohne Inline-Stile (CSP). */
-export const APP_FASSUNG = "6";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
+export const APP_FASSUNG = "7";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
 let installEreignis = null;
 function alsApp() {
   try { return matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: window-controls-overlay)").matches || matchMedia("(display-mode: minimal-ui)").matches || navigator.standalone === true; }
@@ -657,7 +674,7 @@ function alsApp() {
 /* Meldung in Absätzen (Leerzeile im Text = neuer Absatz), nie als Text mit doppelten Zeilenumbrüchen. */
 function melde(text) { $("#meldung-text").replaceChildren(...String(text).split(/\n\s*\n/).map((t) => el("p", { text: t.trim() }))); $("#meldung").hidden = false; }
 $("#meldung-zu").addEventListener("click", () => { $("#meldung").hidden = true; });
-function installKnopf() { const k = $("#installieren"); k.hidden = alsApp(); k.dataset.lage = alsApp() ? "app" : installEreignis ? "angeboten" : "nicht-angeboten"; }
+function installKnopf() { const k = $("#installieren"); k.hidden = alsApp() || !!HUELLE; k.dataset.lage = alsApp() ? "app" : installEreignis ? "angeboten" : "nicht-angeboten"; }
 addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEreignis = e; installKnopf(); });
 addEventListener("appinstalled", () => { installEreignis = null; installKnopf(); melde("Installiert. Die App liegt jetzt auf dem Startbildschirm bzw. in der App-Liste."); });
 try { matchMedia("(display-mode: standalone)").addEventListener("change", installKnopf); } catch { /* alt */ }
@@ -689,6 +706,8 @@ async function aktualisieren() {
   location.reload();
 }
 $("#aktualisieren").addEventListener("click", aktualisieren);
+/* In der Android- und Windows-Hülle kommt eine neue Fassung als neue App — dort gibt es nichts zu installieren oder zu aktualisieren. */
+if (HUELLE) $("#aktualisieren").hidden = true;
 $("#aktualisieren").title = "Neue Fassung holen (jetzt: Fassung " + APP_FASSUNG + ")";
 /* Liegt eine neue Fassung bereit, wird der Knopf hervorgehoben. */
 if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("controllerchange", () => { const k = $("#aktualisieren"); k.dataset.neu = ""; k.title = "Neue Fassung da — tippen zum Laden"; });
@@ -709,7 +728,7 @@ $("#thema").addEventListener("click", () => {
 themaZeigen();
 
 /* Offline-Fähigkeit: nur der Code wird abgelegt, nie Daten. */
-if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol) && !new URLSearchParams(location.search).has("ohne-sw"))
+if (!HUELLE && "serviceWorker" in navigator && /^https?:$/.test(location.protocol) && !new URLSearchParams(location.search).has("ohne-sw"))
   navigator.serviceWorker.register("sw.js").then((reg) => reg.update().catch(() => {})).catch(() => {});
 
 /* nur für die Proben */
