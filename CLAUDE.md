@@ -6,11 +6,11 @@ oder nach GitHub gehen. Kein Build-Schritt. Der Plan steht im Brief:
 er ist die Quelle, diese Datei ist nur der Anker. Am Ende jeder Sitzung: Brief nachziehen und einen
 Kurzauftrag zum Kopieren ausgeben.
 
-## Stand: Stufen 1–5 + Hereinladen + Testfassungen APK/Windows, Fassung 9 (2026-10-29) · nächster Schritt: Klaus testet Fassung 9, dann Stufe 6
+## Stand: Stufen 1–6 + Hereinladen + Vorführung + Testfassungen APK/Windows, Fassung 10 (2026-10-29) · nächster Schritt: Klaus testet Fassung 10, dann Stufe 7
 
 | Datei | Rolle |
 |---|---|
-| `assets/reiniger-kern.js` + `.d.ts` | **Der Kern ohne Oberfläche** (ES-Modul). Kein DOM, keine IndexedDB, kein Netz — die Probe prüft das. Wandert später byte-1:1 in die Familienakte. Heute: `einwerfen`, `zipDateien`, `einordnen`, `pruefe`, `buendeln`, `gefuehlt`, `reinige`, `nachpruefe`, `saubereKopie`, `zipBauen`, `vorschau`; Stufe 5: `verschliesse`, `oeffne`, `tresorKopf`, `istTresor`, `codeGuete`, `sperrWartezeit`, `sperrPaket`/`sperrAuf` (Schloss bringt der Aufrufer: `werkzeuge.WERKSTATT_SCHLUESSEL`); Stufe 4: `dateiPlan` (Wege je Datei), `blattNeu`, `blattKaesten`, `kastenMalen`, `rauschen`, `pdfBauen`, `pngBauen`, `docxBauen`/`xlsxBauen`/`pptxBauen`, `mustermappe`, `musterFuer`. Zeichnen bringt der Aufrufer mit (`werkzeuge.Zeichner`, im Browser `app.js`). |
+| `assets/reiniger-kern.js` + `.d.ts` | **Der Kern ohne Oberfläche** (ES-Modul). Kein DOM, keine IndexedDB, kein Netz — die Probe prüft das. Wandert später byte-1:1 in die Familienakte. Heute: `einwerfen`, `zipDateien`, `einordnen`, `pruefe`, `buendeln`, `gefuehlt`, `reinige`, `nachpruefe`, `saubereKopie`, `zipBauen`, `vorschau`; Stufe 5: `verschliesse`, `oeffne`, `tresorKopf`, `istTresor`, `codeGuete`, `sperrWartezeit`, `sperrPaket`/`sperrAuf` (Schloss bringt der Aufrufer: `werkzeuge.WERKSTATT_SCHLUESSEL`); Stufe 6: `stellenplanAus`, `rueckbauPlaetze`, `werteAusZuordnung`, `zurueckbauen`, `rueckbauText`; Stufe 4: `dateiPlan` (Wege je Datei), `blattNeu`, `blattKaesten`, `kastenMalen`, `rauschen`, `pdfBauen`, `pngBauen`, `docxBauen`/`xlsxBauen`/`pptxBauen`, `mustermappe`, `musterFuer`. Zeichnen bringt der Aufrufer mit (`werkzeuge.Zeichner`, im Browser `app.js`). |
 | `assets/reiniger-listen.js` | **Wortlisten** für die gefühlten Metadaten (Städte, Stadtteile, Hochschulen, Firmenformen, Straßenendungen, Kfz-Zeichen, Vornamen). Einziger Import des Kerns — wandert mit ihm. Neue Wörter: erst `npm test` (Fallen-Probe), mehrdeutige Wörter nach `STAEDTE_MEHRDEUTIG`. |
 | `assets/app.js`, `assets/app.css`, `index.html`, `assets/thema.js` | Oberfläche. Fremdes nur über `textContent`. `app.js` enthält den **Zeichner** (pdf.js, Leinwand, Texterkennung mit Wortkästen, gemessene Zeichenbreiten). Farben nur als Variablen mit Hell- und Dunkel-Satz; `thema.js` setzt die gemerkte Wahl vor dem ersten Zeichnen. |
 | `tools/native/prepare-web.mjs`, `capacitor.config.json`, `android/`, `windows/`, `.github/workflows/testfassungen.yml` | **App-Hüllen** (wie Private Brain Pro): Android über Capacitor 8.5.3 (Plugin `Speichern` für „Speichern unter“), Windows über Tauri 2. Gebaut nur auf GitHub; auf `main` → Vorab-Veröffentlichung `testfassung`. `www/`, `windows/dist`, Build-Ordner nie einchecken. In der Hülle (`HUELLE` in app.js) kein Installieren/Aktualisieren/Service-Worker. |
@@ -48,16 +48,25 @@ Kurzauftrag zum Kopieren ausgeben.
 - **Hereinladen (Klaus 2026-10-29, Vorbild Auslieferungsprüfer):** Leiste oben im Arbeitsbildschirm („Dateien hereinladen“ /
   „Saubere Kopie herausladen“), Fenster `#import` mit Ablagefläche, Dateiwahl und Einfügen-Feld; Strg+V überall außer in Feldern.
   Ziehen nie als einziger Weg (Tablet). Im Arbeitsbildschirm ersetzt Ablegen nie still.
+- **Erste Seite (Klaus 2026-10-29, Befund 9):** Knöpfe sagen, was sie tun („ZIP oder Dateien einfügen“, „Ordner einfügen“). **„Neu“** steht
+  als erster Knopf **links** in der Arbeitsleiste, nicht im Kopf.
+- **Vorführung „So geht's“ (Klaus 2026-10-29):** kein Film — ein Finger bedient die **echte** App (Schritt 1–4, Beispielprojekt), liegt
+  über genau dem App-Fenster (Vollbild wie geteilt), **ein Tipp oder Esc beendet sofort**, danach erste Seite. Nichts geht hinaus.
+  Musik bringt Klaus später (Dauer ≈ 13 s gemessen, Probe gibt sie aus).
+- **Fenster (Datei, Tresor, Zurückbauen) liegen unter dem Kopf** — „Sperren“ bleibt immer greifbar (Probe).
+- **Zurückbauen (Stufe 6):** gefüllt wird nur an den Stellen des Stellenplans (Zeile, Wortgrenzen, Datei-/Ordnernamen, Office-Text).
+  Mit Originalen heißt das Ergebnis `…-zurueckgebaut.zip` und „NICHT sauber“; `REINIGER-ZURUECKBAU.txt` nennt nie Werte.
+  Kästen in neu gezeichneten PDF/Bildern und `.env`-Werte bleiben (benannt).
 - **Mustermappe:** ihre erfundenen Werte dürfen nie einem Projektwert gleichen; trifft es zufällig, bleibt die Datei weg (Probe).
 - **Kontrast und Schrift (Klaus 2026-10-29):** jede Schrift ≥ 4,5 : 1 in Hell **und** Dunkel (Probe `tests/kontrast.mjs`),
   weiße Schrift nur auf dunklem Grund; keine Schrift über Schrift, keine doppelten Leerzeilen (Probe in `messen`).
-  Bildschirmfotos aller Zustände: `docs/bilder-stufe-4/`, `docs/bilder-stufe-5/`.
+  Bildschirmfotos aller Zustände: `docs/bilder-stufe-4/`, `docs/bilder-stufe-5/`, `docs/bilder-stufe-6/`.
 
 ## Prüfen
 
 ```bash
-npm test             # 281 grün · 0 ROT (2026-10-29, Stufe 5, Hereinladen, Fassung 9)
-npm run gegenprobe   # 69 Fälle, Anker 0 tot; 2026-10-29 voll gefahren: 21 neue + 11 berührte alte = 32 gefangen · 0 blind
+npm test             # 322 grün · 0 ROT (2026-10-29 Abend, Befund 9, Vorführung, Stufe 6, Fassung 10)
+npm run gegenprobe   # 81 Fälle, Anker 0 tot; 2026-10-29 Abend: 11 neue + EINFUEGEN = 12 gefangen · 0 blind (davor: 32 gefangen)
                      # (die übrigen 37 nicht neu gefahren; ein voller Lauf dauert hier ~2 h — einzeln: NUR_FALL=NAME)
 ```
 

@@ -181,3 +181,18 @@ export function sperrPaket(zustand: { dateien: Datei[]; [k: string]: unknown }, 
 export function sperrAuf(paket: Paket, code: string, optionen?: TresorOptionen): Promise<{ dateien: Datei[]; [k: string]: unknown }>;
 /** Vorschau einer Wahl: eine Zeile, wie sie nach dem Reinigen aussähe (nur dieses Bündel ersetzt). */
 export function vorschau(ergebnis: Ergebnis, wahl: Entscheidungen["wahl"], schluessel: string, pfad: string, zeile: string): { text: string; ersatz: string | null };
+
+/* ── Stufe 6: Zurückbauen, mit eigenen Werten füllen ── */
+export const RUECKBAU_DATEI: string;
+export interface Stelle { pfad: string; zeile?: number; stelle?: string; art: string; weg: string; ersatz?: string; kasten?: { seite: number; x: number; y: number; w: number; h: number } }
+/** Ein Platz zum Füllen: eine Marke (⟦NAME-1⟧) oder Art + Musterwert („NAME|Max Mustermann“). */
+export interface Platz { platz: string; zeigt: string; art: string; artName: string; marke: boolean; anzahl: number; dateien: number; fuellbar: number; kaesten: number; }
+export interface RueckbauBericht { stellen: number; gefuellt: number; leer: number; kaesten: number; nichtGefunden: string[]; dateienGeaendert: number; originale: boolean; plaetze: Array<{ zeigt: string; artName: string; gefuellt: boolean }>; }
+/** Liegt in diesen Dateien eine saubere Kopie mit REINIGER-STELLENPLAN.json? */
+export function stellenplanAus(dateien: Datei[]): Promise<{ plan: { fassung: string; stellen: Stelle[] }; wurzel: string } | null>;
+export function rueckbauPlaetze(plan: { stellen: Stelle[] }): Platz[];
+/** Originale aus der Zuordnung (gleich nach dem Reinigen oder aus dem Tresor) den Plätzen zuordnen: Platz → Wert. */
+export function werteAusZuordnung(zuordnung: Gereinigt["zuordnung"], plaetze: Platz[]): Record<string, string>;
+/** Füllt die Platzhalter an den Stellen des Stellenplans (Text je Zeile, Datei-/Ordnernamen, Office-Textteile). Fehler: „kein-stellenplan“. */
+export function zurueckbauen(dateien: Datei[], werte: Record<string, string>, optionen?: { originale?: boolean }): Promise<{ dateien: Array<{ pfad: string; bytes: Uint8Array }>; bericht: RueckbauBericht; zip: Uint8Array }>;
+export function rueckbauText(bericht: RueckbauBericht): string;

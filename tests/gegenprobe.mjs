@@ -80,9 +80,22 @@ const FAELLE = [
   ["TRESORZU", "assets/app.js", "  tresorOffen = null; tresorBytes = null; tresorName = \"\";\n  const t = $(\"#tresor\"); if (t) { t.replaceChildren(); t.hidden = true; }", "  const t = $(\"#tresor\"); if (t) { t.hidden = true; }", /Tresor schließen/],
   /* Hereinladen (Klaus 2026-10-29) */
   ["IMPORTFENSTER", "assets/app.js", "  $(\"#import\").hidden = false; importReiter(teil || \"datei\"); importMalen();", "  importMalen();", /öffnet ein Fenster/],
-  ["EINFUEGEN", "assets/app.js", "addEventListener(\"paste\", (e) => {\n  if (gesperrt || laeuft) return;", "addEventListener(\"paste\", (e) => {\n  return;", /Einfügen/],
+  ["EINFUEGEN", "assets/app.js", "addEventListener(\"paste\", (e) => {\n  if (gesperrt || laeuft || vorfuehrung) return;", "addEventListener(\"paste\", (e) => {\n  return;", /Einfügen/],
   ["ABLEGEN", "assets/app.js", "  if ($(\"#arbeit\").hidden && $(\"#import\").hidden) return starte(liste);", "  return starte(liste);", /Ablegen im Arbeitsbildschirm/],
   ["DAZU", "assets/app.js", "  return starte([...alte, ...neu], {", "  return starte([...neu], {", /Dazugenommen/],
+  /* Befund Klaus zu Fassung 9 (2026-10-29): Knöpfe mit Tätigkeit, „Neu“ links, Vorführung */
+  ["NAMEN", "index.html", "</svg>Ordner einfügen</label>", "</svg>Ordner</label>", /jeder Knopf sagt, was er tut/],
+  ["NEULINKS", "assets/app.css", ".ein-aus { display: flex;", ".ein-aus { flex-direction: row-reverse; display: flex;", /„Neu“ links neben/],
+  ["VFTIPP", "assets/app.js", "$(\"#vorfuehrung\").addEventListener(\"pointerdown\", (e) => { e.preventDefault(); vorfuehrungEnde(); });", "", /ein Tipp beendet/],
+  ["VFFOLGEN", "assets/app.js", "  const folgen = () => { if (v.aus) return; vfFingerSetzen(false); requestAnimationFrame(folgen); };", "  const folgen = () => {};", /Finger steht auf dem Knopf|kommt er mit/],
+  /* Stufe 6 · Zurückbauen */
+  ["RBWORTGRENZE", "assets/reiniger-kern.js", "(wortZ.test(v[v.length - 1]) ? \"(?![\" + wz + \"])\" : \"\")).join(\"|\"), \"g\");", "\"\").join(\"|\"), \"g\");", /Byte für Byte das Original/],
+  ["RBMUSTERART", "assets/reiniger-kern.js", "  return istMarke(e) ? e : s.art + \"|\" + e;", "  return e;", /Plätze gebündelt|Byte für Byte/],
+  ["RBOFFICE", "assets/reiniger-kern.js", "          if (/\\.xml$/i.test(t.pfad)) { const r = fuelleText(", "          if (false) { const r = fuelleText(", /Office: eigene Werte/],
+  ["RBSPERRE", "assets/app.js", "schliesseAnsicht(); tresorSchliessen(); rueckbauSchliessen(); ocrBeenden();", "schliesseAnsicht(); tresorSchliessen(); ocrBeenden();", /Zurückbau-Fenster ist sofort leer/],
+  ["RBKOPF", "assets/app.css", ".ansicht { position: relative; grid-row: 2; grid-column: 1; z-index: 20;", ".ansicht { position: absolute; inset: 0; z-index: 20;", /Kopf mit „Sperren“ bleibt sichtbar/],
+  ["RBEINWURF", "assets/app.js", "if (!ergebnis && !opt.behalten && !opt.pruefen && await Kern.stellenplanAus(ein.dateien)) {", "if (false) {", /Saubere Kopie eingeworfen/],
+  ["VFDECKT", "assets/app.css", ".vorfuehrung { position: fixed; inset: 0;", ".vorfuehrung { position: fixed; inset: 0 40% 0 0;", /über der ganzen App|füllt genau das Fenster/],
 ];
 const nur = process.env.NUR_FALL;
 let gefangen = 0, schlecht = 0;

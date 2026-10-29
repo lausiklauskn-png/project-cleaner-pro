@@ -38,7 +38,6 @@
     <button type="button" class="knopf hell" id="thema" aria-label="Hell oder dunkel" title="Hell oder dunkel"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18z M12 3a9 9 0 0 1 0 18"/></svg><span class="t">Automatisch</span></button>
     <button type="button" class="knopf hell" id="installieren" aria-label="Als App installieren" title="Als App installieren"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M12 6v7 M9 10l3 3 3-3 M11 18h2"/></svg><span class="t">Installieren</span></button>
     <button type="button" class="knopf hell" id="aktualisieren" aria-label="Neue Fassung holen" title="Neue Fassung holen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8 M4 4v4h4 M4 13a8 8 0 0 0 14.3 4.9L20 16 M20 20v-4h-4"/></svg><span class="t">Aktualisieren</span></button>
-    <button type="button" class="knopf hell" id="neu" aria-label="Neu anfangen" title="Neu anfangen" hidden><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z M14 3v4h4 M12 11v6 M9 14h6"/></svg><span class="t">Neu</span></button>
     <button type="button" class="knopf hell" id="sperren" aria-label="Sperren: App sofort schließen (Gäste-Sperre)" title="Sperren: App sofort schließen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 11h12v10H6z M8.5 11V8a3.5 3.5 0 0 1 7 0v3 M12 15v2"/></svg><span class="t">Sperren</span></button>
   </header>
 
@@ -52,11 +51,12 @@
         <h1 id="einwurf-titel">Projekt einwerfen</h1>
         <p>ZIP, Ordner oder einzelne Dateien. Alles wird <strong>auf diesem Gerät</strong> gelesen: nichts geht ins Netz, nichts wird ausgeführt, nichts gespeichert.</p>
         <div class="knoepfe">
-          <label class="knopf haupt-knopf" for="wahl-dateien"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v13H3z M3 7l2-4h14l2 4 M10 11h4"/></svg>ZIP oder Dateien</label>
-          <label class="knopf" for="wahl-ordner"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/></svg>Ordner</label>
+          <label class="knopf haupt-knopf" for="wahl-dateien"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v13H3z M3 7l2-4h14l2 4 M10 11h4"/></svg>ZIP oder Dateien einfügen</label>
+          <label class="knopf" for="wahl-ordner"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/></svg>Ordner einfügen</label>
           <label class="knopf" for="wahl-tresor"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z M4 19v2 M20 19v2 M13 12a2 2 0 1 0-4 0a2 2 0 1 0 4 0z M13 12h3"/></svg>Tresor öffnen</label>
           <button type="button" class="knopf" id="text-einfuegen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v3H9z M7 5H5v16h14V5h-2 M8 12h8 M8 16h5"/></svg>Text einfügen</button>
           <button type="button" class="knopf" id="beispiel"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6 M10 3v6l-5 9a1 1 0 0 0 1 2h12a1 1 0 0 0 1-2l-5-9V3 M7.5 14h9"/></svg>Beispielprojekt</button>
+          <button type="button" class="knopf" id="vorfuehren" title="Zeigt die ersten Handgriffe an der App selbst; ein Tipp beendet"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M10 8.5v7l6-3.5z"/></svg>So geht's</button>
         </div>
         <input type="file" id="wahl-dateien" multiple hidden>
         <input type="file" id="wahl-ordner" webkitdirectory multiple hidden>
@@ -71,6 +71,7 @@
       <div class="fortschritt" id="fortschritt" hidden><span id="fortschritt-text">Lese …</span><progress id="fortschritt-balken" max="1" value="0"></progress></div>
       <ul class="zahlen" id="zahlen"></ul>
       <div class="ein-aus" id="ein-aus">
+        <button type="button" class="knopf" id="neu" aria-label="Neu: zurück zur ersten Seite (ZIP, Ordner, Tresor, Text)" title="Neu: zurück zur ersten Seite"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z M14 3v4h4 M12 11v6 M9 14h6"/></svg>Neu</button>
         <button type="button" class="knopf haupt-knopf" id="hereinladen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4 M7 9l5-5 5 5 M5 14v6h14v-6"/></svg>Dateien hereinladen</button>
         <button type="button" class="knopf" id="herausladen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11 M7 10l5 5 5-5 M5 20h14"/></svg>Saubere Kopie herausladen</button>
         <span class="ein-aus-satz">Auch: Datei hierher ziehen oder einfügen (Strg+V)</span>
@@ -89,6 +90,7 @@
   <section class="ansicht" id="ansicht" hidden aria-label="Datei ansehen"></section>
   <div class="meldung" id="meldung" role="status" hidden><button type="button" class="knopf" id="meldung-zu" aria-label="Meldung schließen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12 M18 6L6 18"/></svg></button><div id="meldung-text"></div></div>
   <section class="ansicht" id="tresor" hidden aria-label="Tresor"></section>
+  <section class="ansicht" id="zurueck" hidden aria-label="Zurückbauen"></section>
   <section class="sperre" id="sperre" hidden aria-label="Gesperrt" aria-modal="true" role="dialog">
     <div class="sperre-karte">
       <img class="sperre-bild" src="icons/kristall.webp" width="640" height="640" alt="">
@@ -148,6 +150,12 @@
     </div>
   </section>
   <div class="ziehen" id="ziehen" hidden>Loslassen zum Prüfen</div>
+  <!-- Vorführung (Klaus 2026-10-29): ein Finger bedient die echte Oberfläche, Schritt 1 bis 4; ein Tipp beendet. -->
+  <div class="vorfuehrung" id="vorfuehrung" hidden role="dialog" aria-label="Vorführung: so geht's. Tippen beendet.">
+    <div class="vf-ring" id="vf-ring"></div>
+    <svg class="vf-finger" id="vf-finger" viewBox="0 0 40 48" aria-hidden="true"><path d="M14 4a3.5 3.5 0 0 1 7 0v15l1-.2a3.3 3.3 0 0 1 4 2.4l.2-.1a3.3 3.3 0 0 1 4.6 2.6 3.3 3.3 0 0 1 5.2 2.7V36c0 6-4 10-10 10h-4c-4 0-6.5-1.7-8.8-4.8L5.6 32.7a3.3 3.3 0 0 1 5-4.3L14 32z"/></svg>
+    <p class="vf-satz" id="vf-satz" aria-live="polite"><b id="vf-schritt"></b> <span id="vf-text"></span><span class="vf-ende">Tippen beendet</span></p>
+  </div>
 </div>
 </body>
 </html>

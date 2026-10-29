@@ -308,6 +308,49 @@ const { beispielProjekt } = await import(pathToFileURL(join(WURZEL, "assets/beis
   ok("Neubau: was nur der eigene Text zeigt (Mail ohne angeklebten gelöschten Text), wird nachgefunden und ersetzt — der Bericht sagt es",
     /zusätzlich gefunden und ersetzt: [1-9]/.test(new TextDecoder().decode(g.beilagen.find((b) => b.pfad === Kern.BERICHT_DATEI).bytes)));
   ok("Stellenplan: Office-Stellen mit Absatz/Zelle/Folie, ohne Werte", /p\/brief\.docx\s+Absatz 2/.test(plantext) && /Blatt 1 · Zelle B2/.test(plantext) && /Folie 1 · Absatz 1/.test(plantext) && !/Anna|Hamburg/.test(plantext), plantext);
+  /* Stufe 6 · Office füllen: eigene Werte landen im Text von Word, Excel (auch Blattname) und PowerPoint */
+  const kopie = Kern.zipDateien(g.zip).dateien, plaetze = Kern.rueckbauPlaetze((await Kern.stellenplanAus(kopie)).plan);
+  const eigen = {}; for (const p of plaetze) if (p.zeigt === "⟦NAME-1⟧") eigen[p.platz] = "Klaus & Co"; else if (p.zeigt === "⟦ORT-1⟧") eigen[p.platz] = "Konstanz";
+  const zb = await Kern.zurueckbauen(kopie, eigen);
+  const raus2 = async (pf) => { const d = zb.dateien.find((y) => y.pfad === pf); const z = Kern.zipDateien(d.bytes).dateien; return (await Promise.all(z.map(async (y) => new TextDecoder().decode(await y.lesen())))).join("\n"); };
+  const w2 = await raus2("p/brief.docx"), x2 = await raus2("p/liste.xlsx"), p2 = await raus2("p/folien.pptx");
+  ok("Stufe 6 · Office: eigene Werte stehen im Word-Text, im Excel-Blattnamen und auf der Folie (XML-sicher, & wird &amp;), die Marken sind dort weg",
+    /Klaus &amp; Co aus Konstanz/.test(w2.replace(/<[^>]+>/g, "")) && /name="Kunden Konstanz"/.test(x2) && /Klaus &amp; Co/.test(p2.replace(/<[^>]+>/g, "")) && !/⟦NAME-1⟧|⟦ORT-1⟧/.test(w2 + x2 + p2) && zb.bericht.gefuellt >= 4, w2.replace(/<[^>]+>/g, " ").slice(0, 200));
+}
+{
+  /* Stufe 6 · Zurückbauen (Kern): mit den Originalen aus der Zuordnung kommt das Projekt Byte für Byte zurück; mit eigenen
+     Werten stehen die eigenen Angaben an genau den Stellen des Stellenplans; die Zurückbau-Datei nennt keine Werte. */
+  const dateien = (await Kern.einwerfen(await beispielProjekt())).dateien;
+  const r = await Kern.pruefe(dateien);
+  const g = await Kern.saubereKopie(dateien, { ergebnis: r });
+  const kopie = Kern.zipDateien(g.zip).dateien;
+  const sp = await Kern.stellenplanAus(kopie), plaetze = Kern.rueckbauPlaetze(sp.plan);
+  ok("Stufe 6: die saubere Kopie trägt ihren Stellenplan — Plätze gebündelt (Marke oder Art + Musterwert), keine Werte", !!sp && plaetze.length > 15 &&
+    plaetze.some((p) => p.zeigt === "⟦ORT-1⟧") && plaetze.some((p) => p.platz === "NAME|Max Mustermann") && plaetze.some((p) => p.platz === "ORT|Musterstadt") &&
+    !JSON.stringify(plaetze).includes("Erika Mustermann <") && !/Hamburg|erika\.mustermann/.test(JSON.stringify(plaetze)), plaetze.map((p) => p.platz).join(" | "));
+  const orig = Kern.werteAusZuordnung(g.zuordnung, plaetze);
+  const zb = await Kern.zurueckbauen(kopie, orig, { originale: true });
+  const D = new TextDecoder(), gleich = [], anders = [];
+  for (const o of dateien) {
+    if (/node_modules|\.git\//.test(o.pfad)) continue;
+    const z = zb.dateien.find((x) => x.pfad === o.pfad);
+    if (z && D.decode(o.bytes || await o.lesen()) === D.decode(z.bytes)) gleich.push(o.pfad); else anders.push(o.pfad);
+  }
+  ok("Stufe 6: mit den Originalen zurückgebaut ist jede Textdatei wieder Byte für Byte das Original — auch Ordnernamen (Musterstadt-2019 → Hamburg-2019) und „muster“ in „musterapp“ bleibt",
+    anders.join() === "musterapp/.env" && gleich.includes("musterapp/fotos/Hamburg-2019/notiz.txt") && gleich.includes("musterapp/src/start.js"), "anders: " + anders.join(", "));
+  ok("Stufe 6: Werte aus der .env stehen in keiner Zuordnung — sie bleiben „MUSTER-WERT“ (bewusst nirgends abgelegt)",
+    /MUSTER-WERT/.test(D.decode(zb.dateien.find((x) => x.pfad === "musterapp/.env").bytes)) && !Object.keys(orig).some((k) => /^MUSTER-WERT@/.test(k)));
+  const rb = D.decode(zb.dateien.find((x) => x.pfad === Kern.RUECKBAU_DATEI).bytes);
+  ok("Stufe 6: zurückgebaut mit Originalen sagt die Zurückbau-Datei laut „NICHT sauber“", /NICHT sauber/.test(rb) && zb.bericht.originale);
+  const eigen = {}; for (const p of plaetze) { if (p.zeigt === "⟦ORT-1⟧") eigen[p.platz] = "Konstanz"; if (p.platz === "NAME|Max Mustermann") eigen[p.platz] = "Klaus Beispielmann"; if (p.zeigt === "⟦MAIL-1⟧") eigen[p.platz] = "klaus@eigen.example"; }
+  const ze = await Kern.zurueckbauen(kopie, eigen);
+  const t = (pf) => D.decode(ze.dateien.find((x) => x.pfad === pf).bytes), alles = ze.dateien.map((d) => d.pfad + "\n" + D.decode(d.bytes)).join("\n");
+  ok("Stufe 6: eigene Werte stehen an ihren Stellen (Doku: Marke, Code: Musterwert), Leeres bleibt Platzhalter, kein Originalwert kommt zurück",
+    /Wir sitzen in Konstanz-/.test(t("musterapp/docs/ueber-uns.md")) && /klaus@eigen\.example/.test(t("musterapp/README.md")) && /author.*Klaus Beispielmann/.test(t("musterapp/package.json")) &&
+    /⟦TELEFON-1⟧/.test(t("musterapp/README.md")) && !/Hamburg|erika\.mustermann@|Kastanienallee/.test(alles), t("musterapp/docs/ueber-uns.md").slice(0, 160));
+  const re = D.decode(ze.dateien.find((x) => x.pfad === Kern.RUECKBAU_DATEI).bytes);
+  ok("Stufe 6: die Zurückbau-Datei nennt Plätze und Zahlen, nie die eingesetzten Werte", /Gefüllt: [1-9]/.test(re) && /⟦ORT-1⟧ \(Ort\) — gefüllt/.test(re) && !/Konstanz|Klaus|eigen\.example/.test(re), re.slice(0, 200));
+  ok("Stufe 6: ohne Stellenplan weigert sich der Kern (keine stille Leerkopie)", await Kern.zurueckbauen([{ pfad: "a.txt", bytes: new TextEncoder().encode("x") }], {}).then(() => false, (e) => e.message === "kein-stellenplan"));
 }
 {
   /* Stufe 4 · Mustermappe: alles erfunden, die Nachprüfung findet darin nichts. */
@@ -994,6 +1037,163 @@ await seite.setViewportSize({ width: 1280, height: 800 });
   const [dl] = await Promise.all([s4.waitForEvent("download", { timeout: 60000 }).catch(() => null), s4.click("#herausladen")]);
   ok("Herausladen: baut die saubere Kopie (mit Nachprüfung) und lädt das ZIP", !!dl && /-sauber\.zip$/.test(dl.suggestedFilename()) && await s4.evaluate(() => !!window.__reiniger.gereinigt()), dl ? dl.suggestedFilename() : "kein Download");
   await ctx4.close();
+}
+{
+  /* Klaus 2026-10-29: Knöpfe sagen, was sie tun („… einfügen“); „Neu“ links in der Arbeitsleiste statt oben rechts;
+     Vorführung „So geht's“: ein Finger bedient die echte App, Schritt 1–4, ein Tipp beendet, Vollbild wie geteilte Ansicht. */
+  const ctx5 = await browser.newContext({ viewport: { width: 1280, height: 800 }, acceptDownloads: true }), s5 = await ctx5.newPage();
+  s5.on("request", (q) => { if (!q.url().startsWith(BASIS) && !q.url().startsWith("data:") && !q.url().startsWith("blob:")) netz.push(q.url()); });
+  s5.on("pageerror", (e) => konsole.push(String(e)));
+  let downloads = 0; s5.on("download", () => downloads++);
+  await s5.goto(BASIS + "?ohne-sw");
+  ok("Erste Seite: „ZIP oder Dateien einfügen“, „Ordner einfügen“, „Tresor öffnen“, „Text einfügen“ — jeder Knopf sagt, was er tut", await s5.evaluate(() => {
+    const t = (sel) => document.querySelector(sel).textContent.trim();
+    return t('label[for="wahl-dateien"]') === "ZIP oder Dateien einfügen" && t('label[for="wahl-ordner"]') === "Ordner einfügen" && t('label[for="wahl-tresor"]') === "Tresor öffnen" && t("#text-einfuegen") === "Text einfügen";
+  }));
+  ok("„Neu“ steht nicht mehr im Kopf, sondern als erster Knopf links in der Arbeitsleiste", await s5.evaluate(() =>
+    !document.querySelector(".kopf #neu") && document.querySelector("#ein-aus").firstElementChild === document.querySelector("#neu")));
+  await s5.click("#beispiel"); await s5.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden && document.querySelector(".buendel"), null, { timeout: 30000 });
+  ok("Arbeitsbildschirm: „Neu“ links neben „Dateien hereinladen“, mit Wort, gut greifbar", await s5.evaluate(() => {
+    const n = document.querySelector("#neu").getBoundingClientRect(), h = document.querySelector("#hereinladen").getBoundingClientRect();
+    return n.width > 40 && n.left < 40 && n.right <= h.left && Math.abs(n.top - h.top) < 4 && /Neu/.test(document.querySelector("#neu").textContent);
+  }));
+  for (const [w, h] of [[320, 640], [740, 360]]) { await s5.setViewportSize({ width: w, height: h }); await s5.waitForTimeout(60); const f = await s5.evaluate(messen); ok("Arbeitsleiste mit „Neu“ " + w + "×" + h + ": nichts quer, kein Knopf bricht um", f.length === 0, f.slice(0, 3).join(" | ")); }
+  await s5.click("#neu");
+  ok("„Neu“ öffnet wieder die erste Seite zum Wählen", await s5.evaluate(() => !document.querySelector("#einwurf").hidden && document.querySelector("#arbeit").hidden && !window.__reiniger.ergebnis()));
+
+  /* Vorführung: bis zum Ende laufen lassen (Vollbild 1280×800) */
+  await s5.setViewportSize({ width: 1280, height: 800 });
+  await s5.click("#vorfuehren");
+  const schritte = new Set(), daneben = []; let fingerAufZiel = true, ueberApp = true;
+  const t0 = Date.now();
+  while (Date.now() - t0 < 60000) {
+    const z = await s5.evaluate(() => {
+      const v = window.__vorfuehrung(), o = document.querySelector("#vorfuehrung"), r = o.getBoundingClientRect(), ziel = document.querySelector(".vf-ziel");
+      let auf = true; if (ziel && v.x) { const q = ziel.getBoundingClientRect(); if (q.width && q.height) auf = v.x >= q.left - 2 && v.x <= q.right + 2 && v.y >= q.top - 2 && v.y <= q.bottom + 2; }
+      return { ...v, deckt: o.hidden || (r.width === innerWidth && r.height === innerHeight), auf, offen: !o.hidden };
+    });
+    if (!z.laeuft) break;
+    if (z.schritt) schritte.add(z.schritt);
+    if (!z.deckt) ueberApp = false;
+    /* daneben erst, wenn es nach einem Bild-Nachlauf (die Seite kann sich gerade verschoben haben) immer noch daneben ist */
+    if (z.offen && z.x && !z.auf) { await s5.waitForTimeout(120); const n = await s5.evaluate(() => { const v = window.__vorfuehrung(), q = document.querySelector(".vf-ziel"); if (!q || !v.laeuft) return true; const r = q.getBoundingClientRect(); return !r.width || (v.x >= r.left - 2 && v.x <= r.right + 2 && v.y >= r.top - 2 && v.y <= r.bottom + 2); }); if (!n) { fingerAufZiel = false; daneben.push(z.schritt + " " + z.x + "," + z.y); } }
+    /* Die Seite rutscht unter dem Finger (Vorschau lädt, Ergebnis schiebt): absichtlich 60 px — der Finger muss mitkommen. */
+    if (!schritte.__geschoben && await s5.evaluate(() => !!document.querySelector(".vf-ziel[data-wert]"))) {
+      schritte.__geschoben = 1;
+      const mit = await s5.evaluate(async () => {
+        const z = document.querySelector(".vf-ziel"), luecke = document.createElement("div"); luecke.style.height = "60px";
+        z.parentElement.insertBefore(luecke, z);
+        await new Promise((ok) => setTimeout(ok, 120));
+        const r = z.getBoundingClientRect(), v = window.__vorfuehrung(); luecke.remove();
+        return v.y >= r.top - 2 && v.y <= r.bottom + 2;
+      });
+      ok("Vorführung: rutscht die Seite unter dem Finger, kommt er mit (er bleibt auf seinem Ziel)", mit);
+    }
+    if (schritte.has("Schritt 2 von 4:") && !schritte.__gemessen) { schritte.__gemessen = 1; const f = await s5.evaluate(messen); ok("Vorführung läuft 1280×800: die App darunter ist unverändert (nichts quer, keine Schrift über Schrift)", f.length === 0, f.slice(0, 3).join(" | ")); }
+    await s5.waitForTimeout(150);
+  }
+  const dauer = await s5.evaluate(() => window.__vorfuehrungDauer || 0);
+  ok("Vorführung: Schritt 1, 2, 3 und 4 von 4 erscheinen nacheinander; sie liegt über der ganzen App", ["1", "2", "3", "4"].every((n) => schritte.has("Schritt " + n + " von 4:")) && ueberApp, [...schritte].join(" "));
+  ok("Vorführung: der Finger steht auf dem Knopf, den er zeigt (gelb umrandet)", fingerAufZiel, daneben.slice(0, 3).join(" | "));
+  ok("Vorführung zu Ende: wieder die erste Seite, nichts heruntergeladen, keine Wahl übrig — Dauer " + (dauer / 1000).toFixed(1).replace(".", ",") + " s", await s5.evaluate(() =>
+    !document.querySelector("#einwurf").hidden && document.querySelector("#vorfuehrung").hidden && !window.__reiniger.ergebnis() && !document.querySelector(".vf-ziel") && !document.querySelector(".kopf").inert) && downloads === 0 && dauer > 8000 && dauer < 60000);
+  /* Ein Tipp beendet — in der geteilten Ansicht (halbes Tablet hochkant und quer) */
+  for (const [w, h] of [[600, 900], [740, 360]]) {
+    await s5.setViewportSize({ width: w, height: h });
+    await s5.click("#vorfuehren");
+    await s5.waitForFunction(() => /Schritt 2/.test(window.__vorfuehrung().schritt), null, { timeout: 30000 }).catch(() => {});
+    const lage = await s5.evaluate(() => { const r = document.querySelector("#vorfuehrung").getBoundingClientRect(), s = document.querySelector("#vf-satz").getBoundingClientRect();
+      return r.width === innerWidth && r.height === innerHeight && s.left >= 0 && s.right <= innerWidth && s.bottom <= innerHeight; });
+    const f = await s5.evaluate(messen);
+    await s5.mouse.click(Math.round(w / 2), Math.round(h / 3));
+    await s5.waitForTimeout(150);
+    const sofortWeg = await s5.evaluate(() => document.querySelector("#vorfuehrung").hidden && /Schritt [23]/.test(window.__vorfuehrung().schritt));
+    await s5.waitForFunction(() => !window.__vorfuehrung().laeuft, null, { timeout: 30000 }).catch(() => {});
+    ok("Vorführung " + w + "×" + h + " (geteilte Ansicht): füllt genau das Fenster der App, Satz im Bild; ein Tipp beendet sofort, wieder erste Seite", lage && sofortWeg && f.length === 0 && await s5.evaluate(() =>
+      document.querySelector("#vorfuehrung").hidden && !document.querySelector("#einwurf").hidden && !window.__reiniger.ergebnis()), f.slice(0, 3).join(" | "));
+  }
+  await s5.click("#vorfuehren"); await s5.waitForTimeout(400); await s5.keyboard.press("Escape"); await s5.waitForTimeout(150);
+  const escWeg = await s5.evaluate(() => document.querySelector("#vorfuehrung").hidden);
+  await s5.waitForFunction(() => !window.__vorfuehrung().laeuft, null, { timeout: 30000 }).catch(() => {});
+  ok("Vorführung: Esc beendet ebenso, sofort", escWeg && await s5.evaluate(() => document.querySelector("#vorfuehrung").hidden && !document.querySelector("#einwurf").hidden));
+  for (const t of ["hell", "dunkel"]) {
+    await s5.evaluate((t) => { document.documentElement.dataset.thema = t; }, t);
+    await s5.click("#vorfuehren"); await s5.waitForTimeout(1500);
+    const f = await s5.evaluate(kontrast);
+    ok("Kontrast Vorführung (" + t + "): Satz weiß auf Dunkelblau, mindestens 4,5 : 1", f.length === 0 && await s5.evaluate(() => !document.querySelector("#vf-satz").closest("[hidden]")), f.slice(0, 3).join(" | "));
+    await s5.keyboard.press("Escape"); await s5.waitForFunction(() => !window.__vorfuehrung().laeuft, null, { timeout: 30000 }).catch(() => {});
+  }
+  console.log("  ⓘ Vorführung bis zum Ende: " + (dauer / 1000).toFixed(1) + " s");
+  await ctx5.close();
+}
+{
+  /* Stufe 6 · Zurückbauen in der Oberfläche: nach dem Reinigen, als eingeworfene saubere Kopie, aus dem Tresor */
+  const ctx6 = await browser.newContext({ viewport: { width: 1280, height: 800 }, acceptDownloads: true }), s6 = await ctx6.newPage();
+  s6.on("request", (q) => { if (!q.url().startsWith(BASIS) && !q.url().startsWith("data:") && !q.url().startsWith("blob:")) netz.push(q.url()); });
+  s6.on("pageerror", (e) => konsole.push(String(e)));
+  await s6.goto(BASIS + "?ohne-sw");
+  await s6.click("#beispiel"); await s6.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden && document.querySelector(".buendel"), null, { timeout: 30000 });
+  const [dlSauber] = await Promise.all([s6.waitForEvent("download", { timeout: 60000 }), s6.click("#herausladen")]);
+  const sauberZip = new Uint8Array(readFileSync(await dlSauber.path()));
+  await s6.click("#zurueckbauen");
+  ok("Zurückbauen nach dem Reinigen: Fenster mit je Platz einem Feld und „Original“ (die Zuordnung ist noch im Speicher), ein farbiger Knopf", await s6.evaluate(() => {
+    const z = document.querySelector("#zurueck"); return !z.hidden && z.querySelectorAll("[data-wert-fuer]").length > 15 && z.querySelectorAll("[data-original-fuer]").length > 15 &&
+      z.querySelectorAll(".haupt-knopf").length === 1 && !!z.querySelector('[data-platz="⟦ORT-1⟧"]') && !/Hamburg|erika\.mustermann/.test(z.textContent);
+  }));
+  for (const [w, h] of [[320, 640], [740, 360], [1280, 800]]) { await s6.setViewportSize({ width: w, height: h }); await s6.waitForTimeout(60); const f = await s6.evaluate(messen); ok("Zurückbauen " + w + "×" + h + ": Vollbild, nichts quer, keine Schrift über Schrift", f.length === 0, f.slice(0, 3).join(" | ")); }
+  for (const t of ["hell", "dunkel"]) { await s6.evaluate((t) => { document.documentElement.dataset.thema = t; }, t); const f = await s6.evaluate(kontrast); ok("Kontrast Zurückbauen (" + t + ")", f.length === 0, f.slice(0, 3).join(" | ")); }
+  await s6.evaluate(() => { delete document.documentElement.dataset.thema; });
+  await s6.click("#rueckbau-laden");
+  ok("Zurückbauen: ohne Wert sagt es das, statt eine leere Kopie zu laden", await s6.evaluate(() => /Noch kein Wert/.test(document.querySelector("#rueckbau-ergebnis").textContent)));
+  await s6.fill('[data-wert-fuer="⟦ORT-1⟧"]', "Konstanz");
+  const [dlE] = await Promise.all([s6.waitForEvent("download", { timeout: 30000 }), s6.click("#rueckbau-laden")]);
+  const zipE = Kern.zipDateien(new Uint8Array(readFileSync(await dlE.path()))).dateien, Dd = new TextDecoder();
+  const ueber = Dd.decode(await zipE.find((d) => d.pfad === "musterapp/docs/ueber-uns.md").lesen());
+  ok("Eigene Werte: „…-gefuellt.zip“, Konstanz steht an der Stelle von ⟦ORT-1⟧, grün „Gefüllt mit eigenen Werten“", /-gefuellt\.zip$/.test(dlE.suggestedFilename()) && /Konstanz/.test(ueber) && !/⟦ORT-1⟧/.test(ueber) &&
+    await s6.evaluate(() => document.querySelector('[data-rueckbau="eigen"]') && +document.querySelector("[data-gefuellt]").dataset.gefuellt >= 1), dlE.suggestedFilename());
+  await s6.click("#rueckbau-alle-originale");
+  ok("Alle Originale zurückholen: die Felder sind gesperrt, gelbe Warnung „nicht mehr sauber“", await s6.evaluate(() => !document.querySelector("#rueckbau-warn").hidden && [...document.querySelectorAll("[data-original-fuer]")].every((b) => b.checked)));
+  const [dlO] = await Promise.all([s6.waitForEvent("download", { timeout: 30000 }), s6.click("#rueckbau-laden")]);
+  const zipO = Kern.zipDateien(new Uint8Array(readFileSync(await dlO.path()))).dateien;
+  ok("Mit Originalen: „…-zurueckgebaut.zip“, die Mail ist zurück, rot/gelb „NICHT sauber“", /-zurueckgebaut\.zip$/.test(dlO.suggestedFilename()) &&
+    /erika\.mustermann@beispiel\.example/.test(Dd.decode(await zipO.find((d) => d.pfad === "musterapp/README.md").lesen())) && await s6.evaluate(() => /NICHT sauber/.test(document.querySelector('[data-rueckbau="original"]').textContent)));
+  await s6.click("#rueckbau-schliessen");
+  ok("Schließen: das Fenster ist leer und zu, der Arbeitsbildschirm steht wieder da", await s6.evaluate(() => document.querySelector("#zurueck").hidden && !document.querySelector("#zurueck").childElementCount && !window.__rueckbau()));
+  /* Saubere Kopie einwerfen: öffnet „Zurückbauen“ statt neu zu prüfen; ohne Tresor keine Originale */
+  await s6.click("#neu");
+  await s6.setInputFiles("#wahl-dateien", { name: dlSauber.suggestedFilename(), mimeType: "application/zip", buffer: Buffer.from(sauberZip) });
+  await s6.waitForFunction(() => !document.querySelector("#zurueck").hidden, null, { timeout: 20000 }).catch(() => {});
+  ok("Saubere Kopie eingeworfen: „Zurückbauen“ öffnet sich, ohne Originale (keine Zuordnung), „Doch prüfen“ ist da", await s6.evaluate(() =>
+    !document.querySelector("#zurueck").hidden && !document.querySelector("[data-original-fuer]") && document.querySelectorAll("[data-wert-fuer]").length > 15 && !!document.querySelector("#rueckbau-pruefen") && !window.__reiniger.ergebnis()));
+  await s6.click("#rueckbau-pruefen");
+  await s6.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden, null, { timeout: 30000 }).catch(() => {});
+  ok("„Doch prüfen“: die Kopie wird wie jedes Projekt geprüft (Nachprüfung von Hand)", await s6.evaluate(() => !!window.__reiniger.ergebnis() && document.querySelector("#zurueck").hidden && !document.querySelector("#arbeit").hidden));
+  /* Aus dem Tresor: Zuordnung kommt aus der Tresor-Datei */
+  await s6.click("#neu"); await s6.click("#beispiel"); await s6.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden && document.querySelector(".buendel"), null, { timeout: 30000 });
+  await s6.click("#reinigen"); await s6.waitForSelector("#tresor-code", { timeout: 60000 });
+  await s6.fill("#tresor-code", "lang-genug-123"); await s6.fill("#tresor-code2", "lang-genug-123");
+  const [dlT] = await Promise.all([s6.waitForEvent("download", { timeout: 30000 }), s6.click("#tresor-zu")]);
+  const tresorB = readFileSync(await dlT.path());
+  await s6.click("#neu");
+  await s6.setInputFiles("#wahl-tresor", { name: dlT.suggestedFilename(), mimeType: "application/octet-stream", buffer: tresorB });
+  await s6.waitForSelector("#tresor-auf-code"); await s6.fill("#tresor-auf-code", "lang-genug-123"); await s6.click("#tresor-auf");
+  await s6.waitForSelector("#rueckbau-wahl", { state: "attached", timeout: 20000 }).catch(() => {});
+  await s6.setInputFiles("#rueckbau-wahl", { name: dlSauber.suggestedFilename(), mimeType: "application/zip", buffer: Buffer.from(sauberZip) });
+  await s6.waitForFunction(() => !document.querySelector("#zurueck").hidden, null, { timeout: 20000 }).catch(() => {});
+  ok("Aus dem Tresor: „Saubere Kopie zurückbauen …“ öffnet das Fenster mit „Original“ je Platz (Zuordnung aus dem Tresor)", await s6.evaluate(() =>
+    !document.querySelector("#zurueck").hidden && document.querySelectorAll("[data-original-fuer]").length > 15));
+  for (const [w, h] of [[320, 640], [1280, 800]]) {
+    await s6.setViewportSize({ width: w, height: h }); await s6.waitForTimeout(60);
+    ok("Fenster offen " + w + "×" + h + ": der Kopf mit „Sperren“ bleibt sichtbar und greifbar (das Fenster liegt darunter)", await s6.evaluate(() => {
+      const k = document.querySelector("#sperren").getBoundingClientRect(), z = document.querySelector("#zurueck").getBoundingClientRect();
+      const oben = document.elementFromPoint(k.left + k.width / 2, k.top + k.height / 2);
+      return !!oben && !!oben.closest("#sperren") && z.top >= k.bottom - 1;
+    }));
+  }
+  await s6.click("#sperren", { timeout: 5000 }).catch(() => {}); await s6.fill("#sperre-code", "1234"); await s6.fill("#sperre-code2", "1234"); await s6.click("#sperre-ok");
+  await s6.waitForTimeout(300);
+  ok("Gäste-Sperre: das Zurückbau-Fenster ist sofort leer und weg", await s6.evaluate(() => document.querySelector("#zurueck").hidden && !document.querySelector("#zurueck").childElementCount && !window.__rueckbau()));
+  await ctx6.close();
 }
 ok("Kein Netz: keine einzige Anfrage nach außen", netz.length === 0, netz.join(", "));
 ok("Keine Fehler in der Konsole", konsole.length === 0, konsole.slice(0, 3).join(" | "));

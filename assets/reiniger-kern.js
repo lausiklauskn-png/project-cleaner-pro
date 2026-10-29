@@ -2051,3 +2051,192 @@ export async function sperrAuf(paket, code, optionen = {}) {
   z.dateien = (z.dateien || []).map((d) => d.b64 != null ? Object.assign({}, d, { b64: undefined, bytes: ausB64(d.b64) }) : d);
   return z;
 }
+
+/* ── Stufe 6: Zurückbauen, mit eigenen Werten füllen ─────────────────────────
+ *
+ * Der Stellenplan (REINIGER-STELLENPLAN.json in der sauberen Kopie) sagt, WO eine Angabe ersetzt wurde
+ * und WOMIT (Marke ⟦NAME-1⟧ oder Musterwert) — nie, was dort stand. Damit lassen sich die Platzhalter
+ * wieder füllen:
+ *   - mit EIGENEN Werten (eigene Angaben statt der fremden; die Daten des Absenders braucht man nicht);
+ *   - mit den ORIGINALEN aus dem Tresor (einzelne Stellen zurückholen, z. B. das Impressum) — dann ist die
+ *     Kopie nicht mehr sauber und heißt auch so.
+ * Gefüllt wird nur an den Stellen, die der Plan nennt (Datei, Zeile), damit ein Musterwert, der zufällig
+ * anderswo steht, stehen bleibt. Datei- und Ordnernamen werden mit gefüllt. Office-Dateien (als Text neu
+ * gebaut) werden in ihren Textteilen gefüllt. Graue Kästen in neu gezeichneten PDF-Seiten und Bildern
+ * bleiben (dort gibt es keinen Text mehr) — der Bericht nennt sie.
+ */
+export const RUECKBAU_DATEI = "REINIGER-ZURUECKBAU.txt";
+const RUECKBAU_OFFICE = new Set(["docx", "xlsx", "pptx"]);
+
+/** Liegt in diesen Dateien eine saubere Kopie mit Stellenplan? → { plan, wurzel } oder null. */
+export async function stellenplanAus(dateien) {
+  const d = (dateien || []).find((x) => { const p = normPfad(x.pfad); return p === STELLENPLAN_JSON || (p.endsWith("/" + STELLENPLAN_JSON) && p.split("/").length === 2); });
+  if (!d) return null;
+  try {
+    const bytes = d.bytes || await d.lesen();
+    const plan = JSON.parse(new TextDecoder().decode(bytes));
+    if (!plan || !Array.isArray(plan.stellen)) return null;
+    const p = normPfad(d.pfad);
+    return { plan, wurzel: p.includes("/") ? p.slice(0, p.lastIndexOf("/") + 1) : "" };
+  } catch { return null; }
+}
+
+/* Ein Platzhalter: die Marke oder der Musterwert. „MUSTER-WERT“ (Umgebungsdatei) steht für viele verschiedene
+   Werte — dort ist jede Stelle ein eigener Platz. */
+function platzVon(s) {
+  if (s.ersatz == null || s.weg === "zeile" || s.art === "DATEIART") return null;
+  const e = String(s.ersatz);
+  if (e === "MUSTER-WERT") return e + "@" + s.pfad + ":" + (s.zeile || "");
+  /* Eine Marke ist eindeutig; ein Musterwert nur zusammen mit der Art („Max Mustermann“ steht für Name, Copyright, Verfasser …). */
+  return istMarke(e) ? e : s.art + "|" + e;
+}
+/* Marke im Text ⟦NAME-1⟧, im Datei- oder Ordnernamen NAME-1 (Musterwerte wie MUSTER-SCHLUESSEL-1 sind keine). */
+const istMarke = (e) => /^⟦.*⟧$/.test(e) || (/^[A-Z]+(-[A-Z]+)*-\d+$/.test(e) && !/^MUSTER-/.test(e));
+function fuellArt(s) {
+  if (s.kasten) return "kasten";
+  if (s.stelle === "Datei- oder Ordnername") return "name";
+  if (s.zeile) return "zeile";
+  if (RUECKBAU_OFFICE.has(endungVon(s.pfad))) return "office";
+  return "kasten";                                     // Seite/Bild ohne Kasten-Maße: nicht füllbar
+}
+
+/**
+ * Die Plätze zum Füllen, gebündelt wie in der Anzeige: „⟦NAME-1⟧, 4× in 2 Dateien“.
+ * @returns {Array<{ platz, zeigt, art, artName, marke: boolean, anzahl, dateien, fuellbar, kaesten }>}
+ */
+export function rueckbauPlaetze(plan) {
+  const m = new Map();
+  for (const s of (plan && plan.stellen) || []) {
+    const platz = platzVon(s);
+    if (!platz) continue;
+    const zeigt = String(s.ersatz);
+    if (!m.has(platz)) m.set(platz, { platz, zeigt, art: s.art, artName: ART_NAME[s.art] || s.art, marke: istMarke(zeigt), anzahl: 0, dateien: new Set(), fuellbar: 0, kaesten: 0 });
+    const x = m.get(platz);
+    x.anzahl++; x.dateien.add(s.pfad);
+    if (fuellArt(s) === "kasten") x.kaesten++; else x.fuellbar++;
+  }
+  return Array.from(m.values()).map((x) => Object.assign(x, { dateien: x.dateien.size }));
+}
+
+/** Originale aus der Zuordnung des Tresors (Marke → { werte, muster }) den Plätzen zuordnen. */
+export function werteAusZuordnung(zuordnung, plaetze) {
+  const aus = {};
+  const eintraege = Object.entries(zuordnung || {});
+  for (const p of plaetze) {
+    const z = p.marke ? eintraege.find(([marke]) => marke === p.zeigt || marke === "⟦" + p.zeigt + "⟧")
+      : eintraege.find(([, e]) => e.art === p.art && e.muster && (e.muster === p.zeigt || (e.muster.includes("\\") && e.muster.replace(/\\/g, "\\\\") === p.zeigt)));
+    if (!z || !(z[1].werte || []).length) continue;
+    let w = String(z[1].werte[0]);
+    if (z[1].muster && z[1].muster.includes("\\") && z[1].muster.replace(/\\/g, "\\\\") === p.zeigt) w = w.replace(/\\/g, "\\\\");
+    aus[p.platz] = w;
+  }
+  return aus;
+}
+
+/* In einem Text die genannten Platzhalter ersetzen — längere zuerst („Musterstadt 2“ vor „Musterstadt“), nur an
+   Wortgrenzen wie beim Reinigen („muster“ in „musterapp“ bleibt). */
+function fuelleText(text, paare, imPfad) {
+  const wz = imPfad ? "A-Za-zÀ-ÖØ-öø-ÿĀ-ž0-9" : WZ, wortZ = new RegExp("[" + wz + "]");
+  const tabelle = new Map(paare);
+  if (!tabelle.size) return { text, n: 0 };
+  const re = new RegExp(Array.from(tabelle.keys()).sort((a, b) => b.length - a.length).map((v) =>
+    (wortZ.test(v[0]) ? "(?<![" + wz + "])" : "") + esc(v) + (wortZ.test(v[v.length - 1]) ? "(?![" + wz + "])" : "")).join("|"), "g");
+  let n = 0;
+  const neu = text.replace(re, (t) => { n++; return tabelle.get(t); });
+  return { text: neu, n };
+}
+
+/**
+ * Füllt eine saubere Kopie. `werte`: Platz → Wert (leer oder fehlend = Platzhalter bleibt).
+ * `optionen.originale`: true, wenn Werte aus dem Tresor stammen (dann heißt das Ergebnis „zurückgebaut“, nicht sauber).
+ * @returns {Promise<{ dateien, bericht, zip }>}  bericht: { stellen, gefuellt, leer, kaesten, nichtGefunden, dateienGeaendert, originale }
+ */
+export async function zurueckbauen(dateien, werte, optionen = {}) {
+  const sp = await stellenplanAus(dateien);
+  if (!sp) throw new Error("kein-stellenplan");
+  const w = {};
+  for (const [k, v] of Object.entries(werte || {})) if (v != null && String(v) !== "") w[k] = String(v);
+  const proDatei = new Map();
+  for (const s of sp.plan.stellen) {
+    const platz = platzVon(s);
+    if (!platz) continue;
+    const pfad = sp.wurzel + normPfad(s.pfad);
+    if (!proDatei.has(pfad)) proDatei.set(pfad, []);
+    proDatei.get(pfad).push(Object.assign({}, s, { platz, art2: fuellArt(s) }));
+  }
+  const T = new TextEncoder(), D = new TextDecoder();
+  const aus = [], nichtGefunden = [];
+  let gefuellt = 0, kaesten = 0, leer = 0, geaendert = 0;
+  for (const d of dateien) {
+    let pfad = normPfad(d.pfad);
+    let bytes = d.bytes || (d.lesen ? await d.lesen() : new Uint8Array(0));
+    bytes = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    const stellen = proDatei.get(pfad) || [];
+    let anders = false;
+    /* Text Zeile für Zeile, nur an den genannten Zeilen */
+    const zeilenStellen = stellen.filter((s) => s.art2 === "zeile");
+    if (zeilenStellen.length) {
+      const zeilen = D.decode(bytes).split("\n");
+      const proZeile = new Map();
+      for (const s of zeilenStellen) { if (!proZeile.has(s.zeile)) proZeile.set(s.zeile, new Map()); proZeile.get(s.zeile).set(s.platz, s); }
+      for (const [nr, plaetze] of proZeile) {
+        const paare = [];
+        for (const [platz, s] of plaetze) { if (w[platz] == null) { leer++; continue; } paare.push([String(s.ersatz), w[platz]]); }
+        if (!paare.length || nr < 1 || nr > zeilen.length) { if (paare.length) nichtGefunden.push(pfad + " Zeile " + nr); continue; }
+        const r = fuelleText(zeilen[nr - 1], paare);
+        if (!r.n) { nichtGefunden.push(pfad + " Zeile " + nr); continue; }
+        zeilen[nr - 1] = r.text; gefuellt += r.n; anders = true;
+      }
+      if (anders) bytes = T.encode(zeilen.join("\n"));
+    }
+    /* Office: die Textteile (XML) im Paket */
+    const officeStellen = stellen.filter((s) => s.art2 === "office");
+    if (officeStellen.length) {
+      const paare = [];
+      for (const p of new Set(officeStellen.map((s) => s.platz))) { const s = officeStellen.find((x) => x.platz === p); if (w[p] == null) { leer += officeStellen.filter((x) => x.platz === p).length; continue; } paare.push([xmlEsc(s.ersatz), xmlEsc(w[p])]); }
+      if (paare.length) {
+        const z = zipDateien(bytes);
+        const teile = [];
+        let n = 0;
+        for (const t of z.dateien) {
+          let b = t.bytes || await t.lesen();
+          if (/\.xml$/i.test(t.pfad)) { const r = fuelleText(D.decode(b), paare); if (r.n) { b = T.encode(r.text); n += r.n; } }
+          teile.push({ pfad: t.pfad, bytes: b });
+        }
+        if (n) { bytes = await zipBauen(teile, { packen: false }); gefuellt += n; anders = true; }
+        else nichtGefunden.push(pfad);
+      }
+    }
+    kaesten += stellen.filter((s) => s.art2 === "kasten").length;
+    /* Datei- und Ordnername */
+    const namen = stellen.filter((s) => s.art2 === "name");
+    if (namen.length) {
+      const paare = [];
+      for (const s of namen) { if (w[s.platz] == null) { leer++; continue; } paare.push([String(s.ersatz), w[s.platz].replace(/[\\/:*?"<>|]+/g, "_")]); }
+      if (paare.length) {
+        const neu = pfad.split("/").map((seg) => fuelleText(seg, paare, true).text).join("/");
+        if (neu !== pfad) { pfad = neu; gefuellt += paare.length; anders = true; }
+      }
+    }
+    if (anders) geaendert++;
+    aus.push({ pfad, bytes });
+  }
+  const bericht = { stellen: sp.plan.stellen.length, gefuellt, leer, kaesten, nichtGefunden, dateienGeaendert: geaendert, originale: !!optionen.originale,
+    plaetze: rueckbauPlaetze(sp.plan).map((p) => ({ zeigt: p.zeigt, artName: p.artName, gefuellt: w[p.platz] != null })) };
+  aus.push({ pfad: sp.wurzel + RUECKBAU_DATEI, bytes: T.encode(rueckbauText(bericht)) });
+  return { dateien: aus, bericht, zip: await zipBauen(aus) };
+}
+
+/** Bericht zum Zurückbauen — nennt Platzhalter und Arten, nie die eingesetzten Werte. */
+export function rueckbauText(b) {
+  const z = ["Zurückbauen — Projekt-Reiniger Pro", ""];
+  if (b.originale) z.push("ACHTUNG: In diese Kopie wurden Originalwerte aus dem Tresor zurückgeholt. Sie ist NICHT sauber.", "");
+  else z.push("Die Platzhalter wurden mit eigenen Werten gefüllt. Diese Datei nennt die Werte nicht.", "");
+  z.push("Gefüllt: " + b.gefuellt + " Stelle(n) in " + b.dateienGeaendert + " Datei(en).");
+  if (b.leer) z.push("Leer gelassen (Platzhalter bleibt): " + b.leer + " Stelle(n).");
+  if (b.kaesten) z.push("Graue Kästen in neu gezeichneten PDF-Seiten und Bildern: " + b.kaesten + " — dort gibt es keinen Text mehr; sie bleiben.");
+  if (b.nichtGefunden.length) z.push("Nicht gefunden (die Datei wurde nach dem Reinigen geändert?): " + b.nichtGefunden.join(", "));
+  z.push("", "Plätze:");
+  for (const p of b.plaetze) z.push("  · " + p.zeigt + " (" + p.artName + ") — " + (p.gefuellt ? "gefüllt" : "leer gelassen"));
+  return z.join("\n") + "\n";
+}

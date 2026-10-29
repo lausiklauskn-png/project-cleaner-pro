@@ -1,14 +1,15 @@
 # Brief: Projekt-Reiniger Pro
 
-Stand 2026-10-29 (Morgen), **Stufen 1–5 gebaut**, Fassung 9 (Abschnitte „Stufe 1/2/3/4/5 · gebaut“ unten). Die App reinigt:
+Stand 2026-10-29 (Abend), **Stufen 1–6 gebaut**, Fassung 10 (Abschnitte „Stufe 1/2/3/4/5/6 · gebaut“ unten). Die App reinigt:
 einwerfen oder **hereinladen** (Fenster: wählen, ablegen, einfügen) → Funde ansehen (antippen = Datei an der Stelle) → je Fund
 entscheiden (mit **Vorschau**, was aus der Zeile wird) → saubere Kopie als ZIP mit Stellenplan und Bericht → Nachprüfung →
-**herausladen** → auf Wunsch **Tresor** (verschlüsselte Datei mit Zuordnung und Originalen). Die **Gäste-Sperre** im Kopf schließt
+**herausladen** → auf Wunsch **Tresor** (verschlüsselte Datei mit Zuordnung und Originalen) → **Zurückbauen** (Stufe 6: die
+Platzhalter mit eigenen Werten füllen oder einzelne Stellen mit dem Original zurückholen). Die **Gäste-Sperre** im Kopf schließt
 die App sofort. PDF und Bilder werden neu gezeichnet, Word/Excel/PowerPoint als reiner Text neu gebaut, dazu die Mustermappe.
-**Testfassungen 9** (Android-APK, Windows-Setup, Stand `f53fef1`) liegen in der Vorab-Veröffentlichung **testfassung**. Klaus' Befund vom Tablet ist
-eingearbeitet. Nächster Schritt: Klaus testet Fassung 9 (Tresor, Sperre, geteilte Ansicht, Hereinladen), danach **Stufe 6**
-(Zurückbauen, mit eigenen Werten füllen). Der Brief lebt **hier** im Repo `project-cleaner-pro`; die Fassung im Sende-Prüfer ist
-eingefroren und zeigt hierher.
+Neu auf der ersten Seite: **„So geht's“** — eine Vorführung, in der ein Finger die echte App bedient (Schritt 1–4).
+Klaus' Befund zu Fassung 9 ist eingearbeitet (Abschnitt „Befund zu Fassung 9“). Nächster Schritt: Klaus testet Fassung 10
+(Vorführung, „Neu“ links, Zurückbauen), danach **Stufe 7** (Git-Wächter und Sperrliste). Der Brief lebt **hier** im Repo
+`project-cleaner-pro`; die Fassung im Sende-Prüfer ist eingefroren und zeigt hierher.
 
 ## Anlass
 
@@ -305,14 +306,14 @@ ungereinigte ZIP, gilt:
 | 3 ✅ | Gefühlte Metadaten (Wortlisten, Eigennamen, Pfade) — gebaut 2026-10-28 (vor Stufe 2, nur lesen) |
 | 4 ✅ | Neu gezeichnete Blätter, Mustermappe — gebaut 2026-10-29 |
 | 5 ✅ | Tresor und Gäste-Sperre — gebaut 2026-10-29 (Ersatzschlüssel 3 aus 5 noch offen) |
-| 6 | Zurückbauen, mit eigenen Werten füllen |
+| 6 ✅ | Zurückbauen, mit eigenen Werten füllen — gebaut 2026-10-29 (Kästen in neu gezeichneten PDF/Bildern noch nicht füllbar) |
 | 7 | Git-Wächter und Sperrliste |
 | 8 (Test) | APK, danach Windows — **Testfassungen** gebaut 2026-10-29 (Debug-APK, Windows unsigniert); eigener Schlüssel, Signatur, Updates offen |
 | 9 | Einbau in die Familienakte |
 
 Abschlussbriefe: [Stufe 4 und Testfassungen](BRIEF_ABSCHLUSS_2026-10-29_stufe-4-und-testfassungen.md) ·
-[Befund und Stufe 5](BRIEF_ABSCHLUSS_2026-10-29_befund-und-stufe-5.md) ·
-Forschung: [Stufe 4](FORSCHUNG_2026-10-29_stufe-4.md) · [Stufe 5](FORSCHUNG_2026-10-29_stufe-5.md).
+[Befund und Stufe 5](BRIEF_ABSCHLUSS_2026-10-29_befund-und-stufe-5.md) · [Befund 9 und Stufe 6](BRIEF_ABSCHLUSS_2026-10-29_befund-9-und-stufe-6.md) ·
+Forschung: [Stufe 4](FORSCHUNG_2026-10-29_stufe-4.md) · [Stufe 5](FORSCHUNG_2026-10-29_stufe-5.md) · [Stufe 6](FORSCHUNG_2026-10-29_stufe-6.md).
 
 ## Am Ende jeder Sitzung: Kurzauftrag zum Kopieren (Klaus 2026-10-28)
 
@@ -644,6 +645,43 @@ zum Vorbild.“*
   Bild-Einfügen, Text-Feld, Neu prüfen, Ablegen ins Fenster, Leeren, Esc, Herausladen). Gegenproben IMPORTFENSTER, EINFUEGEN, ABLEGEN,
   DAZU gefangen.
 - ⚠ Nicht gemessen: Einfügen eines Bildes in Android-WebView und WebView2.
+
+## Befund zu Fassung 9 (Klaus 2026-10-29, Abend)
+
+| Klaus | umgesetzt |
+|---|---|
+| *„Die erste Seite … ZIP oder Datei, Ordner. Da ist die Frage, Ordner anlegen oder Ordner einfügen … Text einfügen, da steht es.“* | Die Knöpfe sagen, was sie tun: **„ZIP oder Dateien einfügen“**, **„Ordner einfügen“**, „Tresor öffnen“, „Text einfügen“. |
+| *„Oben rechts … steht Neu … sollte nicht rechts oben sein, sondern greifbar … links, wie bei einer E-Mail … in der Nähe der anderen Leisten.“* | **„Neu“** ist aus dem Kopf in die Arbeitsleiste gewandert, als **erster Knopf links** vor „Dateien hereinladen“ (mit Wort, auch am Handy). Ein Tipp öffnet wieder die erste Seite. |
+| *„Ein kleines Mini-Video mit der Hand oder dem Finger … Schritt 1, 2, 3, 4 … legt sich auf die Oberfläche der App … soll so aussehen, als wenn die App bedient wird … wenn ich draufklicke, verschwindet das … Vollbild im Vollbild, geteilter Bildschirm im geteilten.“* (erst als Plan gedacht, dann „wenn du Zugriff hast, mach das“) | **„So geht's“** auf der ersten Seite. Kein Film: ein **Finger** fährt über die **echte App** und tippt — 1 Projekt einwerfen (Beispielprojekt), 2 Funde ansehen, 3 je Fund wählen („Wird zu:“), 4 saubere Kopie bauen und herausladen (nur gezeigt, nichts geht hinaus). Unten ein Satz „Schritt x von 4“. **Ein Tipp irgendwo oder Esc beendet sofort**, danach steht wieder die erste Seite da. Die Vorführung liegt über genau dem Fenster der App — im Vollbild wie in der geteilten Ansicht. Ohne Musik; gemessen **≈ 13 s** bis zum Ende (Prüfrechner; am Tablet länger, weil Prüfen und Reinigen echt laufen). |
+
+**Dabei gefunden:** Fenster (Datei-Ansicht, Tresor, jetzt Zurückbauen) lagen über der **ganzen** App, auch über dem Kopf — „Sperren“ war
+dann nicht erreichbar, obwohl die CLAUDE.md „immer sichtbar“ verlangt. Jetzt liegen sie unter dem Kopf (Probe misst es).
+
+## Stufe 6 · gebaut (2026-10-29)
+
+- **Kern** (ohne DOM, Typen in `.d.ts`): `stellenplanAus(dateien)` findet `REINIGER-STELLENPLAN.json` in einer sauberen Kopie;
+  `rueckbauPlaetze(plan)` bündelt die Stellen zu **Plätzen** (eine Marke `⟦ORT-1⟧` — oder Art + Musterwert, weil „Max Mustermann“
+  für Name, Copyright und Verfasser mit verschiedenen Originalen stehen kann); `werteAusZuordnung(zuordnung, plaetze)` holt die
+  Originale aus der Zuordnung (gleich nach dem Reinigen im Speicher oder aus dem Tresor); `zurueckbauen(dateien, werte, { originale })`
+  füllt und baut eine neue ZIP mit `REINIGER-ZURUECKBAU.txt` (nennt Plätze und Zahlen, **nie die Werte**).
+- **Gefüllt wird nur, wo der Stellenplan es sagt:** Text **Zeile für Zeile** an der genannten Zeile, nur an **Wortgrenzen** wie beim
+  Reinigen („muster“ in „musterapp“ bleibt), längere Platzhalter zuerst („Musterstadt 2“ vor „Musterstadt“); **Datei- und
+  Ordnernamen** (Musterstadt-2019 → Hamburg-2019); **Word/Excel/PowerPoint** in den Textteilen (XML-sicher, „&“ → `&amp;`,
+  auch Blattnamen). Leer gelassen bleibt der Platzhalter.
+- **Nicht füllbar, benannt:** graue Kästen in neu gezeichneten PDF-Seiten und Bildern (dort gibt es keinen Text mehr);
+  Werte aus `.env` („MUSTER-WERT“) — sie stehen bewusst in **keiner** Zuordnung, auch nicht im Tresor.
+- **Gemessen:** mit den Originalen zurückgebaut ist jede Textdatei des Beispielprojekts wieder **Byte für Byte** das Original
+  (außer `.env`), samt Ordnernamen.
+- **Oberfläche:** Fenster „Zurückbauen“ (wie der Tresor, unter dem Kopf). Je Platz: Platzhalter, Art, „3× in 2 Dateien“, ein Feld
+  „eigener Wert“ und — wenn die Zuordnung da ist — „Original“; „Alle Originale zurückholen“; ein farbiger Knopf **„Gefüllte Kopie
+  herausladen“** → `…-gefuellt.zip` (grün) bzw. mit Originalen `…-zurueckgebaut.zip` (gelb: **„NICHT sauber“**). Drei Wege hinein:
+  (1) nach dem Reinigen „Eigene Werte einsetzen …“, (2) eine saubere Kopie (ZIP mit Stellenplan) auf der ersten Seite einwerfen —
+  dann öffnet sich „Zurückbauen“ statt der Prüfung, „Doch prüfen“ geht, (3) im geöffneten Tresor „Saubere Kopie zurückbauen …“.
+  Gespeichert wird nichts; „Schließen“, „Neu“ und die Gäste-Sperre werfen alles weg.
+- **Proben:** `npm test` 322 grün · 0 ROT (Stufe 6: 7 im Kern, 15 in der Oberfläche; Befund 9: 19). Gegenproben 12 gefangen · 0 blind.
+- ⚠ **Nicht gemessen / offen:** Kästen in PDF-Seiten und Bildern mit eigenen Werten neu zeichnen (die Lage steht schon im Stellenplan,
+  `kasten`); eigene Werte in Office tragen noch den grauen Grund der Marke; eine Kopie, die nach dem Reinigen von Hand geändert
+  wurde (Zeilen verschoben) — dann meldet „Nicht gefunden“ die Stellen, gefüllt wird dort nichts; große Projekte; echte Geräte.
 
 ## Grenzen (vorab benannt)
 
