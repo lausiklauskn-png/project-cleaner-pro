@@ -6,7 +6,7 @@ nichts wird ausgeführt, nichts gespeichert.
 
 Adresse (sobald GitHub Pages an ist): https://lausiklauskn-png.github.io/project-cleaner-pro/
 
-**Stand: Stufen 1–7 (Fassung 11).** Einwerfen, Funde finden (harte Angaben, Metadaten, gefühlte Metadaten), je Fund
+**Stand: Stufen 1–7 (Fassung 12).** Basic = Browser/PWA, Pro = APK und Windows. Einwerfen, Funde finden (harte Angaben, Metadaten, gefühlte Metadaten), je Fund
 entscheiden, saubere Kopie als ZIP mit Stellenplan und Bericht, Nachprüfung; PDF und Bilder neu gezeichnet, Office als Text neu
 gebaut; Tresor und Gäste-Sperre; Zurückbauen; **Sperrliste** (nur Fingerabdrücke) und **Git-Wächter** gegen fremde Werte in Commits.
 

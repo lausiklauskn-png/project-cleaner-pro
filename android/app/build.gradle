@@ -7,8 +7,10 @@ android {
         applicationId "de.familyprojekt.projektreiniger.pro"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 7
-        versionName "0.7.0-test"
+        /* Fassung aus assets/app.js (APP_FASSUNG) — die Versionsnummer oben in der App ist dieselbe. */
+        def fassung = ((new File(rootDir, "../assets/app.js").text =~ /APP_FASSUNG = "(\d+)"/)[0][1])
+        versionCode fassung.toInteger()
+        versionName fassung + ".0-test"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

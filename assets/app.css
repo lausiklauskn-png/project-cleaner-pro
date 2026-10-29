@@ -442,3 +442,28 @@ mark.ersatz { background: var(--gut-grund); color: var(--gut); outline: 1px soli
 .sperr-liste code { font-weight: 600; color: var(--titel); overflow-wrap: anywhere; }
 .sperr-liste .wert { overflow-wrap: anywhere; min-width: 0; }
 .sperrliste-satz { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px; }
+
+/* ══ Kopf (Klaus 2026-10-29, Befund 11): Name mit Ausgabe und Versionsnummer, rechts nur Symbole ══ */
+.marke .ausgabe { font-weight: 700; }
+.fassung { flex: none; font-size: .82rem; font-weight: 600; color: #dbe9f5; white-space: nowrap; }
+button.fassung { min-height: 32px; padding: 2px 10px; border-radius: 99px; border: 1px solid rgb(255 255 255 / .45); background: rgb(0 20 40 / .35); color: #fff; font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer; }
+.knopf.nur-ikon { padding: 3px 9px; min-width: 42px; }
+.knopf.nur-ikon .ikon { width: 1.35em; height: 1.35em; }
+.knopf.gross-ikon { line-height: 30px; }
+.knopf.gross-ikon .ikon { width: 28px; height: 28px; stroke-width: 2.1; }
+
+/* ══ Pro (APK, Windows — Klaus 2026-10-29): Gold auf Dunkel, wie das Pro-Symbol ══ */
+:root[data-ausgabe="pro"] { --navy: #14110a; --navy2: #3a2a0c; --petrol: #8a5a00; --k1: #b07a14; --k2: #d9a441; --k3: #f2c86b;
+  --titel: #4a3205; --titel2: #6b4a0a; --petrol-grund: #fbf3e2; --petrol-linie: #e6cf9c; }
+@media (prefers-color-scheme: dark) { :root[data-ausgabe="pro"]:not([data-thema="hell"]) { --titel: #f2c86b; --titel2: #e7bd62; --petrol-grund: #3a2e14; --petrol-linie: #6e5320; } }
+:root[data-ausgabe="pro"][data-thema="dunkel"] { --titel: #f2c86b; --titel2: #e7bd62; --petrol-grund: #3a2e14; --petrol-linie: #6e5320; }
+:root[data-ausgabe="pro"] .kopf { background: linear-gradient(90deg, #0b0a10, #2b2110 55%, #5c4012); }
+:root[data-ausgabe="pro"] .einwurf, :root[data-ausgabe="pro"] .sperre { background: radial-gradient(120% 90% at 50% 30%, #3a2a0c, #14110a 55%, #070605); }
+:root[data-ausgabe="pro"] .einwurf .erklaerung { background: rgb(20 15 5 / .55); border-color: rgb(242 200 107 / .35); color: #f3e6c8; }
+
+/* Mikrofon im Suchfeld (Klaus 2026-10-29) */
+.diktat[aria-pressed="true"] { background: var(--rot-grund); border-color: var(--rot); color: var(--rot); }
+.diktat-hinweis { flex: 1 1 100%; margin: 2px 0 0; font-size: .82rem; color: var(--leise); min-width: 0; overflow-wrap: anywhere; }
+.diktat-hinweis[data-fehler] { color: var(--rot); }
+.knopf-erklaerung { display: block; margin: 0 0 6px; }
+.knopf-erklaerung:last-child { margin-bottom: 0; }

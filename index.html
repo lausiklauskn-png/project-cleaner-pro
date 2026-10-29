@@ -7,7 +7,7 @@
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#0b3154">
 <meta name="color-scheme" content="light dark">
-<title>Projekt-Reiniger Pro</title>
+<title>Projekt-Reiniger Basic</title>
 <meta name="description" content="Prüft ein Projekt (ZIP, Ordner oder einzelne Dateien) auf persönliche Daten, bevor es an eine KI oder nach GitHub geht. Alles bleibt auf dem Gerät.">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
@@ -29,16 +29,17 @@
 <body>
 <div class="app" id="app">
   <header class="kopf">
-    <a class="marke" href="./" aria-label="Projekt-Reiniger Pro, zum Anfang">
+    <a class="marke" href="./" aria-label="Projekt-Reiniger Basic, zum Anfang" id="marke">
       <img src="icons/logo-96.png" width="40" height="40" alt="">
-      <span class="name-lang">Projekt-Reiniger Pro</span><span class="name-kurz">Reiniger Pro</span>
+      <span class="name-lang">Projekt-Reiniger <span class="ausgabe" data-ausgabe>Basic</span></span><span class="name-kurz">Reiniger <span class="ausgabe" data-ausgabe>Basic</span></span>
     </a>
-    <button type="button" class="knopf hell nurlesen" id="lokal" aria-label="Lokal — was heißt das?" title="Lokal — was heißt das?"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 11v6 M12 7.5v.5"/></svg><span class="t">Lokal</span></button>
+    <span class="fassung" id="fassung" title="Versionsnummer">v12</span>
     <span class="luecke"></span>
-    <button type="button" class="knopf hell" id="thema" aria-label="Hell oder dunkel" title="Hell oder dunkel"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18z M12 3a9 9 0 0 1 0 18"/></svg><span class="t">Automatisch</span></button>
+    <button type="button" class="knopf hell nur-ikon" id="lokal" aria-label="Auskunft: alles bleibt auf diesem Gerät" title="Auskunft: alles bleibt auf diesem Gerät"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 11v6 M12 7.5v.5"/></svg></button>
+    <button type="button" class="knopf hell nur-ikon" id="thema" aria-label="Darstellung wechseln" title="Darstellung wechseln"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12H3z M8 20h8 M12 16v4"/></svg></button>
     <button type="button" class="knopf hell" id="installieren" aria-label="Als App installieren" title="Als App installieren"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M12 6v7 M9 10l3 3 3-3 M11 18h2"/></svg><span class="t">Installieren</span></button>
-    <button type="button" class="knopf hell" id="aktualisieren" aria-label="Neue Fassung holen" title="Neue Fassung holen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8 M4 4v4h4 M4 13a8 8 0 0 0 14.3 4.9L20 16 M20 20v-4h-4"/></svg><span class="t">Aktualisieren</span></button>
-    <button type="button" class="knopf hell" id="sperren" aria-label="Sperren: App sofort schließen (Gäste-Sperre)" title="Sperren: App sofort schließen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 11h12v10H6z M8.5 11V8a3.5 3.5 0 0 1 7 0v3 M12 15v2"/></svg><span class="t">Sperren</span></button>
+    <button type="button" class="knopf hell nur-ikon" id="aktualisieren" aria-label="Aktualisieren: neue Fassung holen" title="Aktualisieren: neue Fassung holen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8 M4 4v4h4 M4 13a8 8 0 0 0 14.3 4.9L20 16 M20 20v-4h-4"/></svg></button>
+    <button type="button" class="knopf hell nur-ikon gross-ikon" id="sperren" aria-label="Sperren: App sofort schließen (Gäste-Sperre)" title="Sperren: App sofort schließen (Gäste-Sperre)"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11h14v10H5z M8 11V7.5a4 4 0 0 1 7.6-1.7 M12 15v2.5"/></svg></button>
   </header>
 
   <main class="haupt" id="haupt">
