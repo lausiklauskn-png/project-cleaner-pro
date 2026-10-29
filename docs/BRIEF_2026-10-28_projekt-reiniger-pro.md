@@ -512,7 +512,7 @@ müssen den Browser anstoßen … für Handys, damit ich nicht eine Kompi machen
 - **Stellenplan:** „rechnung.pdf · Seite 1 · Kasten oben links · grauer Kasten „E-Mail entfernt“ ⟦MAIL-1⟧“, im JSON mit
   `kasten: {seite, x, y, w, h}` (Seiteneinheiten) — damit kann Stufe 6 eigene Werte an genau diese Stelle setzen.
 - **Vorher / nachher:** die neu gezeichnete Seite bzw. das Bild wird in der Ansicht gezeigt (pdf.js, bis 5 Seiten).
-- **Proben:** `npm test` 221 grün · 0 ROT; `npm run gegenprobe` siehe CLAUDE.md (14 neue Fälle: Pin, DOM, Kasten, Rauschen,
+- **Proben:** `npm test` 222 grün · 0 ROT; `npm run gegenprobe` 48 gefangen · 0 blind (14 neue Fälle: Pin, DOM, Kasten, Rauschen,
   versteckter Text, Kommentar, Nachfinden, Zeilenumbruch, Zeichenbreite, Muster, Kontrast, Dunkel, Schrift über Schrift,
   Leerzeile).
 - ⚠ **Nicht gemessen:** große PDFs (Hunderte Seiten; Deckel 100) und große Fotos am Handy (Speicher), echte fremde

@@ -45,8 +45,8 @@ Kurzauftrag zum Kopieren ausgeben.
 ## Prüfen
 
 ```bash
-npm test             # 221 grün · 0 ROT (2026-10-29, Stufe 4, Hell/Dunkel)
-npm run gegenprobe   # läuft (2026-10-29) — Ergebnis folgt
+npm test             # 222 grün · 0 ROT (2026-10-29, Stufe 4, Hell/Dunkel)
+npm run gegenprobe   # 48 gefangen · 0 blind · 0 falsch · 0 tot (2026-10-29)
 ```
 
 ## ⚠ Nicht gemessen
