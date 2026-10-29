@@ -15,13 +15,14 @@ Lehren: [Forschung](FORSCHUNG_2026-10-29_stufe-6.md). Bilder: [`bilder-stufe-6/`
 
 ## PR
 
-- #13 — `npm test` 321 grün · 0 ROT (+40). Gegenproben: siehe unten.
+- #13 — `npm test` 322 grün · 0 ROT (+41). Gegenproben: 12 gefangen · 0 blind (siehe unten).
 
 ## Gegenproben (je Fall die ganze Probe auf einer sabotierten Kopie)
 
-NAMEN, NEULINKS, VFTIPP, VFDECKT, EINFUEGEN (Anker nachgezogen), RBWORTGRENZE, RBMUSTERART, RBOFFICE, RBSPERRE, RBKOPF, RBEINWURF, VFFOLGEN —
-Ergebnis steht im PR. Zwei Proben waren beim ersten Lauf **blind** und wurden geschärft: „ein Tipp beendet“ wartete zu lange (VFTIPP),
-und „der Finger folgt“ wurde nie herausgefordert (VFFOLGEN: jetzt verschiebt die Probe das Ziel absichtlich). Anker aller 81 Fälle leben.
+NAMEN, NEULINKS, VFTIPP, VFFOLGEN, VFDECKT, EINFUEGEN (Anker nachgezogen), RBWORTGRENZE, RBMUSTERART, RBOFFICE, RBSPERRE, RBKOPF, RBEINWURF —
+**12 gefangen · 0 blind** (Endstand). Unterwegs waren drei **blind** und wurden geschärft: „ein Tipp beendet“ wartete zu lange (VFTIPP);
+„der Finger folgt“ wurde nie herausgefordert (VFFOLGEN: jetzt verschiebt die Probe das Ziel absichtlich um 60 px); RBKOPF sabotierte falsch
+(ein absolut gesetztes Fenster bleibt in seiner Rasterzeile — jetzt ohne Rasterzeile). Anker aller 81 Fälle leben; die übrigen 69 nicht neu gefahren.
 
 ## So testet Klaus (Fassung 10, am Tablet)
 

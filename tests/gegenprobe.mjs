@@ -93,7 +93,7 @@ const FAELLE = [
   ["RBMUSTERART", "assets/reiniger-kern.js", "  return istMarke(e) ? e : s.art + \"|\" + e;", "  return e;", /Plätze gebündelt|Byte für Byte/],
   ["RBOFFICE", "assets/reiniger-kern.js", "          if (/\\.xml$/i.test(t.pfad)) { const r = fuelleText(", "          if (false) { const r = fuelleText(", /Office: eigene Werte/],
   ["RBSPERRE", "assets/app.js", "schliesseAnsicht(); tresorSchliessen(); rueckbauSchliessen(); ocrBeenden();", "schliesseAnsicht(); tresorSchliessen(); ocrBeenden();", /Zurückbau-Fenster ist sofort leer/],
-  ["RBKOPF", "assets/app.css", ".ansicht { position: relative; grid-row: 2; grid-column: 1;", ".ansicht { position: absolute; inset: 0; grid-row: 2; grid-column: 1;", /Kopf mit „Sperren“ bleibt sichtbar/],
+  ["RBKOPF", "assets/app.css", ".ansicht { position: relative; grid-row: 2; grid-column: 1; z-index: 20;", ".ansicht { position: absolute; inset: 0; z-index: 20;", /Kopf mit „Sperren“ bleibt sichtbar/],
   ["RBEINWURF", "assets/app.js", "if (!ergebnis && !opt.behalten && !opt.pruefen && await Kern.stellenplanAus(ein.dateien)) {", "if (false) {", /Saubere Kopie eingeworfen/],
   ["VFDECKT", "assets/app.css", ".vorfuehrung { position: fixed; inset: 0;", ".vorfuehrung { position: fixed; inset: 0 40% 0 0;", /über der ganzen App|füllt genau das Fenster/],
 ];

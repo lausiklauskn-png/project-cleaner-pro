@@ -678,7 +678,7 @@ dann nicht erreichbar, obwohl die CLAUDE.md „immer sichtbar“ verlangt. Jetzt
   (1) nach dem Reinigen „Eigene Werte einsetzen …“, (2) eine saubere Kopie (ZIP mit Stellenplan) auf der ersten Seite einwerfen —
   dann öffnet sich „Zurückbauen“ statt der Prüfung, „Doch prüfen“ geht, (3) im geöffneten Tresor „Saubere Kopie zurückbauen …“.
   Gespeichert wird nichts; „Schließen“, „Neu“ und die Gäste-Sperre werfen alles weg.
-- **Proben:** `npm test` 321 grün · 0 ROT (Stufe 6: 7 im Kern, 15 in der Oberfläche; Befund 9: 18). Gegenproben siehe Abschluss.
+- **Proben:** `npm test` 322 grün · 0 ROT (Stufe 6: 7 im Kern, 15 in der Oberfläche; Befund 9: 19). Gegenproben 12 gefangen · 0 blind.
 - ⚠ **Nicht gemessen / offen:** Kästen in PDF-Seiten und Bildern mit eigenen Werten neu zeichnen (die Lage steht schon im Stellenplan,
   `kasten`); eigene Werte in Office tragen noch den grauen Grund der Marke; eine Kopie, die nach dem Reinigen von Hand geändert
   wurde (Zeilen verschoben) — dann meldet „Nicht gefunden“ die Stellen, gefüllt wird dort nichts; große Projekte; echte Geräte.

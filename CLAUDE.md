@@ -65,8 +65,8 @@ Kurzauftrag zum Kopieren ausgeben.
 ## Prüfen
 
 ```bash
-npm test             # 321 grün · 0 ROT (2026-10-29 Abend, Befund 9, Vorführung, Stufe 6, Fassung 10)
-npm run gegenprobe   # 69 Fälle, Anker 0 tot; 2026-10-29 voll gefahren: 21 neue + 11 berührte alte = 32 gefangen · 0 blind
+npm test             # 322 grün · 0 ROT (2026-10-29 Abend, Befund 9, Vorführung, Stufe 6, Fassung 10)
+npm run gegenprobe   # 81 Fälle, Anker 0 tot; 2026-10-29 Abend: 11 neue + EINFUEGEN = 12 gefangen · 0 blind (davor: 32 gefangen)
                      # (die übrigen 37 nicht neu gefahren; ein voller Lauf dauert hier ~2 h — einzeln: NUR_FALL=NAME)
 ```
 
