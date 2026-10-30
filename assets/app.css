@@ -452,14 +452,25 @@ button.fassung { min-height: 32px; padding: 2px 10px; border-radius: 99px; borde
 .knopf.gross-ikon { line-height: 30px; }
 .knopf.gross-ikon .ikon { width: 28px; height: 28px; stroke-width: 2.1; }
 
-/* ══ Pro (APK, Windows — Klaus 2026-10-29): Gold auf Dunkel, wie das Pro-Symbol ══ */
-:root[data-ausgabe="pro"] { --navy: #14110a; --navy2: #3a2a0c; --petrol: #8a5a00; --k1: #b07a14; --k2: #d9a441; --k3: #f2c86b;
-  --titel: #4a3205; --titel2: #6b4a0a; --petrol-grund: #fbf3e2; --petrol-linie: #e6cf9c; }
-@media (prefers-color-scheme: dark) { :root[data-ausgabe="pro"]:not([data-thema="hell"]) { --titel: #f2c86b; --titel2: #e7bd62; --petrol-grund: #3a2e14; --petrol-linie: #6e5320; } }
-:root[data-ausgabe="pro"][data-thema="dunkel"] { --titel: #f2c86b; --titel2: #e7bd62; --petrol-grund: #3a2e14; --petrol-linie: #6e5320; }
-:root[data-ausgabe="pro"] .kopf { background: linear-gradient(90deg, #0b0a10, #2b2110 55%, #5c4012); }
-:root[data-ausgabe="pro"] .einwurf, :root[data-ausgabe="pro"] .sperre { background: radial-gradient(120% 90% at 50% 30%, #3a2a0c, #14110a 55%, #070605); }
-:root[data-ausgabe="pro"] .einwurf .erklaerung { background: rgb(20 15 5 / .55); border-color: rgb(242 200 107 / .35); color: #f3e6c8; }
+/* ══ Pro (APK, Windows — Klaus 2026-10-29): modern — Graphit, Blattgold als Akzent, weicher Lichtschein ══ */
+:root[data-ausgabe="pro"] { --navy: #17181c; --navy2: #2a2b31; --petrol: #d9aa45; --k1: #c8952e; --k2: #d9aa45; --k3: #f0cd7a;
+  --titel: #5a3f0a; --titel2: #6e4e10; --petrol-grund: #fdf6e6; --petrol-linie: #ecd59f; }
+@media (prefers-color-scheme: dark) { :root[data-ausgabe="pro"]:not([data-thema="hell"]) { --titel: #f0cd7a; --titel2: #e6c06a; --petrol-grund: #33302a; --petrol-linie: #6a5a36; } }
+:root[data-ausgabe="pro"][data-thema="dunkel"] { --titel: #f0cd7a; --titel2: #e6c06a; --petrol-grund: #33302a; --petrol-linie: #6a5a36; }
+/* Grund: deckende, dunkle Töne. Lichtschein und Goldglanz liegen in einer eigenen Ebene darunter (::before) — sichtbar, aber nie Grund der Schrift. */
+:root[data-ausgabe="pro"] .kopf { position: relative; isolation: isolate; background: linear-gradient(90deg, #15161a, #1f2025 60%, #2b2a27); box-shadow: inset 0 -2px 0 #d9aa45; }
+:root[data-ausgabe="pro"] .kopf::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(180deg, rgb(255 255 255 / .10), rgb(255 255 255 / 0) 60%), radial-gradient(70% 140% at 100% 0%, rgb(217 170 69 / .32), rgb(217 170 69 / 0) 70%); }
+:root[data-ausgabe="pro"] .einwurf, :root[data-ausgabe="pro"] .sperre { background: linear-gradient(180deg, #1d1e23, #131418); }
+:root[data-ausgabe="pro"] .einwurf { position: relative; isolation: isolate; }
+:root[data-ausgabe="pro"] .einwurf::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(45% 35% at 50% 30%, rgb(255 236 190 / .20), rgb(255 236 190 / 0) 70%), radial-gradient(90% 70% at 50% 35%, rgb(217 170 69 / .18), rgb(217 170 69 / 0) 75%); }
+:root[data-ausgabe="pro"] .einwurf .erklaerung { background: rgb(20 21 25 / .6); border-color: rgb(240 205 122 / .4); color: #f5ead2; }
+/* Hauptknöpfe in Pro: helles Blattgold mit dunkler Schrift und Lichtkante oben */
+:root[data-ausgabe="pro"] .haupt-knopf { position: relative; isolation: isolate; color: #1c1406; border-color: #c8952e; box-shadow: 0 1px 3px rgb(0 0 0 / .25); }
+:root[data-ausgabe="pro"] .haupt-knopf::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(180deg, rgb(255 255 255 / .35), rgb(255 255 255 / 0) 55%); }
+:root[data-ausgabe="pro"] button.fassung { background: rgb(0 0 0 / .35); }
 
 /* Mikrofon im Suchfeld (Klaus 2026-10-29) */
 .diktat[aria-pressed="true"] { background: var(--rot-grund); border-color: var(--rot); color: var(--rot); }

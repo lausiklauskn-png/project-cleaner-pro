@@ -18,7 +18,8 @@ import { dirname, join } from "node:path";
 const WURZEL = join(dirname(fileURLToPath(import.meta.url)), "..");
 const QUELLE = join(WURZEL, "icons", "kristall-quelle.png");
 /* Pro (APK und Windows, Klaus 2026-10-29): der goldene Kristall. Basic (Browser/PWA) behält den blauen. */
-const QUELLE_PRO = join(WURZEL, "icons", "kristall-pro-quelle.png");
+const QUELLE_PRO = join(WURZEL, "icons", "kristall-pro-quelle.png");             // große Fläche und Startbild
+const QUELLE_PRO_ICON = join(WURZEL, "icons", "kristall-pro-icon-quelle.png");   // App-Symbol (Android, Windows) und Logo im Kopf
 const req = createRequire(import.meta.url);
 let pw; try { pw = req("playwright-core"); } catch { pw = req("playwright"); }
 const { findeChromium } = await import("../tests/chromium-finden.mjs");
@@ -27,9 +28,10 @@ const { findeChromium } = await import("../tests/chromium-finden.mjs");
 export const AUSSCHNITT = { x: 330, y: 150, seite: 880 };
 const GRUND = "#0a2e52";   // Rand des Bildes, für die Maskable-Fassung
 export const AUSSCHNITT_PRO = { x: 207, y: 90, seite: 840 };
+export const AUSSCHNITT_PRO_ICON = { x: 77, y: 40, seite: 1100 };
 const GRUND_PRO = "#0b0a10";
 
-const roh = readFileSync(QUELLE), rohPro = readFileSync(QUELLE_PRO);
+const roh = readFileSync(QUELLE), rohPro = readFileSync(QUELLE_PRO), rohProIcon = readFileSync(QUELLE_PRO_ICON);
 const browser = await pw.chromium.launch({ executablePath: findeChromium() || undefined });
 const seite = await browser.newPage();
 await seite.setContent("<body></body>");
@@ -40,25 +42,25 @@ const AUFTRAEGE = [
   ["logo-96.png", 96, "kristall", "image/png"],
   ["kristall.webp", 640, "ganz", "image/webp"], ["kristall-gross.webp", 1254, "ganz", "image/webp"],
   /* Pro: Logo und große Fläche in der App-Hülle (app.js tauscht sie dort ein) */
-  ["pro:logo-pro-96.png", 96, "kristall", "image/png"], ["pro:kristall-pro.webp", 640, "ganz", "image/webp"], ["pro:kristall-pro-gross.webp", 1254, "ganz", "image/webp"],
+  ["pro:logo-pro-96.png", 96, "kristall", "image/png", "proicon"], ["pro:kristall-pro.webp", 640, "ganz", "image/webp"], ["pro:kristall-pro-gross.webp", 1254, "ganz", "image/webp"],
 ];
 /* Android: Dichte → Kantenlänge (Icon 48 dp, Vordergrund 108 dp), Startbild hoch/quer. */
 const DICHTE = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
 const RES = join(WURZEL, "android", "app", "src", "main", "res");
 if (existsSync(RES)) for (const [d, f] of Object.entries(DICHTE)) {
-  AUFTRAEGE.push(["android:mipmap-" + d + "/ic_launcher.png", Math.round(48 * f), "ganz", "image/png", "pro"]);
-  AUFTRAEGE.push(["android:mipmap-" + d + "/ic_launcher_round.png", Math.round(48 * f), "rund", "image/png", "pro"]);
-  AUFTRAEGE.push(["android:mipmap-" + d + "/ic_launcher_foreground.png", Math.round(108 * f), "vordergrund", "image/png", "pro"]);
+  AUFTRAEGE.push(["android:mipmap-" + d + "/ic_launcher.png", Math.round(48 * f), "ganz", "image/png", "proicon"]);
+  AUFTRAEGE.push(["android:mipmap-" + d + "/ic_launcher_round.png", Math.round(48 * f), "rund", "image/png", "proicon"]);
+  AUFTRAEGE.push(["android:mipmap-" + d + "/ic_launcher_foreground.png", Math.round(108 * f), "vordergrund", "image/png", "proicon"]);
   AUFTRAEGE.push(["android:drawable-port-" + d + "/splash.png", [Math.round(320 * f), Math.round(480 * f)], "start", "image/png", "pro"]);
   AUFTRAEGE.push(["android:drawable-land-" + d + "/splash.png", [Math.round(480 * f), Math.round(320 * f)], "start", "image/png", "pro"]);
 }
 if (existsSync(RES)) AUFTRAEGE.push(["android:drawable/splash.png", [480, 320], "start", "image/png", "pro"]);
 const ICO = [16, 24, 32, 48, 64, 128, 256];
-if (existsSync(join(WURZEL, "windows", "src-tauri"))) for (const n of ICO) AUFTRAEGE.push(["ico:" + n, n, n <= 48 ? "kristall" : "ganz", "image/png", "pro"]);
-for (const t of AUFTRAEGE) if (t[0].startsWith("pro:")) t[4] = "pro";
-const aus = await seite.evaluate(async ({ b64, b64Pro, auftraege, aB, aP, grundB, grundP }) => {
+if (existsSync(join(WURZEL, "windows", "src-tauri"))) for (const n of ICO) AUFTRAEGE.push(["ico:" + n, n, n <= 48 ? "kristall" : "ganz", "image/png", "proicon"]);
+for (const t of AUFTRAEGE) if (t[0].startsWith("pro:") && !t[4]) t[4] = "pro";
+const aus = await seite.evaluate(async ({ b64, b64Pro, b64ProIcon, auftraege, aB, aP, aPI, grundB, grundP }) => {
   const laden = async (b) => { const i = new Image(); i.src = "data:image/png;base64," + b; await i.decode(); return i; };
-  const bilder = { basic: await laden(b64), pro: await laden(b64Pro) };
+  const bilder = { basic: await laden(b64), pro: await laden(b64Pro), proicon: await laden(b64ProIcon) };
   const ergebnis = {};
   const weichVon = (img) => {
   /* Der Kristall mit weich auslaufendem Rand (das Bild hat einen eigenen, dunkleren Grund — sonst sähe man ein Quadrat). */
@@ -66,9 +68,9 @@ const aus = await seite.evaluate(async ({ b64, b64Pro, auftraege, aB, aP, grundB
     g.drawImage(img, 0, 0); g.globalCompositeOperation = "destination-in";
     const r = g.createRadialGradient(n / 2, n / 2, n * 0.3, n / 2, n / 2, n * 0.5); r.addColorStop(0, "rgba(0,0,0,1)"); r.addColorStop(1, "rgba(0,0,0,0)");
     g.fillStyle = r; g.fillRect(0, 0, n, n); return c; };
-  const weiche = { basic: weichVon(bilder.basic), pro: weichVon(bilder.pro) };
+  const weiche = { basic: weichVon(bilder.basic), pro: weichVon(bilder.pro), proicon: weichVon(bilder.proicon) };
   for (const [name, n, art, typ, q] of auftraege) {
-    const welche = q === "pro" ? "pro" : "basic", img = bilder[welche], weich = weiche[welche], a = welche === "pro" ? aP : aB, grund = welche === "pro" ? grundP : grundB;
+    const welche = q === "pro" || q === "proicon" ? q : "basic", img = bilder[welche], weich = weiche[welche], a = welche === "pro" ? aP : welche === "proicon" ? aPI : aB, grund = welche === "basic" ? grundB : grundP;
     const [w, h] = Array.isArray(n) ? n : [n, n];
     const c = document.createElement("canvas"); c.width = w; c.height = h;
     const g = c.getContext("2d"); g.imageSmoothingQuality = "high";
@@ -89,7 +91,7 @@ const aus = await seite.evaluate(async ({ b64, b64Pro, auftraege, aB, aP, grundB
     ergebnis[name] = c.toDataURL(typ, 0.86).split(",")[1];
   }
   return ergebnis;
-}, { b64: roh.toString("base64"), b64Pro: rohPro.toString("base64"), auftraege: AUFTRAEGE, aB: AUSSCHNITT, aP: AUSSCHNITT_PRO, grundB: GRUND, grundP: GRUND_PRO });
+}, { b64: roh.toString("base64"), b64Pro: rohPro.toString("base64"), b64ProIcon: rohProIcon.toString("base64"), auftraege: AUFTRAEGE, aB: AUSSCHNITT, aP: AUSSCHNITT_PRO, aPI: AUSSCHNITT_PRO_ICON, grundB: GRUND, grundP: GRUND_PRO });
 await browser.close();
 const icoTeile = [];
 for (const [name, b64] of Object.entries(aus)) {
@@ -106,6 +108,6 @@ if (icoTeile.length) {
   const ziel = join(WURZEL, "windows", "src-tauri", "icons"); mkdirSync(ziel, { recursive: true });
   writeFileSync(join(ziel, "icon.ico"), Buffer.concat([kopf, ...icoTeile.map(([, b]) => b)]));
 }
-/* Zeile 1: Basic-Quelle, Zeile 2: Pro-Quelle — die Probe vergleicht beide. */
-writeFileSync(join(WURZEL, "icons", "quelle.sha256"), createHash("sha256").update(roh).digest("hex") + "\n" + createHash("sha256").update(rohPro).digest("hex") + "\n");
+/* Zeile 1: Basic-Quelle, Zeile 2: Pro-Fläche, Zeile 3: Pro-Symbol — die Probe vergleicht alle drei. */
+writeFileSync(join(WURZEL, "icons", "quelle.sha256"), createHash("sha256").update(roh).digest("hex") + "\n" + createHash("sha256").update(rohPro).digest("hex") + "\n" + createHash("sha256").update(rohProIcon).digest("hex") + "\n");
 console.log("gebaut:", Object.keys(aus).join(", "));

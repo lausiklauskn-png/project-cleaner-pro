@@ -6,7 +6,7 @@ oder nach GitHub gehen. Kein Build-Schritt. Der Plan steht im Brief:
 er ist die Quelle, diese Datei ist nur der Anker. Am Ende jeder Sitzung: Brief nachziehen und einen
 Kurzauftrag zum Kopieren ausgeben.
 
-## Stand: Stufen 1–7 + Befund 11 (Basic/Pro, Mikrofon), Fassung 12 (2026-10-29) · nächster Schritt: Klaus testet Fassung 12 (Basic + Pro-APK), dann Stufe 8 oder 9
+## Stand: Stufen 1–7 + Befund 11 (Basic/Pro, Mikrofon), Fassung 13 (2026-10-30) · nächster Schritt: Klaus testet Fassung 13 (Basic + Pro-APK), dann Stufe 8 oder 9
 
 | Datei | Rolle |
 |---|---|
@@ -66,7 +66,7 @@ Kurzauftrag zum Kopieren ausgeben.
   geladen, nicht geprüft; gespeichert wird sie nicht.
 - **Mustermappe:** ihre erfundenen Werte dürfen nie einem Projektwert gleichen; trifft es zufällig, bleibt die Datei weg (Probe).
 - **Basic und Pro (Klaus 2026-10-29, Befund 11):** Browser/PWA = **„Projekt-Reiniger Basic“** (blauer Kristall); APK und Windows = **„Projekt-Reiniger Pro“**
-  (goldener Kristall `icons/kristall-pro-quelle.png`, Gold auf Dunkel über `data-ausgabe="pro"`). Eine Codebasis — app.js schaltet in der Hülle um.
+  (Symbol `icons/kristall-pro-icon-quelle.png`, Fläche/Startbild `icons/kristall-pro-quelle.png`; modern: Graphit, helles Blattgold, Lichtschein nur in `::before` — über `data-ausgabe="pro"`). Eine Codebasis — app.js schaltet in der Hülle um.
   Neben dem Namen die **Versionsnummer** `v` + `APP_FASSUNG` (APK `build.gradle` liest sie, Windows `tauri.conf.json` = `N.0.0`, Probe vergleicht);
   in Pro ist sie der Update-Knopf (vorerst Link zur Testfassung, später Klaus' Server).
 - **Kopf rechts nur Symbole** (Klaus 2026-10-29): ⓘ Auskunft, Darstellung (Bildschirm/Sonne/Mond), Aktualisieren, großes Schloss; Erklärung als `title`.
@@ -80,7 +80,7 @@ Kurzauftrag zum Kopieren ausgeben.
 ## Prüfen
 
 ```bash
-npm test             # 384 grün · 0 ROT (2026-10-29 Nacht, Befund 11, Fassung 12)
+npm test             # 384 grün · 0 ROT (2026-10-30, Befund 11, Fassung 13)
 npm run gegenprobe   # 93 Fälle; Stufe 7: 12 neue = 12 gefangen · 0 blind (SPDICHT fand einen echten Fehler); davor 12 + 32 gefangen
                      # (die übrigen 37 nicht neu gefahren; ein voller Lauf dauert hier ~2 h — einzeln: NUR_FALL=NAME)
 ```

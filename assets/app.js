@@ -858,7 +858,7 @@ for (const k of document.querySelectorAll("#reiter .reiter-knopf")) k.addEventLi
 /* ── Installieren und Aktualisieren (Klaus 2026-10-28) ─────────────────────
    Ablauf und Texte übernommen aus dem Auslieferungsprüfer (assets/installieren.js, dort seit 2026-09-30
    am Tablet getragen), hier mit Strich-Symbolen und ohne Inline-Stile (CSP). */
-export const APP_FASSUNG = "12";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
+export const APP_FASSUNG = "13";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
 let installEreignis = null;
 function alsApp() {
   try { return matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: window-controls-overlay)").matches || matchMedia("(display-mode: minimal-ui)").matches || navigator.standalone === true; }
