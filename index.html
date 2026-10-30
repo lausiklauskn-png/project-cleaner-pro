@@ -33,7 +33,7 @@
       <img src="icons/logo-96.png" width="40" height="40" alt="">
       <span class="name-lang">Projekt-Reiniger <span class="ausgabe" data-ausgabe>Basic</span></span><span class="name-kurz">Reiniger <span class="ausgabe" data-ausgabe>Basic</span></span>
     </a>
-    <span class="fassung" id="fassung" title="Versionsnummer">v13</span>
+    <span class="fassung" id="fassung" title="Versionsnummer">v14</span>
     <span class="luecke"></span>
     <button type="button" class="knopf hell nur-ikon" id="lokal" aria-label="Auskunft: alles bleibt auf diesem Gerät" title="Auskunft: alles bleibt auf diesem Gerät"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 11v6 M12 7.5v.5"/></svg></button>
     <button type="button" class="knopf hell nur-ikon" id="thema" aria-label="Darstellung wechseln" title="Darstellung wechseln"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12H3z M8 20h8 M12 16v4"/></svg></button>
@@ -51,19 +51,25 @@
       <div class="einwurf-text">
         <h1 id="einwurf-titel">Projekt einwerfen</h1>
         <p>ZIP, Ordner oder einzelne Dateien. Alles wird <strong>auf diesem Gerät</strong> gelesen: nichts geht ins Netz, nichts wird ausgeführt, nichts gespeichert.</p>
-        <div class="knoepfe">
-          <label class="knopf haupt-knopf" for="wahl-dateien"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v13H3z M3 7l2-4h14l2 4 M10 11h4"/></svg>ZIP oder Dateien einfügen</label>
-          <label class="knopf" for="wahl-ordner"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/></svg>Ordner einfügen</label>
-          <label class="knopf" for="wahl-tresor"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z M4 19v2 M20 19v2 M13 12a2 2 0 1 0-4 0a2 2 0 1 0 4 0z M13 12h3"/></svg>Tresor öffnen</label>
-          <button type="button" class="knopf" id="text-einfuegen"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v3H9z M7 5H5v16h14V5h-2 M8 12h8 M8 16h5"/></svg>Text einfügen</button>
-          <button type="button" class="knopf" id="beispiel"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6 M10 3v6l-5 9a1 1 0 0 0 1 2h12a1 1 0 0 0 1-2l-5-9V3 M7.5 14h9"/></svg>Beispielprojekt</button>
-          <button type="button" class="knopf" id="vorfuehren" title="Zeigt die ersten Handgriffe an der App selbst; ein Tipp beendet"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M10 8.5v7l6-3.5z"/></svg>So geht's</button>
-        </div>
         <input type="file" id="wahl-dateien" multiple hidden>
         <input type="file" id="wahl-ordner" webkitdirectory multiple hidden>
         <input type="file" id="wahl-tresor" hidden>
-        <p class="klein titel-zeile">Oder hierher ziehen oder einfügen (Strg+V). <button type="button" class="knopf info-knopf auf-dunkel" id="einwurf-info" aria-expanded="false" aria-controls="einwurf-erklaerung" aria-label="Erklärung: was sich einwerfen lässt" title="Erklärung"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 11v6 M12 7.5v.5"/></svg></button></p>
-        <p class="klein erklaerung" id="einwurf-erklaerung" hidden>Auch Apps (APK, JAR), TAR/GZ und gespeicherte Internetseiten (HTML mit Ordner). <code>node_modules</code> und Build-Ordner werden nicht gelesen. Eine Sperrliste (<code>reiniger-sperrliste.json</code>) wird geladen, nicht geprüft — sie sucht danach bei jeder Prüfung mit.</p>
+        <div class="einwurf-feld" id="einwurf-feld">
+          <label class="einwurf-feld-satz" for="einwurf-text"><span class="nur-maus">Hierher ziehen oder </span>hier einfügen (Strg+V)</label>
+          <textarea id="einwurf-text" rows="2" spellcheck="false" autocomplete="off" placeholder="Dateien, Ordner, Text, Code oder SVG …"></textarea>
+          <div class="einwurf-feld-fuss">
+            <label class="knopf haupt-knopf" for="wahl-dateien"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z M14 3v4h4 M12 11v6 M9 14l3-3 3 3"/></svg>Datei wählen</label>
+            <label class="knopf" for="wahl-ordner"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/></svg>Ordner wählen</label>
+            <button type="button" class="knopf haupt-knopf" id="einwurf-text-pruefen" hidden>Text prüfen</button>
+            <button type="button" class="knopf info-knopf auf-dunkel" id="einwurf-info" aria-expanded="false" aria-controls="einwurf-erklaerung" aria-label="Erklärung: was sich hineinladen lässt" title="Erklärung"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 11v6 M12 7.5v.5"/></svg></button>
+          </div>
+        </div>
+        <p class="klein erklaerung" id="einwurf-erklaerung" hidden>Hinein darf jede Datei: <strong>ZIP</strong> und andere Archive (TAR, GZ), <strong>Code</strong> und ganze Projektordner, <strong>Web-Apps (PWA)</strong> und gespeicherte Internetseiten (HTML mit Ordner), <strong>Android-Apps (APK)</strong> und JAR — diese werden geöffnet und Datei für Datei mitgeprüft. Dazu PDF, Bilder, Office, Mails, Text oder SVG. <strong>Windows-Programme (EXE, MSI)</strong> werden nicht in Code zurückverwandelt: nur ihre lesbaren Zeichenketten werden durchsucht, der Rest heißt „ungeprüft“. Nichts wird ausgeführt. <code>node_modules</code> und Build-Ordner werden nicht gelesen. Eine Sperrliste (<code>reiniger-sperrliste.json</code>) wird geladen, nicht geprüft — sie sucht danach bei jeder Prüfung mit.</p>
+        <div class="knoepfe">
+          <label class="knopf" for="wahl-tresor"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z M4 19v2 M20 19v2 M13 12a2 2 0 1 0-4 0a2 2 0 1 0 4 0z M13 12h3"/></svg>Tresor öffnen</label>
+          <button type="button" class="knopf" id="beispiel"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6 M10 3v6l-5 9a1 1 0 0 0 1 2h12a1 1 0 0 0 1-2l-5-9V3 M7.5 14h9"/></svg>Beispielprojekt</button>
+          <button type="button" class="knopf" id="vorfuehren" title="Zeigt die ersten Handgriffe an der App selbst; ein Tipp beendet"><svg class="ikon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M10 8.5v7l6-3.5z"/></svg>So geht's</button>
+        </div>
         <p class="klein" id="kern-fehlt" hidden></p>
         <p class="klein sperrliste-satz" id="sperrliste-satz" hidden></p>
       </div>

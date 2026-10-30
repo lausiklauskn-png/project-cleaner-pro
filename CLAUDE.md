@@ -6,7 +6,7 @@ oder nach GitHub gehen. Kein Build-Schritt. Der Plan steht im Brief:
 er ist die Quelle, diese Datei ist nur der Anker. Am Ende jeder Sitzung: Brief nachziehen und einen
 Kurzauftrag zum Kopieren ausgeben.
 
-## Stand: Stufen 1–7 + Befund 11 (Basic/Pro, Mikrofon), Fassung 13 (2026-10-30) · nächster Schritt: Klaus testet Fassung 13 (Basic + Pro-APK), dann Stufe 8 oder 9
+## Stand: Stufen 1–7 + Befund 11 (Basic/Pro, Mikrofon) + Befund 12 (Ablagefeld), Fassung 14 (2026-10-30) · nächster Schritt: Klaus testet Fassung 14 (Basic + Pro-APK), dann Stufe 8 oder 9
 
 | Datei | Rolle |
 |---|---|
@@ -50,7 +50,9 @@ Kurzauftrag zum Kopieren ausgeben.
 - **Hereinladen (Klaus 2026-10-29, Vorbild Auslieferungsprüfer):** Leiste oben im Arbeitsbildschirm („Dateien hereinladen“ /
   „Saubere Kopie herausladen“), Fenster `#import` mit Ablagefläche, Dateiwahl und Einfügen-Feld; Strg+V überall außer in Feldern.
   Ziehen nie als einziger Weg (Tablet). Im Arbeitsbildschirm ersetzt Ablegen nie still.
-- **Erste Seite (Klaus 2026-10-29, Befund 9):** Knöpfe sagen, was sie tun („ZIP oder Dateien einfügen“, „Ordner einfügen“). **„Neu“** steht
+- **Erste Seite (Klaus 2026-10-30, Befund 12):** ein sichtbares **Ablagefeld** (`#einwurf-feld`): ziehen, einfügen (Strg+V), darin **„Datei wählen“** und
+  **„Ordner wählen“** und ⓘ (ZIP, Code, PWA, APK; EXE nur Zeichenketten — ehrlich). Keine doppelten Wahl-Knöpfe darüber. Alles startet sofort die Prüfung
+  (Ergebnisseite). Darunter nur „Tresor öffnen“, „Beispielprojekt“, „So geht's“. **„Neu“** steht
   als erster Knopf **links** in der Arbeitsleiste, nicht im Kopf.
 - **Vorführung „So geht's“ (Klaus 2026-10-29):** kein Film — ein Finger bedient die **echte** App (Schritt 1–4, Beispielprojekt), liegt
   über genau dem App-Fenster (Vollbild wie geteilt), **ein Tipp oder Esc beendet sofort**, danach erste Seite. Nichts geht hinaus.
@@ -75,12 +77,12 @@ Kurzauftrag zum Kopieren ausgeben.
 - **Knöpfe erklären sich:** `title` und für das Tablet zusätzlich ⓘ („Was machen diese Knöpfe?“).
 - **Kontrast und Schrift (Klaus 2026-10-29):** jede Schrift ≥ 4,5 : 1 in Hell **und** Dunkel (Probe `tests/kontrast.mjs`),
   weiße Schrift nur auf dunklem Grund; keine Schrift über Schrift, keine doppelten Leerzeilen (Probe in `messen`).
-  Bildschirmfotos aller Zustände: `docs/bilder-stufe-4/`, `docs/bilder-stufe-5/`, `docs/bilder-stufe-6/`, `docs/bilder-stufe-7/`, `docs/bilder-befund-11/`.
+  Bildschirmfotos aller Zustände: `docs/bilder-stufe-4/`, `docs/bilder-stufe-5/`, `docs/bilder-stufe-6/`, `docs/bilder-stufe-7/`, `docs/bilder-befund-11/`, `docs/bilder-fassung-14/`.
 
 ## Prüfen
 
 ```bash
-npm test             # 384 grün · 0 ROT (2026-10-30, Befund 11, Fassung 13)
+npm test             # 387 grün · 0 ROT (2026-10-30, Befund 12, Fassung 14)
 npm run gegenprobe   # 93 Fälle; Stufe 7: 12 neue = 12 gefangen · 0 blind (SPDICHT fand einen echten Fehler); davor 12 + 32 gefangen
                      # (die übrigen 37 nicht neu gefahren; ein voller Lauf dauert hier ~2 h — einzeln: NUR_FALL=NAME)
 ```

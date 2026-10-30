@@ -1,16 +1,16 @@
 # Brief: Projekt-Reiniger Pro
 
-Stand 2026-10-30, **Stufen 1–7 gebaut**, Fassung 13, **Befund 11 eingearbeitet** (Abschnitte „Stufe 1/2/3/4/5/6/7 · gebaut“ unten). Die App reinigt:
+Stand 2026-10-30, **Stufen 1–7 gebaut**, Fassung 14, **Befund 11 und 12 eingearbeitet** (Abschnitte „Stufe 1/2/3/4/5/6/7 · gebaut“ unten). Die App reinigt:
 einwerfen oder **hereinladen** (Fenster: wählen, ablegen, einfügen) → Funde ansehen (antippen = Datei an der Stelle) → je Fund
 entscheiden (mit **Vorschau**, was aus der Zeile wird) → saubere Kopie als ZIP mit Stellenplan und Bericht → Nachprüfung →
 **herausladen** → auf Wunsch **Tresor** (verschlüsselte Datei mit Zuordnung und Originalen) → **Zurückbauen** (Stufe 6: die
 Platzhalter mit eigenen Werten füllen oder einzelne Stellen mit dem Original zurückholen). Die **Gäste-Sperre** im Kopf schließt
 die App sofort. PDF und Bilder werden neu gezeichnet, Word/Excel/PowerPoint als reiner Text neu gebaut, dazu die Mustermappe.
-Neu auf der ersten Seite: **„So geht's“** — eine Vorführung, in der ein Finger die echte App bedient (Schritt 1–4).
+Erste Seite (Fassung 14): ein sichtbares **Ablagefeld** (ziehen, einfügen, „Datei wählen“/„Ordner wählen“) statt vieler Knöpfe; dazu **„So geht's“** — eine Vorführung, in der ein Finger die echte App bedient (Schritt 1–4).
 Neu in Stufe 7: aus der Zuordnung eine **Sperrliste** herausladen (nur Fingerabdrücke, keine Werte) und den **Git-Wächter**
 einrichten, der jeden Commit und Push mit einem dieser Werte oder einer Tresor-Datei anhält — auch als GitHub-Prüfung.
 Klaus' Befunde zu Fassung 9 und 11 sind eingearbeitet (Fassung 10: „funktioniert gut“). **Basic** = Browser/PWA (blauer Kristall),
-**Pro** = APK und Windows (goldener Kristall, Gold auf Dunkel). Nächster Schritt: Klaus testet Fassung 13 (Basic im Browser, Pro als
+**Pro** = APK und Windows (goldener Kristall, Gold auf Dunkel). Nächster Schritt: Klaus testet Fassung 14 (Basic im Browser, Pro als
 APK aus der Testfassung) und gibt den Befund in den Auftrag; danach Stufe 8 (APK/Windows fertig: eigener Schlüssel, Update über
 Klaus' Server, Mikrofon unter Windows) oder Stufe 9 (Familienakte). Der Brief lebt **hier** im Repo
 `project-cleaner-pro`; die Fassung im Sende-Prüfer ist eingefroren und zeigt hierher.
@@ -753,6 +753,20 @@ Fassung 10/11: *„Funktioniert gut.“*
   Bilder: `docs/bilder-befund-11/`. Gegenproben B11PRO, B11GOOGLE, B11KNOPF: 3 gefangen · 0 blind.
 - ⚠ Nicht gemessen: Mikrofon am echten Tablet (Browser und APK), das Sprachfenster auf Klaus' Gerät (offline?), der Link aus der APK,
   der Windows-Befehl (nur gebaut auf GitHub, nicht gestartet).
+
+- **Befund 12 (Klaus 2026-10-30, Fassung 14) — Ablagefeld auf der ersten Seite:** *„unten steht ‚hierher ziehen oder einfügen (Strg+V)‘ — da gibt es
+  kein Feld … der Text verspricht etwas, das er nicht einhält“* und *„Datei wählen und Ordner wählen wäre einfacher, in das Feld … und ein ⓘ, dass man
+  auch ZIPs, Code, Programme (PWA, Windows-Apps) reinladen kann … sonst sind die vielen Knöpfe irreführend … dann muss die zweite Seite aufgehen“* →
+  gestrichelte **Ablagefläche** `#einwurf-feld` direkt unter dem Text: Satz „Hierher ziehen oder hier einfügen (Strg+V)“ (Tablet: ohne „ziehen“),
+  ein Einfügefeld, darin **„Datei wählen“** (Hauptknopf) und **„Ordner wählen“** und das **ⓘ**. Die Knöpfe „ZIP oder Dateien einfügen“, „Ordner einfügen“
+  und „Text einfügen“ sind weg; darunter bleiben nur „Tresor öffnen“, „Beispielprojekt“, „So geht's“. Ziehen aufs Feld, Einfügen (Datei, Text, SVG)
+  und Wählen starten **sofort** die Prüfung — die Ergebnisseite geht auf. Getippter Text wird erst mit „Text prüfen“ (oder Strg+Enter) geprüft.
+  Gezogener Text (ohne Datei) wird jetzt auch eine Datei. Das ⓘ sagt ehrlich: ZIP/TAR/GZ, APK, JAR, PWA und Projektordner werden geöffnet und Datei
+  für Datei geprüft; **EXE/MSI werden nicht in Code zurückverwandelt** — nur ihre lesbaren Zeichenketten, der Rest „ungeprüft“. Warum zwei Wahl-Knöpfe:
+  der Browser lässt in einem Auswahlfenster nur Dateien **oder** einen Ordner zu.
+- **Proben:** `npm test` 387 grün · 0 ROT (+3: Feld mit beiden Wahl-Knöpfen und ⓘ, ⓘ-Text, Einfügen → Ergebnisseite, Ziehen aufs Feld → Ergebnisseite;
+  die alte Knopf-Probe ersetzt). Gegenproben NAMEN (neu verankert) und FELDEINFUEGEN: 2 gefangen · 0 blind. Bilder: `docs/bilder-fassung-14/`.
+- ⚠ Nicht gemessen: Ziehen mit echter Maus und Einfügen einer kopierten Datei am echten Gerät (die Probe schickt die Ereignisse selbst), Tablet-Einfügen per langem Tippen.
 
 ## Grenzen (vorab benannt)
 

@@ -139,7 +139,11 @@ addEventListener("drop", async (e) => {
   e.preventDefault(); ziehZaehler = 0; $("#ziehen").hidden = true;
   if (laeuft || gesperrt || vorfuehrung) return;
   const items = Array.from(e.dataTransfer.items || []).map((i) => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
-  if (!items.length) { abgelegt(ausDateiListe(e.dataTransfer.files || [])); return; }
+  if (!items.length) {
+    const dateien = ausDateiListe(e.dataTransfer.files || []);
+    const d = dateien.length ? null : textAlsDatei(e.dataTransfer.getData("text/plain"));
+    abgelegt(d ? [d] : dateien); return;
+  }
   const liste = [];
   const lies = (ordner) => new Promise((ok) => { const r = ordner.createReader(), alle = []; const weiter = () => r.readEntries((t) => { if (!t.length) ok(alle); else { alle.push(...t); weiter(); } }, () => ok(alle)); weiter(); });
   async function gehe(eintrag, pfad) {
@@ -858,7 +862,7 @@ for (const k of document.querySelectorAll("#reiter .reiter-knopf")) k.addEventLi
 /* ── Installieren und Aktualisieren (Klaus 2026-10-28) ─────────────────────
    Ablauf und Texte übernommen aus dem Auslieferungsprüfer (assets/installieren.js, dort seit 2026-09-30
    am Tablet getragen), hier mit Strich-Symbolen und ohne Inline-Stile (CSP). */
-export const APP_FASSUNG = "13";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
+export const APP_FASSUNG = "14";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
 let installEreignis = null;
 function alsApp() {
   try { return matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: window-controls-overlay)").matches || matchMedia("(display-mode: minimal-ui)").matches || navigator.standalone === true; }
@@ -1253,7 +1257,6 @@ async function importPruefen() {
   return starte([...alte, ...neu], { behalten: true, quelle: { ikon: quelle.ikon, name: quelle.name.replace(/ \+ \d+ Dateie?n?$/, "") + " + " + anzahl(neu.length, "Datei", "Dateien") } });
 }
 $("#hereinladen").addEventListener("click", () => importOeffnen("datei"));
-$("#text-einfuegen").addEventListener("click", () => importOeffnen("text"));
 $("#import-zu").addEventListener("click", importZu);
 $("#import").addEventListener("click", (e) => { if (e.target === $("#import")) importZu(); });
 $("#import-reiter-datei").addEventListener("click", () => importReiter("datei"));
@@ -1269,6 +1272,36 @@ $("#import-leeren").addEventListener("click", () => { importListe.length = 0; $(
 const ablageFlaeche = $("#import-ablage");
 for (const n of ["dragenter", "dragover"]) ablageFlaeche.addEventListener(n, () => ablageFlaeche.classList.add("drueber"));
 for (const n of ["dragleave", "drop"]) ablageFlaeche.addEventListener(n, () => ablageFlaeche.classList.remove("drueber"));
+
+/* Ablagefeld der ersten Seite: Ziehen läuft über das Ablegen oben (sofort prüfen); Einfügen hier prüft sofort (die Ergebnisseite geht auf),
+   Getipptes erst mit „Text prüfen“. Dateien aus der Zwischenablage gehen wie gezogene. */
+const einwurfFeld = $("#einwurf-feld"), einwurfText = $("#einwurf-text");
+for (const n of ["dragenter", "dragover"]) einwurfFeld.addEventListener(n, () => einwurfFeld.classList.add("drueber"));
+for (const n of ["dragleave", "drop"]) einwurfFeld.addEventListener(n, () => einwurfFeld.classList.remove("drueber"));
+function einwurfTextPruefen() {
+  const d = textAlsDatei(einwurfText.value);
+  if (!d) { einwurfText.focus(); return; }
+  einwurfText.value = ""; $("#einwurf-text-pruefen").hidden = true;
+  starte([d]);
+}
+einwurfText.addEventListener("input", () => { $("#einwurf-text-pruefen").hidden = !einwurfText.value.trim(); });
+einwurfText.addEventListener("paste", (e) => {
+  if (gesperrt || laeuft || vorfuehrung) return;
+  const cd = e.clipboardData;
+  if (!cd) return;
+  const dateien = Array.from(cd.files || []).map((f) => {
+    const endung = ((f.type || "").split("/")[1] || "bin").replace("jpeg", "jpg").replace("svg+xml", "svg").replace(/[^\w]+/g, "");
+    const name = f.name && !/^image\.\w+$/i.test(f.name) ? f.name : "eingefuegt-" + (++eingefuegtNr) + "." + endung;
+    return { pfad: name, groesse: f.size, lesen: async () => new Uint8Array(await f.arrayBuffer()) };
+  });
+  e.preventDefault();
+  if (dateien.length) { einwurfText.value = ""; return starte(dateien); }
+  const svg = Array.from(cd.types || []).includes("image/svg+xml") ? cd.getData("image/svg+xml") : "";
+  const d = textAlsDatei(svg || cd.getData("text/plain"), svg ? "eingefuegt-" + (++eingefuegtNr) + ".svg" : "");
+  if (d) { einwurfText.value = ""; $("#einwurf-text-pruefen").hidden = true; starte([d]); }
+});
+einwurfText.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); einwurfTextPruefen(); } });
+$("#einwurf-text-pruefen").addEventListener("click", einwurfTextPruefen);
 
 /* Einfügen (Strg+V, am Tablet „Einfügen“): Dateien und Bilder aus der Zwischenablage, sonst Text/SVG als Datei.
    In einem Eingabefeld bleibt Einfügen, was es ist. */
@@ -1355,7 +1388,7 @@ async function vorfuehren() {
   for (const x of [".kopf", "#haupt"]) { const e = $(x); if (e) e.inert = true; }
   requestAnimationFrame(folgen);
   try {
-    vfSatz(1, "Projekt einwerfen — ZIP, Dateien oder Ordner.");
+    vfSatz(1, "Projekt hineinladen — hierher ziehen, einfügen oder Datei/Ordner wählen.");
     await tippe($('label[for="wahl-dateien"]'));
     vfSatz(1, "Hier: das erfundene Beispielprojekt.");
     await starte(await beispielProjekt());
