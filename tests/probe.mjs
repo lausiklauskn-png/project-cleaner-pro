@@ -49,8 +49,8 @@ export const PINS = {
 console.log("A · ohne Browser");
 for (const [p, s] of Object.entries(PINS)) ok("Pin " + p, existsSync(join(WURZEL, p)) && sha(p) === s, "neu kopieren, nicht abwandeln");
 
-ok("Icons sind aus der aktuellen Quelle gebaut — Basic (blau) und Pro (gold) (sonst: node tools/icons-bauen.mjs)",
-  lies("icons/quelle.sha256").trim() === sha("icons/kristall-quelle.png") + "\n" + sha("icons/kristall-pro-quelle.png"), "veraltet");
+ok("Icons sind aus der aktuellen Quelle gebaut — Basic (blau), Pro-Fläche und Pro-Symbol (gold) (sonst: node tools/icons-bauen.mjs)",
+  lies("icons/quelle.sha256").trim() === sha("icons/kristall-quelle.png") + "\n" + sha("icons/kristall-pro-quelle.png") + "\n" + sha("icons/kristall-pro-icon-quelle.png"), "veraltet");
 for (const p of ["icon-192.png", "icon-512.png", "maskable-512.png", "apple-touch-icon.png", "favicon-32.png", "favicon-48.png", "logo-96.png", "kristall.webp", "logo-pro-96.png", "kristall-pro.webp", "kristall-pro-gross.webp"])
   ok("Icon da: " + p, existsSync(join(WURZEL, "icons", p)));
 function pngGroesse(p) { const b = readFileSync(join(WURZEL, p)); return [b.readUInt32BE(16), b.readUInt32BE(20)]; }
@@ -1426,7 +1426,7 @@ await seite.setViewportSize({ width: 1280, height: 800 });
   ok("Pro: „Projekt-Reiniger Pro“, goldener Kristall (Logo und erste Seite), Gold auf Dunkel im Kopf", await s9.evaluate(() =>
     document.documentElement.dataset.ausgabe === "pro" && /Projekt-Reiniger Pro/.test(document.querySelector(".marke").textContent) && document.title === "Projekt-Reiniger Pro" &&
     /logo-pro-96\.png$/.test(document.querySelector(".marke img").src) && /kristall-pro\.webp$/.test(document.querySelector(".einwurf .kristall").currentSrc || document.querySelector(".einwurf .kristall").src) &&
-    !!document.querySelector("#installieren") && /2b2110|43, 33, 16/.test(getComputedStyle(document.querySelector(".kopf")).backgroundImage)));
+    !!document.querySelector("#installieren") && /217, 170, 69/.test(getComputedStyle(document.querySelector(".kopf"), "::before").backgroundImage)));
   for (const t of ["hell", "dunkel"]) { await s9.evaluate((t) => { document.documentElement.dataset.thema = t; }, t); const f = await s9.evaluate(kontrast); ok("Kontrast Pro, erste Seite (" + t + ")", f.length === 0, f.slice(0, 3).join(" | ")); }
   await s9.evaluate(() => { delete document.documentElement.dataset.thema; });
   await s9.click("#fassung");

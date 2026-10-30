@@ -1,6 +1,6 @@
 # Brief: Projekt-Reiniger Pro
 
-Stand 2026-10-29 (Nacht), **Stufen 1–7 gebaut**, Fassung 12, **Befund 11 eingearbeitet** (Abschnitte „Stufe 1/2/3/4/5/6/7 · gebaut“ unten). Die App reinigt:
+Stand 2026-10-30, **Stufen 1–7 gebaut**, Fassung 13, **Befund 11 eingearbeitet** (Abschnitte „Stufe 1/2/3/4/5/6/7 · gebaut“ unten). Die App reinigt:
 einwerfen oder **hereinladen** (Fenster: wählen, ablegen, einfügen) → Funde ansehen (antippen = Datei an der Stelle) → je Fund
 entscheiden (mit **Vorschau**, was aus der Zeile wird) → saubere Kopie als ZIP mit Stellenplan und Bericht → Nachprüfung →
 **herausladen** → auf Wunsch **Tresor** (verschlüsselte Datei mit Zuordnung und Originalen) → **Zurückbauen** (Stufe 6: die
@@ -10,7 +10,7 @@ Neu auf der ersten Seite: **„So geht's“** — eine Vorführung, in der ein F
 Neu in Stufe 7: aus der Zuordnung eine **Sperrliste** herausladen (nur Fingerabdrücke, keine Werte) und den **Git-Wächter**
 einrichten, der jeden Commit und Push mit einem dieser Werte oder einer Tresor-Datei anhält — auch als GitHub-Prüfung.
 Klaus' Befunde zu Fassung 9 und 11 sind eingearbeitet (Fassung 10: „funktioniert gut“). **Basic** = Browser/PWA (blauer Kristall),
-**Pro** = APK und Windows (goldener Kristall, Gold auf Dunkel). Nächster Schritt: Klaus testet Fassung 12 (Basic im Browser, Pro als
+**Pro** = APK und Windows (goldener Kristall, Gold auf Dunkel). Nächster Schritt: Klaus testet Fassung 13 (Basic im Browser, Pro als
 APK aus der Testfassung) und gibt den Befund in den Auftrag; danach Stufe 8 (APK/Windows fertig: eigener Schlüssel, Update über
 Klaus' Server, Mikrofon unter Windows) oder Stufe 9 (Familienakte). Der Brief lebt **hier** im Repo
 `project-cleaner-pro`; die Fassung im Sende-Prüfer ist eingefroren und zeigt hierher.
@@ -744,6 +744,10 @@ Fassung 10/11: *„Funktioniert gut.“*
 | *„Aktualisieren: nur das Zeichen. Sperren: nur das Schloss, groß genug. Farbmodi: Sonne und Mond.“* | Kopf rechts nur Symbole: ⓘ, Darstellung (Bildschirm = wie das Gerät, Sonne = hell, Mond = dunkel), Aktualisieren (Pfeile), **großes offenes Schloss** (28 px). Erklärung jeweils beim Darüberfahren. „Installieren“ behält sein Wort (nicht genannt). |
 | Bild: goldener Kristall — *„das soll auch die Hauptfarbgebung für das Pro-Programm werden, ab APK aufwärts, Windows.“* | `icons/kristall-pro-quelle.png`; `tools/icons-bauen.mjs` baut daraus Android-Symbole, Startbild und Windows-Symbol, dazu `logo-pro-96.png` und `kristall-pro*.webp`. In der Hülle: `data-ausgabe="pro"` → Kopf und erste Seite Gold auf Dunkel, Hauptknöpfe und Titel goldbraun; Kontrast hell/dunkel gemessen. Basic bleibt blau. |
 
+- **Nachtrag (Klaus 2026-10-30, Fassung 13):** neues **Pro-Symbol** (goldener Kristall freigestellt, `icons/kristall-pro-icon-quelle.png`) für
+  Android-Symbol, Windows-Symbol und Logo im Kopf; das erste Pro-Bild bleibt die große Fläche und das Startbild. Farben: *„nicht so dunkelbraun …
+  mit weißen Lichtschatten … nicht wie die 70er, moderner“* → **Graphit** statt Braun, **helles Blattgold** als Akzent (Hauptknöpfe mit dunkler
+  Schrift, Goldlinie unter dem Kopf), weicher weißer/goldener Lichtschein in einer eigenen Ebene unter der Schrift (Kontrast bleibt gemessen).
 - **Proben:** `npm test` 384 grün · 0 ROT (+24: Basic/Pro-Namen, Versionsnummer in APK/Windows/Seite, Windows-Befehl, Android-Mikrofon ohne Mikrofon-Recht,
   Kopf nur Symbole, Schlossgröße, Mikrofon im Browser (Start, Text, Stopp, verweigert), Knopf-Erklärungen, Pro-Hülle: Name, Gold, Kontrast, Versions-Knopf, Sprachfenster).
   Bilder: `docs/bilder-befund-11/`. Gegenproben B11PRO, B11GOOGLE, B11KNOPF: 3 gefangen · 0 blind.
