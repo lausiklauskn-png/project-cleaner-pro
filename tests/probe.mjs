@@ -1178,7 +1178,14 @@ await seite.setViewportSize({ width: 1280, height: 800 });
       document.querySelectorAll('label[for="wahl-ordner"]').length === 1 && feld.contains(document.querySelector('label[for="wahl-ordner"]')) && t('label[for="wahl-ordner"]') === "Ordner wählen" &&
       t('label[for="wahl-tresor"]') === "Tresor öffnen" && !document.querySelector("#text-einfuegen") && feld.contains(document.querySelector("#einwurf-info"));
   }));
-  ok("Erste Seite: ⓘ am Feld nennt ZIP, Code, PWA, APK und ehrlich, dass EXE nicht in Code zurückverwandelt wird", await s5.evaluate(() => {
+  ok("Erste Seite: die Erklärtexte stehen hinter „?“ — zu Beginn zu, „?“ öffnet (mit „auf diesem Gerät … nichts geht ins Netz“), ✕ schließt wieder", await s5.evaluate(() => {
+    const h = document.querySelector("#einwurf-erklaerung"), q = document.querySelector("#einwurf-info");
+    const zuAnfang = h.hidden && h.offsetHeight === 0 && !/nichts geht ins Netz/.test(document.querySelector(".einwurf-text").innerText);
+    q.click(); const auf = !h.hidden && h.offsetHeight > 0 && q.getAttribute("aria-expanded") === "true" && /auf diesem Gerät/.test(h.textContent) && /nichts geht ins Netz/.test(h.textContent);
+    document.querySelector("#einwurf-hilfe-zu").click(); const zu = h.hidden && q.getAttribute("aria-expanded") === "false";
+    return zuAnfang && auf && zu;
+  }));
+  ok("Erste Seite: „?“ am Feld nennt ZIP, Code, PWA, APK und ehrlich, dass EXE nicht in Code zurückverwandelt wird", await s5.evaluate(() => {
     const e = document.querySelector("#einwurf-erklaerung").textContent;
     return /ZIP/.test(e) && /Code/.test(e) && /PWA/.test(e) && /APK/.test(e) && /EXE/.test(e) && /nicht in Code zurückverwandelt/.test(e) && /ungeprüft/.test(e);
   }));

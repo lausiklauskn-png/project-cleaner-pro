@@ -862,7 +862,7 @@ for (const k of document.querySelectorAll("#reiter .reiter-knopf")) k.addEventLi
 /* ── Installieren und Aktualisieren (Klaus 2026-10-28) ─────────────────────
    Ablauf und Texte übernommen aus dem Auslieferungsprüfer (assets/installieren.js, dort seit 2026-09-30
    am Tablet getragen), hier mit Strich-Symbolen und ohne Inline-Stile (CSP). */
-export const APP_FASSUNG = "14";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
+export const APP_FASSUNG = "15";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
 let installEreignis = null;
 function alsApp() {
   try { return matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: window-controls-overlay)").matches || matchMedia("(display-mode: minimal-ui)").matches || navigator.standalone === true; }
@@ -871,7 +871,10 @@ function alsApp() {
 /* Meldung in Absätzen (Leerzeile im Text = neuer Absatz), nie als Text mit doppelten Zeilenumbrüchen. */
 function melde(text) { $("#meldung-text").replaceChildren(...String(text).split(/\n\s*\n/).map((t) => el("p", { text: t.trim() }))); $("#meldung").hidden = false; }
 $("#lokal").addEventListener("click", () => melde("Projekt-Reiniger " + AUSGABE + ", Fassung " + APP_FASSUNG + ". Alles bleibt auf diesem Gerät. Nichts geht ins Netz, nichts wird ausgeführt, nichts gespeichert." + (DIKTAT_NETZ ? " Einzige Ausnahme: das Mikrofon im Suchfeld — im Browser hört dafür der Sprachdienst des Browsers zu (bei Chrome: Google)." : "") + "\n\nDas Original wird nie verändert. Die saubere Kopie geht nur als Download hinaus."));
-$("#einwurf-info").addEventListener("click", () => { const p = $("#einwurf-erklaerung"); p.hidden = !p.hidden; $("#einwurf-info").setAttribute("aria-expanded", String(!p.hidden)); });
+/* Hilfe der ersten Seite hinter „?“ (Klaus 2026-10-30): zu Beginn zu, mit „?“ oder ✕ wieder weg */
+function einwurfHilfe(auf) { $("#einwurf-erklaerung").hidden = !auf; $("#einwurf-info").setAttribute("aria-expanded", String(auf)); }
+$("#einwurf-info").addEventListener("click", () => einwurfHilfe($("#einwurf-erklaerung").hidden));
+$("#einwurf-hilfe-zu").addEventListener("click", () => { einwurfHilfe(false); $("#einwurf-info").focus(); });
 $("#meldung-zu").addEventListener("click", () => { $("#meldung").hidden = true; });
 function installKnopf() { const k = $("#installieren"); k.hidden = alsApp() || !!HUELLE; k.dataset.lage = alsApp() ? "app" : installEreignis ? "angeboten" : "nicht-angeboten"; }
 addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEreignis = e; installKnopf(); });
