@@ -1170,10 +1170,44 @@ await seite.setViewportSize({ width: 1280, height: 800 });
   s5.on("pageerror", (e) => konsole.push(String(e)));
   let downloads = 0; s5.on("download", () => downloads++);
   await s5.goto(BASIS + "?ohne-sw");
-  ok("Erste Seite: „ZIP oder Dateien einfügen“, „Ordner einfügen“, „Tresor öffnen“, „Text einfügen“ — jeder Knopf sagt, was er tut", await s5.evaluate(() => {
+  ok("Erste Seite (Klaus 2026-10-30): ein sichtbares Feld zum Hineinziehen und Einfügen, darin „Datei wählen“ und „Ordner wählen“ — keine doppelten Knöpfe darüber", await s5.evaluate(() => {
     const t = (sel) => document.querySelector(sel).textContent.trim();
-    return t('label[for="wahl-dateien"]') === "ZIP oder Dateien einfügen" && t('label[for="wahl-ordner"]') === "Ordner einfügen" && t('label[for="wahl-tresor"]') === "Tresor öffnen" && t("#text-einfuegen") === "Text einfügen";
+    const feld = document.querySelector("#einwurf-feld");
+    return !!feld && !!feld.querySelector("textarea#einwurf-text") && /einfügen \(Strg\+V\)/.test(feld.textContent) &&
+      document.querySelectorAll('label[for="wahl-dateien"]').length === 1 && feld.contains(document.querySelector('label[for="wahl-dateien"]')) && t('label[for="wahl-dateien"]') === "Datei wählen" &&
+      document.querySelectorAll('label[for="wahl-ordner"]').length === 1 && feld.contains(document.querySelector('label[for="wahl-ordner"]')) && t('label[for="wahl-ordner"]') === "Ordner wählen" &&
+      t('label[for="wahl-tresor"]') === "Tresor öffnen" && !document.querySelector("#text-einfuegen") && feld.contains(document.querySelector("#einwurf-info"));
   }));
+  ok("Erste Seite: die Erklärtexte stehen hinter „?“ — zu Beginn zu, „?“ öffnet (mit „auf diesem Gerät … nichts geht ins Netz“), ✕ schließt wieder", await s5.evaluate(() => {
+    const h = document.querySelector("#einwurf-erklaerung"), q = document.querySelector("#einwurf-info");
+    const zuAnfang = h.hidden && h.offsetHeight === 0 && !/nichts geht ins Netz/.test(document.querySelector(".einwurf-text").innerText);
+    q.click(); const auf = !h.hidden && h.offsetHeight > 0 && q.getAttribute("aria-expanded") === "true" && /auf diesem Gerät/.test(h.textContent) && /nichts geht ins Netz/.test(h.textContent);
+    document.querySelector("#einwurf-hilfe-zu").click(); const zu = h.hidden && q.getAttribute("aria-expanded") === "false";
+    return zuAnfang && auf && zu;
+  }));
+  ok("Erste Seite: „?“ am Feld nennt ZIP, Code, PWA, APK und ehrlich, dass EXE nicht in Code zurückverwandelt wird", await s5.evaluate(() => {
+    const e = document.querySelector("#einwurf-erklaerung").textContent;
+    return /ZIP/.test(e) && /Code/.test(e) && /PWA/.test(e) && /APK/.test(e) && /EXE/.test(e) && /nicht in Code zurückverwandelt/.test(e) && /ungeprüft/.test(e);
+  }));
+  await s5.evaluate(() => {
+    const dt = new DataTransfer(); dt.setData("text/plain", "Kontakt: erika.mustermann@example.org\n");
+    document.querySelector("#einwurf-text").dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  await s5.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden && !document.querySelector("#arbeit").hidden, null, { timeout: 30000 }).catch(() => {});
+  ok("Feld: eingefügter Text wird sofort geprüft — die Ergebnisseite geht auf und zeigt, was gescannt wurde", await s5.evaluate(() =>
+    document.querySelector("#einwurf").hidden && /erika\.mustermann/.test(document.querySelector("#befunde").textContent) && document.querySelector("#einwurf-text").value === ""));
+  if (!(await s5.isHidden("#arbeit"))) await s5.click("#neu"); await s5.waitForFunction(() => !document.querySelector("#einwurf").hidden);
+  await s5.evaluate(() => {
+    const dt = new DataTransfer(); dt.items.add(new File(["Gebaut auf desktop 7qk2m9x von erika.mustermann@example.org\n"], "notiz.txt", { type: "text/plain" }));
+    const f = document.querySelector("#einwurf-feld");
+    f.dispatchEvent(new DragEvent("dragenter", { dataTransfer: dt, bubbles: true, cancelable: true }));
+    f.dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));
+  });
+  await s5.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden && !document.querySelector("#arbeit").hidden, null, { timeout: 30000 }).catch(() => {});
+  ok("Feld: eine aufs Feld gezogene Datei wird sofort geprüft — Ergebnisseite mit ihren Funden", await s5.evaluate(() =>
+    document.querySelector("#einwurf").hidden && /notiz\.txt/.test(document.querySelector("#arbeit").textContent) && !document.querySelector("#einwurf-feld").classList.contains("drueber")));
+  if (!(await s5.isHidden("#arbeit"))) await s5.click("#neu");
+  await s5.waitForFunction(() => !document.querySelector("#einwurf").hidden);
   ok("„Neu“ steht nicht mehr im Kopf, sondern als erster Knopf links in der Arbeitsleiste", await s5.evaluate(() =>
     !document.querySelector(".kopf #neu") && document.querySelector("#ein-aus").firstElementChild === document.querySelector("#neu")));
   await s5.click("#beispiel"); await s5.waitForFunction(() => window.__reiniger.ergebnis() && document.querySelector("#fortschritt").hidden && document.querySelector(".buendel"), null, { timeout: 30000 });

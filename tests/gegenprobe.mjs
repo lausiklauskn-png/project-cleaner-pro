@@ -84,7 +84,9 @@ const FAELLE = [
   ["ABLEGEN", "assets/app.js", "  if ($(\"#arbeit\").hidden && $(\"#import\").hidden) return starte(liste);", "  return starte(liste);", /Ablegen im Arbeitsbildschirm/],
   ["DAZU", "assets/app.js", "  return starte([...alte, ...neu], {", "  return starte([...neu], {", /Dazugenommen/],
   /* Befund Klaus zu Fassung 9 (2026-10-29): Knöpfe mit Tätigkeit, „Neu“ links, Vorführung */
-  ["NAMEN", "index.html", "</svg>Ordner einfügen</label>", "</svg>Ordner</label>", /jeder Knopf sagt, was er tut/],
+  ["NAMEN", "index.html", "for=\"wahl-ordner\"><svg class=\"ikon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 6h6l2 2h10v11H3z\"/></svg>Ordner wählen", "for=\"wahl-ordner\"><svg class=\"ikon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 6h6l2 2h10v11H3z\"/></svg>Ordner", /ein sichtbares Feld/],
+  /* Ablagefeld der ersten Seite (Klaus 2026-10-30) */
+  ["FELDEINFUEGEN", "assets/app.js", "  if (d) { einwurfText.value = \"\"; $(\"#einwurf-text-pruefen\").hidden = true; starte([d]); }", "", /eingefügter Text wird sofort geprüft/],
   ["NEULINKS", "assets/app.css", ".ein-aus { display: flex;", ".ein-aus { flex-direction: row-reverse; display: flex;", /„Neu“ links neben/],
   ["VFTIPP", "assets/app.js", "$(\"#vorfuehrung\").addEventListener(\"pointerdown\", (e) => { e.preventDefault(); vorfuehrungEnde(); });", "", /ein Tipp beendet/],
   ["VFFOLGEN", "assets/app.js", "  const folgen = () => { if (v.aus) return; vfFingerSetzen(false); requestAnimationFrame(folgen); };", "  const folgen = () => {};", /Finger steht auf dem Knopf|kommt er mit/],

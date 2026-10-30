@@ -89,6 +89,21 @@ code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-si
 .einwurf .klein { font-size: .88rem; color: #b8cfe3; }
 .einwurf code { color: #fff; }
 .knoepfe { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+/* Ablagefeld auf der ersten Seite (Klaus 2026-10-30): hier ziehen, einfügen oder wählen — ohne erst ein Fenster zu öffnen */
+.einwurf-feld {
+  display: grid; gap: 8px; width: min(100%, 620px); min-width: 0; padding: 12px; margin-top: 4px;
+  border: 2px dashed rgb(255 255 255 / .45); border-radius: 14px; background: rgb(0 20 40 / .3);
+}
+.einwurf-feld.drueber { border-color: #fff; background: rgb(0 20 40 / .55); }
+.einwurf-feld-satz { font-weight: 600; color: #fff; font-size: 1rem; }
+.einwurf-feld textarea {
+  width: 100%; min-width: 0; min-height: 3.2em; resize: vertical; box-sizing: border-box; padding: 8px 10px;
+  font: inherit; font-size: .92rem; color: #fff; background: rgb(0 15 30 / .55);
+  border: 1px solid rgb(255 255 255 / .35); border-radius: 10px;
+}
+.einwurf-feld textarea::placeholder { color: #b8cfe3; opacity: 1; }
+.einwurf-feld textarea:focus { outline: 2px solid #fff; outline-offset: 1px; }
+.einwurf-feld-fuss { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; }
 
 /* Handy quer: Bild links, Text rechts */
 @media (orientation: landscape) and (max-height: 560px) {
@@ -304,6 +319,10 @@ mark { background: #ffe08a; color: #1d1d1d; border-radius: 3px; padding: 0 1px; 
 .einwurf .titel-zeile { justify-content: center; }
 .erklaerung { margin: 4px 0 10px; padding: 8px 10px; border-radius: 8px; background: var(--flaeche2); border: 1px solid var(--linie); color: var(--schrift); font-size: .86rem; overflow-wrap: anywhere; }
 .einwurf .erklaerung { background: rgb(0 20 40 / .35); border-color: rgb(255 255 255 / .3); color: #dbe9f5; }
+.einwurf-hilfe { display: grid; gap: 6px; width: min(100%, 620px); text-align: left; margin: 0; }
+.einwurf-hilfe[hidden] { display: none; }
+.einwurf-hilfe p { margin: 0; }
+.einwurf-hilfe-kopf { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #fff; }
 .reinigen .titel-zeile > p { font-size: .92rem; }
 /* Handy: im Kopf nur Logo und Symbole — der Sperr-Knopf muss immer Platz haben (Stufe 5). */
 @media (max-width: 420px) { .marke span { display: none; } }
@@ -465,6 +484,10 @@ button.fassung { min-height: 32px; padding: 2px 10px; border-radius: 99px; borde
 :root[data-ausgabe="pro"] .einwurf { position: relative; isolation: isolate; }
 :root[data-ausgabe="pro"] .einwurf::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background: radial-gradient(45% 35% at 50% 30%, rgb(255 236 190 / .20), rgb(255 236 190 / 0) 70%), radial-gradient(90% 70% at 50% 35%, rgb(217 170 69 / .18), rgb(217 170 69 / 0) 75%); }
+:root[data-ausgabe="pro"] .einwurf-feld { border-color: rgb(240 205 122 / .5); background: rgb(20 21 25 / .5); }
+:root[data-ausgabe="pro"] .einwurf-feld.drueber { border-color: #f0cd7a; }
+:root[data-ausgabe="pro"] .einwurf-feld textarea { background: rgb(12 12 15 / .6); border-color: rgb(240 205 122 / .35); }
+:root[data-ausgabe="pro"] .einwurf-feld textarea::placeholder { color: #e2d3b0; }
 :root[data-ausgabe="pro"] .einwurf .erklaerung { background: rgb(20 21 25 / .6); border-color: rgb(240 205 122 / .4); color: #f5ead2; }
 /* Hauptknöpfe in Pro: helles Blattgold mit dunkler Schrift und Lichtkante oben */
 :root[data-ausgabe="pro"] .haupt-knopf { position: relative; isolation: isolate; color: #1c1406; border-color: #c8952e; box-shadow: 0 1px 3px rgb(0 0 0 / .25); }
