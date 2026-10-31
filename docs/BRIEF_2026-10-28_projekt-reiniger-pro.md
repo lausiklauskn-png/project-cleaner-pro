@@ -1,6 +1,6 @@
 # Brief: Projekt-Reiniger Pro
 
-Stand 2026-10-30, **Stufen 1–7 gebaut**, Fassung 15, **Befund 11 und 12 eingearbeitet** (Abschnitte „Stufe 1/2/3/4/5/6/7 · gebaut“ unten). Die App reinigt:
+Stand 2026-10-30, **Stufen 1–7 gebaut**, Fassung 16, **Befund 11 und 12 eingearbeitet** (Abschnitte „Stufe 1/2/3/4/5/6/7 · gebaut“ unten). Die App reinigt:
 einwerfen oder **hereinladen** (Fenster: wählen, ablegen, einfügen) → Funde ansehen (antippen = Datei an der Stelle) → je Fund
 entscheiden (mit **Vorschau**, was aus der Zeile wird) → saubere Kopie als ZIP mit Stellenplan und Bericht → Nachprüfung →
 **herausladen** → auf Wunsch **Tresor** (verschlüsselte Datei mit Zuordnung und Originalen) → **Zurückbauen** (Stufe 6: die
@@ -10,7 +10,7 @@ Erste Seite (Fassung 14): ein sichtbares **Ablagefeld** (ziehen, einfügen, „D
 Neu in Stufe 7: aus der Zuordnung eine **Sperrliste** herausladen (nur Fingerabdrücke, keine Werte) und den **Git-Wächter**
 einrichten, der jeden Commit und Push mit einem dieser Werte oder einer Tresor-Datei anhält — auch als GitHub-Prüfung.
 Klaus' Befunde zu Fassung 9 und 11 sind eingearbeitet (Fassung 10: „funktioniert gut“). **Basic** = Browser/PWA (blauer Kristall),
-**Pro** = APK und Windows (goldener Kristall, Gold auf Dunkel). Nächster Schritt: Klaus testet Fassung 15 (Basic im Browser, Pro als
+**Pro** = APK und Windows (goldener Kristall, Gold auf Dunkel). Nächster Schritt: Abschluss [`BRIEF_ABSCHLUSS_2026-10-31_befund-12.md`](BRIEF_ABSCHLUSS_2026-10-31_befund-12.md) lesen; Klaus testet Fassung 16 (Basic im Browser, Pro als
 APK aus der Testfassung) und gibt den Befund in den Auftrag; danach Stufe 8 (APK/Windows fertig: eigener Schlüssel, Update über
 Klaus' Server, Mikrofon unter Windows) oder Stufe 9 (Familienakte). Der Brief lebt **hier** im Repo
 `project-cleaner-pro`; die Fassung im Sende-Prüfer ist eingefroren und zeigt hierher.
@@ -765,10 +765,17 @@ Fassung 10/11: *„Funktioniert gut.“*
   für Datei geprüft; **EXE/MSI werden nicht in Code zurückverwandelt** — nur ihre lesbaren Zeichenketten, der Rest „ungeprüft“. Warum zwei Wahl-Knöpfe:
   der Browser lässt in einem Auswahlfenster nur Dateien **oder** einen Ordner zu.
 - **Proben:** `npm test` 387 grün · 0 ROT (+3: Feld mit beiden Wahl-Knöpfen und ⓘ, ⓘ-Text, Einfügen → Ergebnisseite, Ziehen aufs Feld → Ergebnisseite;
-  die alte Knopf-Probe ersetzt). Gegenproben NAMEN (neu verankert) und FELDEINFUEGEN: 2 gefangen · 0 blind. Bilder: `docs/bilder-fassung-15/`.
+  die alte Knopf-Probe ersetzt). Gegenproben NAMEN (neu verankert) und FELDEINFUEGEN: 2 gefangen · 0 blind. Bilder: `docs/bilder-fassung-16/`.
 - **Nachtrag (Klaus 2026-10-30, Fassung 15):** *„die Texte unten, die erklären, was eingefügt werden kann und wie es funktioniert … zu einem
   Fragezeichen, sodass man das wegklicken kann“* → der Satz unter „Projekt einwerfen“ und die ⓘ-Erklärung stehen zusammen hinter einem **„?“** im Feld
   (Kasten „Hilfe“: wie es geht, „auf diesem Gerät … nichts geht ins Netz“, was hinein darf); zu Beginn zu, „?“ oder ✕ schließt. `npm test` 388 grün · 0 ROT.
+- **Klaus' Gegenprobe zu Fassung 15 (2026-10-31, Tablet):** 1 v15 ✓ · 2 Feld ✓ · 3 „?“ auf/zu ✓ · 4 Datei wählen ✓ · 5 Ordner wählen ✓ ·
+  6 Text einfügen — später (Klaus überlegt den Mail-Import) · 7 Ziehen am PC — später (beim Freund) · 8–11 (APK/Windows/Geschenk) noch offen.
+  Befund dazu: *„es steht immer 00 in der Mitte“* (das Wort „nullnull“ über „Dateien, die nicht Stelle für Stelle …“) → behoben.
+  *Suche: „einfach die Lupe hin … die gefundenen Worte müssen angezeigt werden … Plus scrollt automatisch zum nächsten“* → Lupe statt Wort,
+  Treffer markiert, „Treffer N von M“, „+“/„−“ springt, Gruppen gehen auf. *„Beim Generieren sehe ich keinen Ladebalken“* → Ladebalken beim Bauen.
+  *„beim Sprechen … Graph oder Wellenmuster“* → Wellenmuster, Hinweis kürzer (Google bleibt genannt). Tablet: „Hier einfügen (lange tippen → Einfügen)“.
+  Fassung 16, `npm test` 393 grün · 0 ROT; Gegenproben NULLWORT, TREFFERSPRUNG.
 - ⚠ Nicht gemessen: Ziehen mit echter Maus und Einfügen einer kopierten Datei am echten Gerät (die Probe schickt die Ereignisse selbst), Tablet-Einfügen per langem Tippen.
 
 ## Grenzen (vorab benannt)
