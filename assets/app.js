@@ -106,6 +106,7 @@ const wahl = {};                 // buendelSchluessel → { weg, wert }
 const dateiWahl = {};            // Pfad → neu | muster | weg | original (Dateien, die nicht Stelle für Stelle gereinigt werden)
 let mappeBeilegen = false;       // Mustermappe in die saubere Kopie legen
 const begriffe = [];             // selbst eingetragene Namen, die die Suche nicht erkannt hat
+const ausnahmen = [];            // „Nicht ersetzen“: Wörter, die nie als Fund gelten (Müller-Thurgau ist Wein, kein Name)
 let sperrliste = null;           // Stufe 7: geladene Sperrliste (nur Fingerabdrücke) — sucht beim Prüfen mit, nur im Speicher
 
 /* pdf.js aus dem eigenen Ordner (nicht im Vorrat des Workers). */
@@ -197,10 +198,10 @@ async function starte(liste, opt = {}) {
     if (!opt.behalten) {
       for (const k of Object.keys(wahl)) delete wahl[k];
       for (const k of Object.keys(dateiWahl)) delete dateiWahl[k];
-      mappeBeilegen = false; begriffe.length = 0; texterkennung = false;
+      mappeBeilegen = false; begriffe.length = 0; ausnahmen.length = 0; texterkennung = false;
       if (window.PrueferAnhang) window.PrueferAnhang.pfade({ tesseract: null });
     }
-    ergebnis = await Kern.pruefe(ein.dateien, { begriffe, texterkennung, sperrliste,
+    ergebnis = await Kern.pruefe(ein.dateien, { begriffe, ausnahmen, texterkennung, sperrliste,
       fortschritt: (nr, gesamt, pfad) => { $("#fortschritt-text").textContent = "Lese " + nr + " von " + gesamt + ": " + pfad; const b = $("#fortschritt-balken"); b.max = gesamt; b.value = nr; },
     });
     ergebnis.hinweise.unshift(...ein.hinweise);
@@ -217,7 +218,7 @@ async function nochmal() {
   if (laeuft) return;
   laeuft = true; gereinigt = null;
   const fs = $("#fortschritt"); fs.hidden = false;
-  try { ergebnis = await Kern.pruefe(eingeworfen, { begriffe, texterkennung, sperrliste, fortschritt: (nr, g, p) => { $("#fortschritt-text").textContent = "Lese " + nr + " von " + g + ": " + p; const b = $("#fortschritt-balken"); b.max = g || 1; b.value = nr; } }); }
+  try { ergebnis = await Kern.pruefe(eingeworfen, { begriffe, ausnahmen, texterkennung, sperrliste, fortschritt: (nr, g, p) => { $("#fortschritt-text").textContent = "Lese " + nr + " von " + g + ": " + p; const b = $("#fortschritt-balken"); b.max = g || 1; b.value = nr; } }); }
   finally { fs.hidden = true; laeuft = false; }
   zeigen();
 }
@@ -318,6 +319,18 @@ function werkzeugLeiste() {
     x.addEventListener("click", () => { begriffe.splice(begriffe.indexOf(w), 1); nochmal(); });
     return x;
   });
+  /* „Nicht ersetzen“ (Klaus 2026-10-31): was hier steht, wird nie Fund, nie ersetzt, und die Nachprüfung lässt es in Ruhe. */
+  const ausFeld = el("input", { type: "text", id: "ausnahme", placeholder: "Nicht ersetzen, z. B. Müller-Thurgau …", "aria-label": "Wort, das nie ersetzt werden soll" });
+  const ausDazu = el("button", { type: "button", class: "knopf klein-knopf nur-ikon", id: "ausnahme-dazu", "aria-label": "Nicht ersetzen", title: "Nicht ersetzen: dieses Wort bleibt überall stehen" }, ikon("plus"));
+  const ausNimm = () => { const w = ausFeld.value.trim(); if (w.length < 2 || ausnahmen.some((x) => x.toLowerCase() === w.toLowerCase())) return; ausnahmen.push(w); nochmal(); };
+  ausDazu.addEventListener("click", ausNimm);
+  ausFeld.addEventListener("keydown", (e) => { if (e.key === "Enter") ausNimm(); });
+  const [ausIk, ausErkl] = info("Ein eingetragener Name trifft nur das ganze Wort — „Müller“ also nicht „Müller-Thurgau“ oder „Müller-Lüdenscheidt“. Findet die Suche ein Wort trotzdem (etwa einen Namen, der auch ein Wein, Ort oder eine Firma ist), trag es hier ein: Es wird nie Fund, nie ersetzt, und die Nachprüfung lässt es stehen.", "Nicht ersetzen");
+  const ausChips = ausnahmen.map((w) => {
+    const x = el("button", { type: "button", class: "chip begriff", "data-ausnahme": w, title: "wieder ersetzen lassen" }, w, ikon("weg"));
+    x.addEventListener("click", () => { ausnahmen.splice(ausnahmen.indexOf(w), 1); nochmal(); });
+    return x;
+  });
   /* Texterkennung (Tesseract, 21 MB im eigenen Ordner) nur auf Knopfdruck — sie dauert je Bild bis zu 90 s. */
   const bilder = ergebnis.inventur.filter((e) => e.marken.some((m) => m.kennung === "FOTO" || m.kennung === "PDF")).length;
   let ocr = null;
@@ -329,7 +342,9 @@ function werkzeugLeiste() {
     el("div", { class: "knoepfe" }, auf, zu, ocr),
     el("div", { class: "begriff-zeile" }, feld, diktatKnopf(feld), dazu, diktatHinweis()),
     trefferLeiste(),
-    chips.length ? el("div", { class: "zeile2" }, el("span", { class: "satz", text: "Selbst eingetragen:" }), ...chips) : null);
+    chips.length ? el("div", { class: "zeile2" }, el("span", { class: "satz", text: "Selbst eingetragen:" }), ...chips) : null,
+    el("div", { class: "begriff-zeile" }, ausFeld, ausDazu, ausIk), ausErkl,
+    ausChips.length ? el("div", { class: "zeile2" }, el("span", { class: "satz", text: "Nicht ersetzen:" }), ...ausChips) : null);
 }
 
 /* ── Treffer der eigenen Suche (Klaus 2026-10-31): die gesuchten Wörter in den Funden markieren, mit „+“ / „−“
@@ -817,7 +832,7 @@ async function reinigen() {
   knopf.disabled = true; aus.replaceChildren(lade("Reinige und prüfe nach …"));
   try {
     gereinigt = await Kern.saubereKopie(eingeworfen, { ergebnis, wahl, dateiWahl: Object.assign({}, dateiWahl), mustermappe: mappeBeilegen },
-      { begriffe, texterkennung, sperrliste, fortschritt: (nr, _g, pfad) => { aus.replaceChildren(lade("Zeichne neu (" + nr + "): " + pfad)); } });
+      { begriffe, ausnahmen, texterkennung, sperrliste, fortschritt: (nr, _g, pfad) => { aus.replaceChildren(lade("Zeichne neu (" + nr + "): " + pfad)); } });
   } catch (e) {
     aus.replaceChildren(warnZeile({ class: "offen" }, "Reinigen brach ab (" + (e && e.message || e) + "). Es gibt keine saubere Kopie."));
     knopf.disabled = false; return;
@@ -921,7 +936,7 @@ for (const k of document.querySelectorAll("#reiter .reiter-knopf")) k.addEventLi
 /* ── Installieren und Aktualisieren (Klaus 2026-10-28) ─────────────────────
    Ablauf und Texte übernommen aus dem Auslieferungsprüfer (assets/installieren.js, dort seit 2026-09-30
    am Tablet getragen), hier mit Strich-Symbolen und ohne Inline-Stile (CSP). */
-export const APP_FASSUNG = "16";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
+export const APP_FASSUNG = "17";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
 let installEreignis = null;
 function alsApp() {
   try { return matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: window-controls-overlay)").matches || matchMedia("(display-mode: minimal-ui)").matches || navigator.standalone === true; }
@@ -1192,7 +1207,7 @@ async function zuschliessen() {
   ergebnis = null; gereinigt = null; eingeworfen = []; textCache.clear();
   for (const k of Object.keys(wahl)) delete wahl[k];
   for (const k of Object.keys(dateiWahl)) delete dateiWahl[k];
-  begriffe.length = 0;
+  begriffe.length = 0; ausnahmen.length = 0;
   $("#arbeit").hidden = true; $("#einwurf").hidden = false; $("#neu").hidden = true;
   /* 3. Verschlüsseln (nur im Speicher), Code vergessen. */
   const code = sperrCode; sperrCode = null;

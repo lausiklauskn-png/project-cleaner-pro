@@ -414,6 +414,21 @@ function hartInText(M25, pfad, text, melde, quelle) {
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const WZ = "A-Za-zÀ-ÖØ-öø-ÿĀ-ž0-9_";                     // Zeichen, die zu einem Wort gehören
 const VOR = "(?<![" + WZ + "])", NACH = "(?![" + WZ + "])";
+/* Selbst eingetragene Namen (Klaus 2026-10-31: „Müller“ ist nicht „Müller-Thurgau“): ein Bindestrich mit Wortzeichen dahinter
+   oder davor gehört zum Wort — „Müller“ trifft weder „Müller-Thurgau“ noch „Müller-Lüdenscheidt“ noch „Hans-Müller“. */
+const NAME_VOR = "(?<![" + WZ + "]|[" + WZ + "]-)", NAME_NACH = "(?![" + WZ + "]|-[" + WZ + "])";
+/* „Nicht ersetzen“ (Ausnahmen): Stellen, an denen nie etwas gefunden, ersetzt oder in der Nachprüfung beanstandet wird.
+   Ganze Wörter, ohne Groß/klein, Bindestrich gehört dazu. Gibt [von, bis]-Paare zurück. */
+export function ausnahmeStellen(text, ausnahmen) {
+  const liste = (ausnahmen || []).map((a) => String(a).trim()).filter((a) => a.length >= 2);
+  if (!liste.length) return [];
+  const wz = new RegExp("[" + WZ + "]");
+  const re = new RegExp(liste.sort((a, b) => b.length - a.length).map((a) => (wz.test(a[0]) ? NAME_VOR : "") + esc(a).replace(/\s+/g, "\\s+") + (wz.test(a[a.length - 1]) ? NAME_NACH : "")).join("|"), "giu");
+  const aus = []; let m;
+  while ((m = re.exec(text))) { aus.push([m.index, m.index + m[0].length]); if (!m[0].length) re.lastIndex++; }
+  return aus;
+}
+const inAusnahme = (stellen, von, bis) => stellen.some(([a, b]) => von < b && bis > a);
 const oder = (liste) => Array.from(new Set(liste)).sort((a, b) => b.length - a.length).map(esc).join("|");
 const gross1 = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const istMuster = (s) => /(^|[\s\-/\\])muster/i.test(s);
@@ -589,26 +604,28 @@ export function gefuehlt(text, optionen = {}) {
 }
 
 /* Selbst eingetragene Namen und Begriffe (was die Suche nicht erkennt): überall, ohne Groß/klein. */
-function begriffeIn(text, begriffe) {
+function begriffeIn(text, begriffe, ausnahmen, imPfad) {
+  const vor = imPfad ? VOR : NAME_VOR, nach = imPfad ? NACH : NAME_NACH;   // im Datei-/Ordnernamen trennt der Bindestrich
   const aus = [];
+  const schutz = ausnahmeStellen(text, ausnahmen);
   for (const b of begriffe || []) {
     const w = String(b).trim();
     if (w.length < 2) continue;
-    const re = new RegExp((/[A-Za-zÀ-ÖØ-öø-ÿĀ-ž0-9_]/.test(w[0]) ? VOR : "") + esc(w).replace(/\s+/g, "\\s+") + (/[A-Za-zÀ-ÖØ-öø-ÿĀ-ž0-9_]/.test(w[w.length - 1]) ? NACH : ""), "giu");
-    let m; while ((m = re.exec(text))) aus.push({ art: "BEGRIFF", wert: m[0], index: m.index, satz: "Selbst eingetragen — die Suche hatte es nicht erkannt." });
+    const re = new RegExp((/[A-Za-zÀ-ÖØ-öø-ÿĀ-ž0-9_]/.test(w[0]) ? vor : "") + esc(w).replace(/\s+/g, "\\s+") + (/[A-Za-zÀ-ÖØ-öø-ÿĀ-ž0-9_]/.test(w[w.length - 1]) ? nach : ""), "giu");
+    let m; while ((m = re.exec(text))) { if (inAusnahme(schutz, m.index, m.index + m[0].length)) continue; aus.push({ art: "BEGRIFF", wert: m[0], index: m.index, satz: "Selbst eingetragen — die Suche hatte es nicht erkannt." }); }
   }
   return aus;
 }
 
-function gefuehltInTextMit(pfad, text, melde, quelle, begriffe) {
-  for (const f of begriffeIn(text, begriffe)) melde({ schicht: "hart", art: "BEGRIFF", wert: f.wert, pfad, zeile: quelle ? undefined : zeileVon(text, f.index), stelle: quelle, satz: f.satz });
+function gefuehltInTextMit(pfad, text, melde, quelle, begriffe, ausnahmen) {
+  for (const f of begriffeIn(text, begriffe, ausnahmen)) melde({ schicht: "hart", art: "BEGRIFF", wert: f.wert, pfad, zeile: quelle ? undefined : zeileVon(text, f.index), stelle: quelle, satz: f.satz });
   for (const f of gefuehlt(text)) {
     melde({ schicht: "gefuehlt", art: f.art, wert: f.wert, pfad, zeile: quelle ? undefined : zeileVon(text, f.index), stelle: quelle, satz: f.satz, vorschlag: f.vorschlag });
   }
 }
 
 /* Datei- und Ordnernamen: „fotos/Hamburg-2019/Lena.jpg“ verrät auch etwas. Jeder Ordner nur einmal. */
-function gefuehltImPfad(pfad, gesehen, melde, begriffe) {
+function gefuehltImPfad(pfad, gesehen, melde, begriffe, ausnahmen) {
   const teile = pfad.split("/");
   for (let i = 0; i < teile.length; i++) {
     const ordner = teile.slice(0, i + 1).join("/");
@@ -616,7 +633,7 @@ function gefuehltImPfad(pfad, gesehen, melde, begriffe) {
     gesehen.add(ordner);
     const ohneEndung = i === teile.length - 1 ? teile[i].replace(/\.[A-Za-z0-9]{1,10}$/, "") : teile[i];
     const lesbar = ohneEndung.replace(/[_]+/g, " ");
-    for (const f of [...begriffeIn(lesbar, begriffe), ...gefuehlt(lesbar, { modus: "pfad" })]) {
+    for (const f of [...begriffeIn(lesbar, begriffe, ausnahmen, true), ...gefuehlt(lesbar, { modus: "pfad" })]) {
       if (f.art === "ORDNERPFAD") continue;
       melde({ schicht: f.art === "BEGRIFF" ? "hart" : "gefuehlt", art: f.art, wert: f.wert, pfad, stelle: i === teile.length - 1 ? "im Dateinamen" : "im Ordnernamen „" + ordner + "/“",
         satz: f.satz, vorschlag: f.vorschlag });
@@ -650,6 +667,7 @@ export async function pruefe(dateien, optionen = {}) {
   const M25 = w.SbkimPseudonym, PA = w.PrueferAnhang, PM = w.PrueferMail;
   const fortschritt = optionen.fortschritt || (() => {});
   const begriffe = (optionen.begriffe || []).map(String).filter((b) => b.trim().length >= 2);
+  const ausnahmen = (optionen.ausnahmen || []).map(String).map((a) => a.trim()).filter((a) => a.length >= 2);
   /* Stufe 7: die Sperrliste sucht überall mit, wo die gefühlten Metadaten suchen (Text, PDF, Office, .git, Zeichenketten). */
   const sperr = optionen.sperrliste ? sperrlisteLesen(optionen.sperrliste) : null;
   const sperrInText = (pfad, text, melde, quelle) => {
@@ -658,7 +676,7 @@ export async function pruefe(dateien, optionen = {}) {
     for (const tr of sperrTreffer(text, sperr)) melde({ schicht: "hart", art: "GESPERRT", wert: tr.wert, pfad, zeile: zeile ? zeile(tr.index) : undefined, stelle: quelle,
       satz: "Steht auf deiner Sperrliste (der Fingerabdruck stimmt) — ein bekannter fremder Wert." });
   };
-  const gefuehltInText = (pfad, text, melde, quelle) => { gefuehltInTextMit(pfad, text, melde, quelle, begriffe); sperrInText(pfad, text, melde, quelle); };
+  const gefuehltInText = (pfad, text, melde, quelle) => { gefuehltInTextMit(pfad, text, melde, quelle, begriffe, ausnahmen); sperrInText(pfad, text, melde, quelle); };
   const inventur = [], befunde = [], hinweise = [];
   if (optionen.sperrliste && !sperr) hinweise.push("Die Sperrliste ist beschädigt oder aus einer neueren Fassung — sie wurde NICHT benutzt.");
   if (!M25 || typeof M25.find !== "function")
@@ -690,7 +708,7 @@ export async function pruefe(dateien, optionen = {}) {
     if (d.imArchiv) eintrag.imArchiv = d.imArchiv;
     const melde = (b) => { befunde.push(b); eintrag.befunde++; };
     const imGit = /(^|\/)\.git\//.test(d.pfad);
-    if (!imGit) gefuehltImPfad(d.pfad, pfadeGesehen, melde, begriffe);
+    if (!imGit) gefuehltImPfad(d.pfad, pfadeGesehen, melde, begriffe, ausnahmen);
     if (!imGit && sperr) for (const tr of sperrTreffer(d.pfad.replace(/_/g, " "), sperr)) melde({ schicht: "hart", art: "GESPERRT", wert: d.pfad.slice(tr.index, tr.ende), pfad: d.pfad, stelle: "im Datei- oder Ordnernamen",
       satz: "Steht auf deiner Sperrliste (der Fingerabdruck stimmt) — ein bekannter fremder Wert." });
     if (d.unlesbar) { eintrag.ungeprueft = d.unlesbar; Object.assign(eintrag, einordnen(d.pfad, "")); continue; }
@@ -845,6 +863,16 @@ export async function pruefe(dateien, optionen = {}) {
       const e = inventur.find((x) => x.pfad === b.pfad); if (e) e.befunde--;
     }
   }
+  /* „Nicht ersetzen“: ein Fund, dessen Wert genau eine Ausnahme ist, fällt weg (gleich welche Suche ihn fand). */
+  if (ausnahmen.length) {
+    const aus = new Set(ausnahmen.map((a) => a.toLowerCase()));
+    for (let i = befunde.length - 1; i >= 0; i--) {
+      const b = befunde[i];
+      if (!aus.has(String(b.wert).trim().toLowerCase())) continue;
+      befunde.splice(i, 1);
+      const e = inventur.find((x) => x.pfad === b.pfad); if (e) e.befunde--;
+    }
+  }
   if (gitPakete) hinweise.push(gitPakete + " Git-Paket-Datei(en) nicht ausgepackt — die Geschichte darin ist ungeprüft. Die saubere Kopie bekommt ohnehin kein .git.");
   if (archivZuviel) hinweise.push(archivZuviel + " Datei(en) in Archiven über dem Deckel (" + ARCHIV_DATEIEN_MAX + " Dateien / " + (ARCHIV_SUMME_MAX >> 20) + " MB) nicht geöffnet — ungeprüft.");
   if (gitObjekteZuviel) hinweise.push(gitObjekteZuviel + " Git-Objekte über dem Deckel (" + GIT_OBJEKTE_MAX + ") nicht geöffnet — ungeprüft.");
@@ -857,7 +885,7 @@ export async function pruefe(dateien, optionen = {}) {
     ungeprueft: inventur.filter((e) => e.ungeprueft).length,
     befunde: befunde.length,
   };
-  return { inventur, befunde, buendel: buendeln(befunde), hinweise, zahlen };
+  return { inventur, befunde, buendel: buendeln(befunde), hinweise, zahlen, ausnahmen };
 }
 
 /** Gleiche Funde bündeln: „Hamburg, 14×“. */
@@ -1061,26 +1089,51 @@ function ersatzFuer(p, pfad, imPfad, doku) {
 
 /* Ein Suchmuster über alle Werte, längste zuerst; Wortgrenzen nur dort, wo der Wert mit einem Wortzeichen beginnt/endet. */
 function ersetzeAlles(text, posten, pfad, imPfad, doku) {
+  /* „Nicht ersetzen“: Ausnahme-Stellen bleiben wörtlich stehen; ersetzt wird nur dazwischen (Klaus 2026-10-31). */
+  const schutz = posten.ausnahmen && posten.ausnahmen.length ? ausnahmeStellen(text, posten.ausnahmen) : [];
+  if (schutz.length) {
+    const teile = [], stellen = []; let ab = 0;
+    const zeileGanz = imPfad ? null : zeilenFinder(text);
+    const stueck = (von, bis) => {
+      const r = ersetzeAllesOhne(text.slice(von, bis), posten, pfad, imPfad, doku);
+      for (const st of r.stellen) stellen.push(Object.assign(st, { zeile: zeileGanz && st.pos != null ? zeileGanz(von + st.pos) : st.zeile }));
+      teile.push(r.text);
+    };
+    for (const [a, b] of schutz) { if (a < ab) continue; stueck(ab, a); teile.push(text.slice(a, b)); ab = b; }
+    stueck(ab, text.length);
+    for (const st of stellen) delete st.pos;
+    return { text: teile.join(""), stellen };
+  }
+  const r = ersetzeAllesOhne(text, posten, pfad, imPfad, doku);
+  for (const st of r.stellen) delete st.pos;
+  return r;
+}
+function ersetzeAllesOhne(text, posten, pfad, imPfad, doku) {
   const wz = imPfad ? "A-Za-zÀ-ÖØ-öø-ÿĀ-ž0-9" : WZ;
   const tabelle = new Map();
   for (const p of posten) {
     const ersatz = ersatzFuer(p, pfad, imPfad, doku);
     if (ersatz == null) continue;
     for (const v of p.werte) {
-      if (!tabelle.has(v)) tabelle.set(v, { p, ersatz });
+      if (!tabelle.has(v)) tabelle.set(v, { p, ersatz, nurName: p.art === "BEGRIFF" });
+      else if (p.art !== "BEGRIFF") tabelle.get(v).nurName = false;   // fand es auch eine andere Suche, gilt die strenge Grenze
       if (v.includes("\\")) { const d = v.replace(/\\/g, "\\\\"); if (!tabelle.has(d)) tabelle.set(d, { p, ersatz: ersatz.replace(/\\/g, "\\\\") }); }
     }
   }
   if (!tabelle.size) return { text, stellen: [] };
   const wortZ = new RegExp("[" + wz + "]");
-  const teile = Array.from(tabelle.keys()).sort((a, b) => b.length - a.length).map((v) =>
-    (wortZ.test(v[0]) ? "(?<![" + wz + "])" : "") + esc(v) + (wortZ.test(v[v.length - 1]) ? "(?![" + wz + "])" : ""));
+  /* Selbst eingetragene Namen: der Bindestrich gehört zum Wort (wie bei der Suche) — sonst würde „Müller-Thurgau“ zu „⟦NAME-1⟧-Thurgau“. */
+  const teile = Array.from(tabelle.keys()).sort((a, b) => b.length - a.length).map((v) => {
+    const name = !imPfad && tabelle.get(v).nurName;
+    const vor = name ? "(?<![" + wz + "]|[" + wz + "]-)" : "(?<![" + wz + "])", nach = name ? "(?![" + wz + "]|-[" + wz + "])" : "(?![" + wz + "])";
+    return (wortZ.test(v[0]) ? vor : "") + esc(v) + (wortZ.test(v[v.length - 1]) ? nach : "");
+  });
   const re = new RegExp(teile.join("|"), "g");
   const zeile = imPfad ? null : zeilenFinder(text);
   const stellen = [];
   const neu = text.replace(re, (treffer, pos) => {
     const t = tabelle.get(treffer);
-    stellen.push({ zeile: zeile ? zeile(pos) : undefined, art: t.p.art, artName: t.p.artName, weg: t.p.weg, ersatz: t.ersatz, schluessel: t.p.schluessel });
+    stellen.push({ zeile: zeile ? zeile(pos) : undefined, pos, art: t.p.art, artName: t.p.artName, weg: t.p.weg, ersatz: t.ersatz, schluessel: t.p.schluessel });
     return t.ersatz;
   });
   return { text: neu, stellen };
@@ -1104,6 +1157,7 @@ export async function reinige(dateien, entscheidungen, optionen = {}) {
   const neuGezeichnet = [], musterErsetzt = [];
   const belegt = new Set();
   const posten = ersetzungen(ergebnis, wahl);
+  posten.ausnahmen = ergebnis.ausnahmen || [];
   /* Zeilen, die ganz weg sollen (auffällige Funde mit Wahl „zeile“): Pfad → Map(Zeile → Art) */
   const zeilenWeg = new Map();
   for (const b of ergebnis.buendel) {
@@ -1261,7 +1315,8 @@ export function berichtText(bericht, nach) {
 export async function nachpruefe(gereinigt, optionen = {}) {
   const { sauber, posten } = gereinigt;
   const mappe = new Set(sauber.filter((d) => d.mappe).map((d) => d.pfad));
-  const r = await pruefe(sauber.map((d) => ({ pfad: d.pfad, bytes: d.bytes })), optionen);
+  const ausnahmen = (posten && posten.ausnahmen) || [];
+  const r = await pruefe(sauber.map((d) => ({ pfad: d.pfad, bytes: d.bytes })), Object.assign({}, optionen, { ausnahmen }));
   const ersatz = new Set(), behaltenWerte = new Set();
   for (const p of posten) {
     ersatz.add(p.marke.toLowerCase()); ersatz.add(p.muster.toLowerCase()); ersatz.add(p.markePfad.toLowerCase());
@@ -1283,14 +1338,17 @@ export async function nachpruefe(gereinigt, optionen = {}) {
   const alle = [...sauber];
   if (optionen.zusatz) alle.push(...optionen.zusatz);
   for (const d of alle) {
-    const text = D.decode(d.bytes) + "\n" + d.pfad;
+    let text = D.decode(d.bytes) + "\n" + d.pfad;
+    /* Ausnahme-Stellen („Müller-Thurgau“) sind gewollt — sie zählen nicht als stehengebliebener Originalwert. */
+    for (const [a, b] of ausnahmeStellen(text, ausnahmen).reverse()) text = text.slice(0, a) + " ".repeat(b - a) + text.slice(b);
     for (const p of posten) {
       if (p.weg === "behalten") continue;
       for (const v of p.werte) {
         if (p.weg === "eigen" && String(p.eigen).includes(v)) continue;
         if (ersatz.has(v.toLowerCase())) continue;
         const wortZ = /[A-Za-zÀ-ÖØ-öø-ÿĀ-ž0-9_]/;
-        const re = new RegExp((wortZ.test(v[0]) ? "(?<![" + WZ + "])" : "") + esc(v) + (wortZ.test(v[v.length - 1]) ? "(?![" + WZ + "])" : ""));
+        const name = p.art === "BEGRIFF" && !posten.some((q) => q.art !== "BEGRIFF" && q.weg !== "behalten" && q.werte.includes(v));
+        const re = new RegExp((wortZ.test(v[0]) ? (name ? NAME_VOR : "(?<![" + WZ + "])") : "") + esc(v) + (wortZ.test(v[v.length - 1]) ? (name ? NAME_NACH : "(?![" + WZ + "])") : ""));
         if (re.test(text)) originalTreffer.push({ pfad: d.pfad, art: p.art, artName: p.artName });
       }
     }

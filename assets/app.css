@@ -238,6 +238,7 @@ details.gruppe > p { margin-top: 4px; }
 .werkzeuge .knoepfe { justify-content: flex-start; }
 .klein-knopf { min-height: 38px; padding: 6px 12px; font-size: .9rem; }
 .begriff-zeile { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.begriff-zeile > .info-knopf { align-self: center; }
 #begriff { flex: 1 1 14em; min-width: 0; max-width: 100%; font: inherit; font-size: .92rem; min-height: 38px; padding: 6px 10px; border: 1px solid var(--linie); border-radius: 8px; background: var(--papier); color: var(--schrift); }
 .chip.begriff { cursor: pointer; font: inherit; font-size: .82rem; }
 .stelle-knopf { display: block; width: 100%; text-align: left; font: inherit; font-size: .88rem; color: var(--titel2); background: none; border: 0; padding: 2px 0; cursor: pointer; overflow-wrap: anywhere; white-space: normal; text-decoration: underline; text-underline-offset: 2px; }
