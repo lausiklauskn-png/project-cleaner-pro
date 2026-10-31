@@ -88,7 +88,7 @@ und Klaus' eigene Zeit (Diktat, Test am Gerät) liegt außerhalb.
 | 2026-10-30 | ≈ 12:30–13:46 | ≈ 1 h 15 min | project-cleaner-pro | Befund 12: Ablagefeld, Knöpfe aufgeräumt, Proben, PR #17 (Fassung 14) |
 | 2026-10-30/31 | ≈ 23:00–00:30 | ≈ 1 h 30 min | project-cleaner-pro | Hilfe hinter „?“ (Fassung 15), Merge #17, Testfassung 15, Geschenk-HTML, Abhakliste, Klaus' Gegenprobe → Fassung 16 (Suche mit Treffern, Ladebalken, Wellenmuster, „nullnull“), Abschluss |
 
-| 2026-10-31 | ≈ 11:50–12:40 | ≈ 50 min | project-cleaner-pro | Prüfsumme aus der Geschenk-Seite, Müller/Müller-Thurgau geprüft, Fassung 17 („Nicht ersetzen“), kurze Geschenk-Seite |
+| 2026-10-31 | ≈ 10:50–12:00 | ≈ 1 h 10 min | project-cleaner-pro | Prüfsumme aus der Geschenk-Seite, Müller/Müller-Thurgau geprüft, Fassung 17 („Nicht ersetzen“), kurze Geschenk-Seite |
 
 Bereits in früheren Abschlüssen eingetragen (nicht doppelt zählen): 2026-10-28/29 23:37–00:55 (Stufe 4, Testfassungen) und
 2026-10-29 06:31–07:40 (Stufe 5, Hereinladen).
