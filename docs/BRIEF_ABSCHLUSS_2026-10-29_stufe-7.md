@@ -2,7 +2,7 @@
 
 Auftrag: Klaus' Befund zu Fassung 10 einarbeiten, danach Stufe 7. **Ein Befund zu Fassung 10 lag nicht vor** — nicht im Auftrag, kein
 Issue, kein PR-Kommentar, nichts im Brief. Er ist im Brief als offen vermerkt; gebaut wurde Stufe 7. Plan und Stand:
-[Brief](BRIEF_2026-10-28_projekt-reiniger-pro.md), Abschnitt „Stufe 7 · gebaut“. Funde und Lehren: [Forschung](FORSCHUNG_2026-10-29_stufe-7.md).
+[Brief](BRIEF_2026-10-28_projekt-reiniger-pro.md), Abschnitt „Stufe 7 · gebaut“. Funde und Lehren: [Forschung](https://github.com/lausiklauskn-png/Kimhub/blob/main/forschung/messungen/projekt-reiniger-pro-2026-10-29-stufe-7.md).
 Bilder: [`bilder-stufe-7/`](bilder-stufe-7/).
 
 ## Was neu ist (Fassung 11)

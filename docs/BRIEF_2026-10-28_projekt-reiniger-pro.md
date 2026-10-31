@@ -322,7 +322,7 @@ ungereinigte ZIP, gilt:
 Abschlussbriefe: [Stufe 4 und Testfassungen](BRIEF_ABSCHLUSS_2026-10-29_stufe-4-und-testfassungen.md) ·
 [Befund und Stufe 5](BRIEF_ABSCHLUSS_2026-10-29_befund-und-stufe-5.md) · [Befund 9 und Stufe 6](BRIEF_ABSCHLUSS_2026-10-29_befund-9-und-stufe-6.md) ·
 [Stufe 7](BRIEF_ABSCHLUSS_2026-10-29_stufe-7.md) ·
-Forschung: [Stufe 4](FORSCHUNG_2026-10-29_stufe-4.md) · [Stufe 5](FORSCHUNG_2026-10-29_stufe-5.md) · [Stufe 6](FORSCHUNG_2026-10-29_stufe-6.md) · [Stufe 7](FORSCHUNG_2026-10-29_stufe-7.md).
+Forschung: [Stufe 4](https://github.com/lausiklauskn-png/Kimhub/blob/main/forschung/messungen/projekt-reiniger-pro-2026-10-29-stufe-4.md) · [Stufe 5](https://github.com/lausiklauskn-png/Kimhub/blob/main/forschung/messungen/projekt-reiniger-pro-2026-10-29-stufe-5.md) · [Stufe 6](https://github.com/lausiklauskn-png/Kimhub/blob/main/forschung/messungen/projekt-reiniger-pro-2026-10-29-stufe-6.md) · [Stufe 7](https://github.com/lausiklauskn-png/Kimhub/blob/main/forschung/messungen/projekt-reiniger-pro-2026-10-29-stufe-7.md).
 
 ## Am Ende jeder Sitzung: Kurzauftrag zum Kopieren (Klaus 2026-10-28)
 

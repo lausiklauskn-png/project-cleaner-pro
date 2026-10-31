@@ -3,7 +3,7 @@
 Die Sitzung begann mit dem Startauftrag „Pro-Umbau 8“ (BookLedgerPro, Basic, Workflow PDF Pro, Private Brain Pro). Die vier Repos wurden
 angehängt und gelesen, **dort wurde nichts geändert**. Klaus' Befunde betrafen dann den Projekt-Reiniger, und sein Kurzauftrag bestätigte
 das: Befund zu Fassung 9 einarbeiten, danach Stufe 6. Plan und Stand: [Brief](BRIEF_2026-10-28_projekt-reiniger-pro.md). Funde und
-Lehren: [Forschung](FORSCHUNG_2026-10-29_stufe-6.md). Bilder: [`bilder-stufe-6/`](bilder-stufe-6/).
+Lehren: [Forschung](https://github.com/lausiklauskn-png/Kimhub/blob/main/forschung/messungen/projekt-reiniger-pro-2026-10-29-stufe-6.md). Bilder: [`bilder-stufe-6/`](bilder-stufe-6/).
 
 ## Was neu ist (Fassung 10)
 
