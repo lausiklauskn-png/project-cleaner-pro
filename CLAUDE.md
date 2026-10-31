@@ -1,3 +1,5 @@
+**🔬 Regel: Forschung nur in Kimhub (Klaus 2026-10-31: „einheitlich alles in Kimhub … in den einzelnen Repos soll keine Forschungseinträge sein“):** jeder Forschungseintrag kommt nach **Kimhub `forschung/messungen/`** (`<app>-<thema>-<datum>.md`); hier stehen nur Verweise.
+
 # Projekt-Reiniger Pro — Sitzungs-Anker
 
 Findet persönliche Daten in fremden Projekten (ZIP, Ordner, einzelne Dateien), bevor sie an eine KI
