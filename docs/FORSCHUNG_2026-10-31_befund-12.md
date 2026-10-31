@@ -42,3 +42,17 @@ Was beim Bau gelernt und gemessen wurde. Plan und Stand: [Brief](BRIEF_2026-10-2
   nicht kennt.
 - Wellenmuster: sieben `<i>`-Striche mit versetzter CSS-Animation. Bei `prefers-reduced-motion` stehen sie still. Der Ton bleibt in
   `aria-live`, die Striche sind `aria-hidden`.
+
+## Müller und Müller-Thurgau (Fassung 17)
+
+- Wortgrenze bisher: `(?<![Wortzeichen])` / `(?![Wortzeichen])`. Der Bindestrich ist kein Wortzeichen, also war „Müller-Thurgau“ für die
+  Suche „Müller“ + „Thurgau“. Für **Namen im Text** gilt jetzt: Bindestrich mit Wortzeichen dahinter oder davor gehört zum Wort
+  (`(?<![W]|[W]-)` / `(?![W]|-[W])`). **Nicht** im Datei- oder Ordnernamen: Dort ist der Bindestrich ein Trenner
+  (`Zwackelmann-Plan.txt`), die alte Probe hat das sofort gemeldet.
+- Nicht für alle Fundarten: Fände die Vornamenliste „Anna“ in „Anna-Lena“ und würde die Ersetzung den Bindestrich-Teil überspringen,
+  bliebe der Name still stehen. Deshalb gilt die weiche Grenze nur, wenn **ausschließlich** der eingetragene Name den Wert fand. Findet ihn
+  auch Modul 25, wird streng ersetzt (auch in „Müller-Thurgau“). Lieber zu viel, laut sichtbar, als ein Name in der Kopie.
+- „Nicht ersetzen“ wirkt an drei Stellen gleich: in der Suche (Treffer in einer Ausnahme fallen weg, ebenso Funde mit genau diesem Wert),
+  beim Ersetzen (Text wird an den Ausnahmen zerteilt, ersetzt wird nur dazwischen) und in der Nachprüfung (Ausnahmen werden vor der
+  harten Gegenprobe ausgeblendet). Läge es nur an einer Stelle, würde die Nachprüfung den Wein als „Originalwert in der Kopie“ melden.
+  Die Gegenprobe AUSNAHMEKOPIE nimmt die Weitergabe an die Kopie heraus.

@@ -74,7 +74,7 @@ export const ART_NAME: Record<string, string>;
 export const MARKE_NAME: Record<string, string>;
 export const STUFE_NAME: Record<number, string>;
 
-export function pruefe(dateien: Datei[], optionen?: { werkzeuge?: Werkzeuge; begriffe?: string[]; texterkennung?: boolean; sperrliste?: Sperrliste | null; fortschritt?: (nr: number, gesamt: number, pfad: string) => void }): Promise<Ergebnis>;
+export function pruefe(dateien: Datei[], optionen?: { werkzeuge?: Werkzeuge; begriffe?: string[]; ausnahmen?: string[]; texterkennung?: boolean; sperrliste?: Sperrliste | null; fortschritt?: (nr: number, gesamt: number, pfad: string) => void }): Promise<Ergebnis>;
 export function einwerfen(liste: Datei[]): Promise<{ dateien: Datei[]; hinweise: string[] }>;
 export function zipDateien(bytes: Uint8Array, vorsilbe?: string): { dateien: Datei[]; hinweise: string[]; kaputt?: boolean };
 export function einordnen(pfad: string, art?: string): { stufe: 1 | 2 | 3; stufeName: string; marken: Marke[] };
@@ -109,7 +109,7 @@ export interface Entscheidungen {
   dateiWahl?: Record<string, DateiWeg>;
   mustermappe?: boolean;
 }
-export interface ReinigenOptionen { werkzeuge?: Werkzeuge & { Zeichner?: Zeichner; WFP?: unknown; PrueferMail?: unknown }; texterkennung?: boolean; begriffe?: string[]; sperrliste?: Sperrliste | null; fortschritt?: (nr: number, gesamt: number, pfad: string) => void; }
+export interface ReinigenOptionen { werkzeuge?: Werkzeuge & { Zeichner?: Zeichner; WFP?: unknown; PrueferMail?: unknown }; texterkennung?: boolean; begriffe?: string[]; ausnahmen?: string[]; sperrliste?: Sperrliste | null; fortschritt?: (nr: number, gesamt: number, pfad: string) => void; }
 export interface SaubereDatei { pfad: string; von?: string; bytes: Uint8Array; gereinigt?: number; unveraendert?: boolean; neu?: string; muster?: string; mappe?: boolean; }
 export interface Gereinigt {
   sauber: SaubereDatei[]; stellenplan: Stelle[];
@@ -227,3 +227,6 @@ export interface WaechterErgebnis {
 export function waechterPruefe(dateien: Array<{ pfad: string; bytes: Uint8Array }>, optionen?: { sperrliste?: Sperrliste | null; streng?: boolean; werkzeuge?: Werkzeuge;
   texte?: Array<{ wo: string; text: string }>; fortschritt?: (nr: number, gesamt: number, pfad: string) => void }): Promise<WaechterErgebnis>;
 export function waechterText(r: WaechterErgebnis, optionen?: { sperrliste?: Sperrliste | null; streng?: boolean; alleHinweise?: boolean }): string;
+
+/** „Nicht ersetzen“: [von, bis]-Paare der Ausnahme-Stellen im Text (ganze Wörter, ohne Groß/klein, Bindestrich gehört dazu). */
+export function ausnahmeStellen(text: string, ausnahmen: string[]): [number, number][];

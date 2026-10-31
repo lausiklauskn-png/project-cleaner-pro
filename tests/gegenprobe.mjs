@@ -86,6 +86,8 @@ const FAELLE = [
   /* Befund Klaus zu Fassung 9 (2026-10-29): Knöpfe mit Tätigkeit, „Neu“ links, Vorführung */
   ["NAMEN", "index.html", "for=\"wahl-ordner\"><svg class=\"ikon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 6h6l2 2h10v11H3z\"/></svg>Ordner wählen", "for=\"wahl-ordner\"><svg class=\"ikon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 6h6l2 2h10v11H3z\"/></svg>Ordner", /ein sichtbares Feld/],
   /* Ablagefeld der ersten Seite (Klaus 2026-10-30) */
+  ["NAMEBINDESTRICH", "assets/reiniger-kern.js", "const NAME_VOR = \"(?<![\" + WZ + \"]|[\" + WZ + \"]-)\", NAME_NACH = \"(?![\" + WZ + \"]|-[\" + WZ + \"])\";", "const NAME_VOR = VOR, NAME_NACH = NACH;", /nicht „Müller-Thurgau“/],
+  ["AUSNAHMEKOPIE", "assets/reiniger-kern.js", "  posten.ausnahmen = ergebnis.ausnahmen || [];\n", "", /bleiben Müller-Thurgau und Weingut/],
   ["NULLWORT", "assets/app.js", "    }), plan.length ? dateiPlanKarte(plan) : null].filter(Boolean));", "    }), plan.length ? dateiPlanKarte(plan) : null]);", /„nullnull“/],
   ["TREFFERSPRUNG", "assets/app.js", "  for (let d = mk.closest(\"details\"); d; d = d.parentElement && d.parentElement.closest(\"details\")) d.open = true;\n", "", /zugeklappte Gruppen gehen dabei auf/],
   ["FELDEINFUEGEN", "assets/app.js", "  if (d) { einwurfText.value = \"\"; $(\"#einwurf-text-pruefen\").hidden = true; starte([d]); }", "", /eingefügter Text wird sofort geprüft/],

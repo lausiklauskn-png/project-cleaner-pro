@@ -6,7 +6,7 @@ oder nach GitHub gehen. Kein Build-Schritt. Der Plan steht im Brief:
 er ist die Quelle, diese Datei ist nur der Anker. Am Ende jeder Sitzung: Brief nachziehen und einen
 Kurzauftrag zum Kopieren ausgeben.
 
-## Stand: Stufen 1–7 + Befund 11 (Basic/Pro, Mikrofon) + Befund 12 (Ablagefeld, Suche mit Treffern), Fassung 16 (2026-10-31) · nächster Schritt: Abschlussbrief `docs/BRIEF_ABSCHLUSS_2026-10-31_befund-12.md` lesen (offene Haken 6–11), dann Stufe 8 oder 9
+## Stand: Stufen 1–7 + Befund 11 (Basic/Pro, Mikrofon) + Befund 12 (Ablagefeld, Suche mit Treffern, „Nicht ersetzen“), Fassung 17 (2026-10-31) · nächster Schritt: Abschlussbrief `docs/BRIEF_ABSCHLUSS_2026-10-31_befund-12.md` lesen (offene Haken 6–11), dann Stufe 8 oder 9
 
 | Datei | Rolle |
 |---|---|
@@ -78,6 +78,10 @@ Kurzauftrag zum Kopieren ausgeben.
 - **Suche mit Treffern (Klaus 2026-10-31):** Suchen = **Lupe** (Symbol). Gesuchte Wörter werden in den Funden gelb markiert, „Treffer N von M“;
   **„+“ / „−“** (Taste oder Knopf) springt weiter, zugeklappte Gruppen gehen auf. Beim Zuhören ein **Wellenmuster**; beim Bauen der Kopie ein **Ladebalken**.
   `replaceChildren` nie mit `null` füttern (schreibt das Wort „null“) — erst `.filter(Boolean)`.
+- **Namen und „Nicht ersetzen“ (Klaus 2026-10-31: „Müller“ ist nicht „Müller-Thurgau“):** ein selbst eingetragener Name trifft im Text nur
+  das ganze Wort — der **Bindestrich gehört dazu** (`NAME_VOR`/`NAME_NACH`); im Datei-/Ordnernamen trennt er weiter. Findet eine andere Suche
+  denselben Wert (Modul 25), wird streng ersetzt. **„Nicht ersetzen“** (`ausnahmen`, Feld unter der Suche): die Stelle wird nie Fund, nie
+  ersetzt, die Nachprüfung lässt sie stehen (`ausnahmeStellen` im Kern; `ergebnis.ausnahmen` → `posten.ausnahmen`).
 - **Knöpfe erklären sich:** `title` und für das Tablet zusätzlich ⓘ („Was machen diese Knöpfe?“).
 - **Kontrast und Schrift (Klaus 2026-10-29):** jede Schrift ≥ 4,5 : 1 in Hell **und** Dunkel (Probe `tests/kontrast.mjs`),
   weiße Schrift nur auf dunklem Grund; keine Schrift über Schrift, keine doppelten Leerzeilen (Probe in `messen`).
@@ -86,7 +90,7 @@ Kurzauftrag zum Kopieren ausgeben.
 ## Prüfen
 
 ```bash
-npm test             # 393 grün · 0 ROT (2026-10-31, Befund 12, Fassung 16)
+npm test             # 398 grün · 0 ROT (2026-10-31, Befund 12, Fassung 17)
 npm run gegenprobe   # 93 Fälle; Stufe 7: 12 neue = 12 gefangen · 0 blind (SPDICHT fand einen echten Fehler); davor 12 + 32 gefangen
                      # (die übrigen 37 nicht neu gefahren; ein voller Lauf dauert hier ~2 h — einzeln: NUR_FALL=NAME)
 ```

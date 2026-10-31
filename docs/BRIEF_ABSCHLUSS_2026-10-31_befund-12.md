@@ -1,4 +1,4 @@
-# Abschluss 2026-10-30/31 — Befund 12: Ablagefeld, Hilfe hinter „?“, Suche mit Treffern (Claude)
+# Abschluss 2026-10-30/31 — Befund 12: Ablagefeld, Hilfe hinter „?“, Suche mit Treffern, „Nicht ersetzen“ (Claude)
 
 Plan und Stand: [Brief](BRIEF_2026-10-28_projekt-reiniger-pro.md), Abschnitt „Befund 12“. Funde und Lehren:
 [Forschung](FORSCHUNG_2026-10-31_befund-12.md). Bilder: [`bilder-fassung-16/`](bilder-fassung-16/).
@@ -16,6 +16,11 @@ Plan und Stand: [Brief](BRIEF_2026-10-28_projekt-reiniger-pro.md), Abschnitt „
   - Beim Zuhören zeigt ein **Wellenmuster**, dass das Mikrofon läuft. Der Hinweis ist kürzer, Google bleibt genannt.
   - Beim Bauen der sauberen Kopie steht ein **Ladebalken** da.
   - Am Tablet heißt der Satz im Feld jetzt „Hier einfügen (lange tippen → Einfügen)“ statt klein „hier einfügen“.
+
+- **Fassung 17 (PR #19):** Ein eingetragener **Name** trifft im Text nur noch das ganze Wort, der Bindestrich gehört dazu: „Müller“ trifft
+  also nicht mehr „Müller-Thurgau“. Neues Feld **„Nicht ersetzen“** unter der Suche: Was dort steht, wird nie gefunden, nie ersetzt, und die
+  Nachprüfung lässt es stehen. Findet Modul 25 den Namen selbst, wird streng ersetzt, bis die Ausnahme eingetragen ist.
+- **Geschenk-Seite** jetzt kurz: nur Fassung und die drei Downloads (Klaus: *„ohne so viel Text … will nur noch die Updates“*).
 
 ## Klaus' Haken (Gegenprobe Fassung 15, Tablet)
 
@@ -52,9 +57,9 @@ Plan und Stand: [Brief](BRIEF_2026-10-28_projekt-reiniger-pro.md), Abschnitt „
 
 ```
 Repo lausiklauskn-png/project-cleaner-pro. Lies CLAUDE.md, docs/BRIEF_2026-10-28_projekt-reiniger-pro.md
-und docs/BRIEF_ABSCHLUSS_2026-10-31_befund-12.md. Klaus testet Fassung 16 (Haken 6–11 der Liste im
-Abschluss: Text/Mail einfügen, Ziehen am PC, Pro-APK v16, Windows-Setup, Suche mit Lupe/Treffern/„+“,
-Ladebalken, Wellenmuster). Seinen Befund einarbeiten; offen sind ausserdem: Mail-Import (Klaus' Idee),
+und docs/BRIEF_ABSCHLUSS_2026-10-31_befund-12.md. Klaus testet Fassung 17 (Haken 6–11 der Liste im
+Abschluss: Text/Mail einfügen, Ziehen am PC, Pro-APK v17, Windows-Setup, Suche mit Lupe/Treffern/„+“,
+Ladebalken, Wellenmuster, „Müller“ / „Müller-Thurgau“ mit „Nicht ersetzen“). Seinen Befund einarbeiten; offen sind ausserdem: Mail-Import (Klaus' Idee),
 Spracheingabe in mehreren Sprachen (Sprachwahl am Mikrofon?). Danach Stufe 8 (APK/Windows fertig:
 eigener Schlüssel, Update über Klaus' Server, Mikrofon unter Windows) oder Stufe 9 (Familienakte).
 Am Ende: Brief nachziehen, Abschluss mit Stunden schreiben, Geschenk-HTML mit den neuen Dateien bauen.
@@ -82,6 +87,8 @@ und Klaus' eigene Zeit (Diktat, Test am Gerät) liegt außerhalb.
 |---|---|---|---|---|
 | 2026-10-30 | ≈ 12:30–13:46 | ≈ 1 h 15 min | project-cleaner-pro | Befund 12: Ablagefeld, Knöpfe aufgeräumt, Proben, PR #17 (Fassung 14) |
 | 2026-10-30/31 | ≈ 23:00–00:30 | ≈ 1 h 30 min | project-cleaner-pro | Hilfe hinter „?“ (Fassung 15), Merge #17, Testfassung 15, Geschenk-HTML, Abhakliste, Klaus' Gegenprobe → Fassung 16 (Suche mit Treffern, Ladebalken, Wellenmuster, „nullnull“), Abschluss |
+
+| 2026-10-31 | ≈ 11:50–12:40 | ≈ 50 min | project-cleaner-pro | Prüfsumme aus der Geschenk-Seite, Müller/Müller-Thurgau geprüft, Fassung 17 („Nicht ersetzen“), kurze Geschenk-Seite |
 
 Bereits in früheren Abschlüssen eingetragen (nicht doppelt zählen): 2026-10-28/29 23:37–00:55 (Stufe 4, Testfassungen) und
 2026-10-29 06:31–07:40 (Stufe 5, Hereinladen).

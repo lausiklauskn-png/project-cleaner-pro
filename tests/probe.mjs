@@ -80,6 +80,25 @@ ok("Vorrat: die Wortlisten stehen darin (sonst offline kein Kern)", /"assets\/re
 const req = createRequire(import.meta.url);
 for (const f of ["modules/25_pseudonym.js", "assets/pruefer-formate.js", "assets/pruefer-mail.js", "assets/pruefer.js", "assets/pruefer-anhang.js", "assets/reinigung.js", "assets/schluesseltresor.js"]) req(join(WURZEL, f));
 const Kern = await import(pathToFileURL(join(WURZEL, "assets/reiniger-kern.js")).href);
+
+{
+  /* Klaus 2026-10-31: „Müller“ (Name) ist nicht „Müller-Thurgau“ (Wein). */
+  const text = "Kunde: Herr Müller.\nWein: Müller-Thurgau.\nFrau Müller-Lüdenscheidt kam.\nLieferant: Weingut Müller Söhne, Gruß an Müller\n";
+  const d = [{ pfad: "notiz.txt", bytes: new TextEncoder().encode(text) }];
+  const r1 = await Kern.pruefe(d, { begriffe: ["Müller"] });
+  const z1 = r1.befunde.filter((b) => b.art === "BEGRIFF").map((b) => b.zeile);
+  ok("Eigener Name „Müller“ trifft nur das ganze Wort — nicht „Müller-Thurgau“, nicht „Müller-Lüdenscheidt“", JSON.stringify(z1) === "[1,4,4]", JSON.stringify(z1));
+  const opt = { begriffe: ["Müller"], ausnahmen: ["Weingut Müller Söhne", "müller-thurgau"] };
+  const r2 = await Kern.pruefe(d, opt);
+  ok("„Nicht ersetzen“: eine Ausnahme nimmt die Stelle aus der Suche (ohne Groß/klein)", JSON.stringify(r2.befunde.filter((b) => b.art === "BEGRIFF").map((b) => b.zeile)) === "[1,4]" && JSON.stringify(r2.ausnahmen) === JSON.stringify(opt.ausnahmen));
+  const g = await Kern.saubereKopie(d, { ergebnis: r2, wahl: {}, dateiWahl: {} }, opt);
+  const k = new TextDecoder().decode(g.sauber.find((x) => x.pfad.endsWith("notiz.txt")).bytes);
+  ok("„Nicht ersetzen“: in der sauberen Kopie bleiben Müller-Thurgau und Weingut Müller Söhne stehen, der Name ist ersetzt, die Nachprüfung meldet nichts",
+    /Herr ⟦NAME-1⟧/.test(k) && /Wein: Müller-Thurgau\./.test(k) && /Weingut Müller Söhne/.test(k) && /Gruß an ⟦NAME-1⟧/.test(k) && /Frau ⟦NAME-\d⟧/.test(k) && g.nach.originalTreffer.length === 0, k + " | " + JSON.stringify(g.nach.originalTreffer));
+  const g2 = await Kern.saubereKopie(d, { ergebnis: r1, wahl: {}, dateiWahl: {} }, { begriffe: ["Müller"] });
+  const k2 = new TextDecoder().decode(g2.sauber.find((x) => x.pfad.endsWith("notiz.txt")).bytes);
+  ok("Ohne Ausnahme: findet eine andere Suche „Müller“ auch, wird streng ersetzt (auch in „Müller-Thurgau“) — lieber zu viel als ein Name in der Kopie", /⟦NAME-1⟧-Thurgau/.test(k2) && g2.nach.originalTreffer.length === 0, k2);
+}
 const { beispielProjekt } = await import(pathToFileURL(join(WURZEL, "assets/beispiel.js")).href);
 {
   const r = await Kern.pruefe(await beispielProjekt());
@@ -829,6 +848,12 @@ await seite.fill("#begriff", "Musterapp");
 await seite.click("#begriff-dazu");
 await seite.waitForFunction(() => !!document.querySelector('[data-begriff="Musterapp"]'), null, { timeout: 30000 });
 ok("Eigener Name eingetragen: neu gesucht, steht als „Selbst eingetragen“ da", await seite.evaluate(() => !!document.querySelector('.buendel[data-art="BEGRIFF"]')));
+await seite.fill("#ausnahme", "Musterapp");
+await seite.click("#ausnahme-dazu");
+await seite.waitForFunction(() => !!document.querySelector('[data-ausnahme="Musterapp"]'), null, { timeout: 30000 });
+ok("„Nicht ersetzen“ in der Oberfläche: eingetragen, neu geprüft, der Fund ist weg, steht als „Nicht ersetzen“ da", await seite.evaluate(() => !document.querySelector('.buendel[data-art="BEGRIFF"]') && /Nicht ersetzen:/.test(document.querySelector(".werkzeuge").textContent)));
+await seite.click('[data-ausnahme="Musterapp"]');
+await seite.waitForFunction(() => !document.querySelector('[data-ausnahme="Musterapp"]') && !!document.querySelector('.buendel[data-art="BEGRIFF"]'), null, { timeout: 30000 });
 ok("Suchen ist die Lupe (Symbol, ohne Wort, mit Erklärung)", await seite.evaluate(() => { const k = document.querySelector("#begriff-dazu"); return !k.textContent.trim() && k.getAttribute("aria-label") === "Suchen" && !!k.querySelector("svg"); }));
 ok("Treffer (Klaus 2026-10-31): die gesuchten Wörter sind in den Funden markiert, mit Zahl", await seite.evaluate(() => {
   const m = document.querySelectorAll("#befunde mark.treffer"); return m.length >= 1 && [...m].every((x) => /musterapp/i.test(x.textContent)) && !document.querySelector("#treffer-leiste").hidden && /Treffer/.test(document.querySelector("#treffer-zahl").textContent);
