@@ -6,7 +6,7 @@ oder nach GitHub gehen. Kein Build-Schritt. Der Plan steht im Brief:
 er ist die Quelle, diese Datei ist nur der Anker. Am Ende jeder Sitzung: Brief nachziehen und einen
 Kurzauftrag zum Kopieren ausgeben.
 
-## Stand: Stufen 1–7 + Befund 11 (Basic/Pro, Mikrofon) + Befund 12 (Ablagefeld), Fassung 15 (2026-10-30) · nächster Schritt: Klaus testet Fassung 15 (Basic + Pro-APK), dann Stufe 8 oder 9
+## Stand: Stufen 1–7 + Befund 11 (Basic/Pro, Mikrofon) + Befund 12 (Ablagefeld, Suche mit Treffern), Fassung 16 (2026-10-31) · nächster Schritt: Abschlussbrief `docs/BRIEF_ABSCHLUSS_2026-10-31_befund-12.md` lesen (offene Haken 6–11), dann Stufe 8 oder 9
 
 | Datei | Rolle |
 |---|---|
@@ -75,15 +75,18 @@ Kurzauftrag zum Kopieren ausgeben.
 - **Kopf rechts nur Symbole** (Klaus 2026-10-29): ⓘ Auskunft, Darstellung (Bildschirm/Sonne/Mond), Aktualisieren, großes Schloss; Erklärung als `title`.
 - **Mikrofon im Suchfeld** (Technik aus Meine-Familienakte): Browser = Web Speech (Chrome → Google; das steht am Knopf und in der Auskunft — nie
   verschweigen), APK = Androids Sprachfenster (`SprachePlugin`, Plugin-Name `ProSpeech`, offline bevorzugt, kein Mikrofon-Recht), Windows noch keins.
+- **Suche mit Treffern (Klaus 2026-10-31):** Suchen = **Lupe** (Symbol). Gesuchte Wörter werden in den Funden gelb markiert, „Treffer N von M“;
+  **„+“ / „−“** (Taste oder Knopf) springt weiter, zugeklappte Gruppen gehen auf. Beim Zuhören ein **Wellenmuster**; beim Bauen der Kopie ein **Ladebalken**.
+  `replaceChildren` nie mit `null` füttern (schreibt das Wort „null“) — erst `.filter(Boolean)`.
 - **Knöpfe erklären sich:** `title` und für das Tablet zusätzlich ⓘ („Was machen diese Knöpfe?“).
 - **Kontrast und Schrift (Klaus 2026-10-29):** jede Schrift ≥ 4,5 : 1 in Hell **und** Dunkel (Probe `tests/kontrast.mjs`),
   weiße Schrift nur auf dunklem Grund; keine Schrift über Schrift, keine doppelten Leerzeilen (Probe in `messen`).
-  Bildschirmfotos aller Zustände: `docs/bilder-stufe-4/`, `docs/bilder-stufe-5/`, `docs/bilder-stufe-6/`, `docs/bilder-stufe-7/`, `docs/bilder-befund-11/`, `docs/bilder-fassung-15/`.
+  Bildschirmfotos aller Zustände: `docs/bilder-stufe-4/`, `docs/bilder-stufe-5/`, `docs/bilder-stufe-6/`, `docs/bilder-stufe-7/`, `docs/bilder-befund-11/`, `docs/bilder-fassung-16/`.
 
 ## Prüfen
 
 ```bash
-npm test             # 388 grün · 0 ROT (2026-10-30, Befund 12, Fassung 15)
+npm test             # 393 grün · 0 ROT (2026-10-31, Befund 12, Fassung 16)
 npm run gegenprobe   # 93 Fälle; Stufe 7: 12 neue = 12 gefangen · 0 blind (SPDICHT fand einen echten Fehler); davor 12 + 32 gefangen
                      # (die übrigen 37 nicht neu gefahren; ein voller Lauf dauert hier ~2 h — einzeln: NUR_FALL=NAME)
 ```

@@ -86,6 +86,8 @@ const FAELLE = [
   /* Befund Klaus zu Fassung 9 (2026-10-29): Knöpfe mit Tätigkeit, „Neu“ links, Vorführung */
   ["NAMEN", "index.html", "for=\"wahl-ordner\"><svg class=\"ikon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 6h6l2 2h10v11H3z\"/></svg>Ordner wählen", "for=\"wahl-ordner\"><svg class=\"ikon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 6h6l2 2h10v11H3z\"/></svg>Ordner", /ein sichtbares Feld/],
   /* Ablagefeld der ersten Seite (Klaus 2026-10-30) */
+  ["NULLWORT", "assets/app.js", "    }), plan.length ? dateiPlanKarte(plan) : null].filter(Boolean));", "    }), plan.length ? dateiPlanKarte(plan) : null]);", /„nullnull“/],
+  ["TREFFERSPRUNG", "assets/app.js", "  for (let d = mk.closest(\"details\"); d; d = d.parentElement && d.parentElement.closest(\"details\")) d.open = true;\n", "", /zugeklappte Gruppen gehen dabei auf/],
   ["FELDEINFUEGEN", "assets/app.js", "  if (d) { einwurfText.value = \"\"; $(\"#einwurf-text-pruefen\").hidden = true; starte([d]); }", "", /eingefügter Text wird sofort geprüft/],
   ["NEULINKS", "assets/app.css", ".ein-aus { display: flex;", ".ein-aus { flex-direction: row-reverse; display: flex;", /„Neu“ links neben/],
   ["VFTIPP", "assets/app.js", "$(\"#vorfuehrung\").addEventListener(\"pointerdown\", (e) => { e.preventDefault(); vorfuehrungEnde(); });", "", /ein Tipp beendet/],

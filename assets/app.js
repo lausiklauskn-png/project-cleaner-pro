@@ -40,6 +40,7 @@ const IKONEN = {
   tresor: "M4 5h16v14H4z M4 19v2 M20 19v2 M13 12a2 2 0 1 0-4 0a2 2 0 1 0 4 0z M13 12h3",
   auge: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z",
   info: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 11v6 M12 7.5v.5",
+  lupe: "M10.5 4a6.5 6.5 0 1 0 0 13a6.5 6.5 0 1 0 0-13z M15.5 15.5L20 20",
   mikro: "M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z M5.5 11a6.5 6.5 0 0 0 13 0 M12 17.5V21 M9 21h6",
   halt: "M7 7h10v10H7z",
 };
@@ -216,7 +217,7 @@ async function nochmal() {
   if (laeuft) return;
   laeuft = true; gereinigt = null;
   const fs = $("#fortschritt"); fs.hidden = false;
-  try { ergebnis = await Kern.pruefe(eingeworfen, { begriffe, texterkennung, sperrliste, fortschritt: (nr, g, p) => { $("#fortschritt-text").textContent = "Lese " + nr + " von " + g + ": " + p; } }); }
+  try { ergebnis = await Kern.pruefe(eingeworfen, { begriffe, texterkennung, sperrliste, fortschritt: (nr, g, p) => { $("#fortschritt-text").textContent = "Lese " + nr + " von " + g + ": " + p; const b = $("#fortschritt-balken"); b.max = g || 1; b.value = nr; } }); }
   finally { fs.hidden = true; laeuft = false; }
   zeigen();
 }
@@ -257,12 +258,13 @@ function zeigen() {
   const plan = Kern.dateiPlan(ergebnis);
   const leiste = ergebnis.zahlen.dateien ? reinigenLeiste(ersetzbare, plan) : null;
   if (!ergebnis.buendel.length) {
-    bef.replaceChildren(leerBild(z.ungeprueft
+    bef.replaceChildren(...[leerBild(z.ungeprueft
       ? "Keine Funde in dem, was gelesen werden konnte. " + z.ungeprueft + " Datei(en) sind ungeprüft — das heißt nicht sauber."
       : "Keine Funde. Die Suche arbeitet mit Mustern und Listen und findet nicht garantiert alles — bitte trotzdem selbst hinsehen."),
-      werkzeugLeiste(), plan.length ? dateiPlanKarte(plan) : null, leiste);
+      werkzeugLeiste(), plan.length ? dateiPlanKarte(plan) : null, leiste].filter(Boolean));
   } else {
-    bef.replaceChildren(leiste, werkzeugLeiste(), ...SCHICHTEN.map(([s, titel, satz]) => {
+    /* replaceChildren schreibt null als Wort „null“ — Leeres vorher heraus (Klaus 2026-10-31: „nullnull“ in der Mitte) */
+    bef.replaceChildren(...[leiste, werkzeugLeiste(), ...SCHICHTEN.map(([s, titel, satz]) => {
       const liste = ergebnis.buendel.filter((b) => b.schicht === s);
       if (!liste.length) return null;
       const [ik, erkl] = info(satz, titel);
@@ -270,9 +272,10 @@ function zeigen() {
         el("summary", {}, el("h2", { text: titel + " (" + liste.reduce((n, b) => n + b.anzahl, 0) + ")" }), ik),
         erkl,
         ...liste.map(buendelKarte));
-    }), plan.length ? dateiPlanKarte(plan) : null);
+    }), plan.length ? dateiPlanKarte(plan) : null].filter(Boolean));
   }
   zeigeInventur();
+  trefferMarkieren();
 }
 
 function buendelKarte(b) {
@@ -306,7 +309,7 @@ function werkzeugLeiste() {
   auf.addEventListener("click", () => klappe(true));
   zu.addEventListener("click", () => klappe(false));
   const feld = el("input", { type: "text", id: "begriff", placeholder: "Fehlender Name …", "aria-label": "Eigenen Namen oder Begriff eintragen" });
-  const dazu = knopfMit({ class: "knopf klein-knopf", id: "begriff-dazu" }, "plus", "Suchen");
+  const dazu = el("button", { type: "button", class: "knopf klein-knopf nur-ikon", id: "begriff-dazu", "aria-label": "Suchen", title: "Suchen: im ganzen Projekt danach suchen" }, ikon("lupe"));
   const nimm = () => { const w = feld.value.trim(); if (w.length < 2 || begriffe.some((x) => x.toLowerCase() === w.toLowerCase())) return; begriffe.push(w); nochmal(); };
   dazu.addEventListener("click", nimm);
   feld.addEventListener("keydown", (e) => { if (e.key === "Enter") nimm(); });
@@ -325,8 +328,58 @@ function werkzeugLeiste() {
   return el("div", { class: "werkzeuge" },
     el("div", { class: "knoepfe" }, auf, zu, ocr),
     el("div", { class: "begriff-zeile" }, feld, diktatKnopf(feld), dazu, diktatHinweis()),
+    trefferLeiste(),
     chips.length ? el("div", { class: "zeile2" }, el("span", { class: "satz", text: "Selbst eingetragen:" }), ...chips) : null);
 }
+
+/* ── Treffer der eigenen Suche (Klaus 2026-10-31): die gesuchten Wörter in den Funden markieren, mit „+“ / „−“
+   (Tastatur oder Knöpfe) von Treffer zu Treffer springen; zugeklappte Gruppen gehen dabei auf. Nur Anzeige — ändert nichts. */
+let treffer = [], trefferNr = -1;
+function trefferLeiste() {
+  const zurueck = el("button", { type: "button", class: "knopf klein-knopf nur-ikon", id: "treffer-zurueck", "aria-label": "Voriger Treffer (−)", title: "Voriger Treffer (Taste −)" }, ikon("zurueck"));
+  const vor = el("button", { type: "button", class: "knopf klein-knopf nur-ikon", id: "treffer-vor", "aria-label": "Nächster Treffer (+)", title: "Nächster Treffer (Taste +)" }, ikon("weiter"));
+  zurueck.addEventListener("click", () => trefferGehe(-1));
+  vor.addEventListener("click", () => trefferGehe(1));
+  return el("div", { class: "treffer-leiste", id: "treffer-leiste", hidden: true }, el("span", { id: "treffer-zahl", "aria-live": "polite" }), zurueck, vor);
+}
+function trefferMarkieren() {
+  treffer = []; trefferNr = -1;
+  const leiste = $("#treffer-leiste"), bef = $("#befunde");
+  if (!leiste || !bef) return;
+  const woerter = begriffe.map((w) => w.trim()).filter((w) => w.length >= 2);
+  if (!woerter.length) { leiste.hidden = true; return; }
+  const re = new RegExp(woerter.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).sort((a, b) => b.length - a.length).join("|"), "giu");
+  const gang = document.createTreeWalker(bef, NodeFilter.SHOW_TEXT, { acceptNode: (n) =>
+    n.parentElement.closest("input, textarea, select, option, .werkzeuge, mark") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+  const knoten = []; for (let n = gang.nextNode(); n; n = gang.nextNode()) knoten.push(n);
+  for (const n of knoten) {
+    const t = n.nodeValue; re.lastIndex = 0;
+    if (!re.test(t)) continue;
+    re.lastIndex = 0;
+    const teile = []; let ab = 0, m;
+    while ((m = re.exec(t))) { if (m.index > ab) teile.push(t.slice(ab, m.index)); const mk = el("mark", { class: "treffer", text: m[0] }); treffer.push(mk); teile.push(mk); ab = m.index + m[0].length; }
+    if (ab < t.length) teile.push(t.slice(ab));
+    n.replaceWith(...teile);
+  }
+  leiste.hidden = false;
+  $("#treffer-zahl").textContent = treffer.length ? treffer.length + (treffer.length === 1 ? " Treffer" : " Treffer") + " · mit + / − springen" : "Nicht gefunden";
+  $("#treffer-zurueck").disabled = $("#treffer-vor").disabled = !treffer.length;
+}
+function trefferGehe(schritt) {
+  if (!treffer.length) return;
+  if (treffer[trefferNr]) treffer[trefferNr].classList.remove("jetzt");
+  trefferNr = (trefferNr + schritt + treffer.length) % treffer.length;
+  const mk = treffer[trefferNr];
+  for (let d = mk.closest("details"); d; d = d.parentElement && d.parentElement.closest("details")) d.open = true;
+  mk.classList.add("jetzt");
+  mk.scrollIntoView({ block: "center", behavior: "smooth" });
+  $("#treffer-zahl").textContent = "Treffer " + (trefferNr + 1) + " von " + treffer.length + " · mit + / − springen";
+}
+addEventListener("keydown", (e) => {
+  if (!treffer.length || gesperrt || $("#arbeit").hidden || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.target && e.target.closest && e.target.closest("input, textarea, select, [contenteditable]")) return;
+  if (e.key === "+" || e.key === "-" || e.key === "−") { e.preventDefault(); trefferGehe(e.key === "+" ? 1 : -1); }
+});
 
 /* ── Mikrofon im Suchfeld (Klaus 2026-10-29, Technik aus Meine-Familienakte lib/browser-dictation.ts) ──
    Browser: die Spracherkennung des Browsers (Web Speech). Ehrlich: Chrome schickt die Sprache dafür an Google — das ist
@@ -359,7 +412,12 @@ const Sprache = () => HUELLE === "windows" ? null : window.SpeechRecognition || 
 const DIKTAT_NETZ = HUELLE ? "" : "Im Browser hört der Sprachdienst des Browsers zu — bei Chrome geht die Sprache dafür an Google. Fremde Namen lieber tippen.";
 let diktat = null;
 function diktatHinweis() { return el("p", { class: "diktat-hinweis", id: "diktat-hinweis", "aria-live": "polite", hidden: true }); }
-function diktatSagen(text, fehler) { const h = $("#diktat-hinweis"); if (!h) return; h.textContent = text; h.hidden = !text; if (fehler) h.dataset.fehler = ""; else delete h.dataset.fehler; }
+/* Beim Zuhören ein Wellenmuster (Klaus 2026-10-31: „wie bei Claude Code … Graph oder Wellenmuster“) — man sieht, dass es läuft. */
+function diktatSagen(text, fehler, welle) {
+  const h = $("#diktat-hinweis"); if (!h) return;
+  h.replaceChildren(...(welle ? [el("span", { class: "welle", "aria-hidden": "true" }, ...Array.from({ length: 7 }, () => el("i", {})))] : []), text);
+  h.hidden = !text; if (fehler) h.dataset.fehler = ""; else delete h.dataset.fehler;
+}
 function diktatStopp() {
   const d = diktat; diktat = null;
   if (d) { d.r.onend = null; d.r.onresult = null; d.r.onerror = null; try { d.r.stop(); } catch { try { d.r.abort(); } catch { /* Tippen geht weiter */ } } }
@@ -390,9 +448,9 @@ function diktatKnopf(feld) {
         f === "network" ? "Sprachdienst nicht erreichbar — bitte tippen." : f === "no-speech" ? "Nichts gehört — noch einmal antippen oder tippen." : f === "aborted" ? "" : "Diktat unterbrochen — noch einmal antippen oder tippen.";
       diktatStopp(); diktatSagen(satz, !!satz && f !== "no-speech");
     };
-    r.onend = () => { if (!diktat || diktat.r !== r) return; diktatStopp(); diktatSagen(feld.value.trim() ? "Gehört. „Suchen“ tippen, um danach zu suchen." : ""); feld.focus(); };
+    r.onend = () => { if (!diktat || diktat.r !== r) return; diktatStopp(); diktatSagen(feld.value.trim() ? "Gehört. Die Lupe (Suchen) tippen, um danach zu suchen." : ""); feld.focus(); };
     k.setAttribute("aria-pressed", "true"); k.title = "Zuhören beenden";
-    diktatSagen("Hört zu … (noch einmal tippen beendet)" + (DIKTAT_NETZ ? " · " + DIKTAT_NETZ : ""));
+    diktatSagen("Hört zu …" + (DIKTAT_NETZ ? " · im Browser geht die Sprache an den Sprachdienst (Chrome: Google)" : ""), false, true);
     try { r.start(); } catch { diktatStopp(); diktatSagen("Mikrofon konnte nicht starten — bitte tippen.", true); }
   });
   return k;
@@ -755,10 +813,11 @@ function reinigenLeiste(ersetzbare, plan) {
 
 async function reinigen() {
   const knopf = $("#reinigen"), aus = $("#kopie-ergebnis");
-  knopf.disabled = true; aus.replaceChildren(el("p", { text: "Reinige und prüfe nach …" }));
+  const lade = (text) => el("div", { class: "lade", role: "status" }, el("p", { text }), el("progress", { class: "lade-balken", "aria-label": "Saubere Kopie wird gebaut" }));
+  knopf.disabled = true; aus.replaceChildren(lade("Reinige und prüfe nach …"));
   try {
     gereinigt = await Kern.saubereKopie(eingeworfen, { ergebnis, wahl, dateiWahl: Object.assign({}, dateiWahl), mustermappe: mappeBeilegen },
-      { begriffe, texterkennung, sperrliste, fortschritt: (nr, _g, pfad) => { aus.replaceChildren(el("p", { text: "Zeichne neu (" + nr + "): " + pfad })); } });
+      { begriffe, texterkennung, sperrliste, fortschritt: (nr, _g, pfad) => { aus.replaceChildren(lade("Zeichne neu (" + nr + "): " + pfad)); } });
   } catch (e) {
     aus.replaceChildren(warnZeile({ class: "offen" }, "Reinigen brach ab (" + (e && e.message || e) + "). Es gibt keine saubere Kopie."));
     knopf.disabled = false; return;
@@ -862,7 +921,7 @@ for (const k of document.querySelectorAll("#reiter .reiter-knopf")) k.addEventLi
 /* ── Installieren und Aktualisieren (Klaus 2026-10-28) ─────────────────────
    Ablauf und Texte übernommen aus dem Auslieferungsprüfer (assets/installieren.js, dort seit 2026-09-30
    am Tablet getragen), hier mit Strich-Symbolen und ohne Inline-Stile (CSP). */
-export const APP_FASSUNG = "15";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
+export const APP_FASSUNG = "16";   // = Nummer in CACHE_VERSION von sw.js (die Probe vergleicht)
 let installEreignis = null;
 function alsApp() {
   try { return matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: window-controls-overlay)").matches || matchMedia("(display-mode: minimal-ui)").matches || navigator.standalone === true; }

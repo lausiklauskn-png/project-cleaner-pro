@@ -766,8 +766,10 @@ ok("Entscheiden: jedes ersetzbare Bündel hat eine Wahl (Vorgabe automatisch)", 
   document.querySelectorAll(".buendel select.weg").length > 10 && Array.from(document.querySelectorAll("select.weg")).every((s) => s.value === "auto")));
 await seite.selectOption('.buendel[data-art="FIRMA"] select.weg', "eigen");
 await seite.fill('.buendel[data-art="FIRMA"] input.eigen', "Klaus Software");
+await seite.evaluate(() => { window.__balken = false; const o = new MutationObserver(() => { if (document.querySelector("#kopie-ergebnis .lade-balken")) { window.__balken = true; o.disconnect(); } }); o.observe(document.body, { childList: true, subtree: true }); });
 await seite.click("#reinigen");
 await seite.waitForSelector("[data-kopie]", { timeout: 30000 });
+ok("Reinigen (Klaus 2026-10-31): während des Bauens steht ein Ladebalken da", await seite.evaluate(() => window.__balken === true));
 ok("Reinigen: „Saubere Kopie fertig“, 0 Originalwerte, 0 neue Funde", await seite.evaluate(() =>
   document.querySelector("[data-kopie]").dataset.kopie === "sauber" && document.querySelector("[data-original]").dataset.original === "0" && document.querySelector("[data-offen]").dataset.offen === "0"));
 ok("Reinigen: eigener Wert aus der Oberfläche ist in der Kopie", await seite.evaluate(() => {
@@ -827,6 +829,19 @@ await seite.fill("#begriff", "Musterapp");
 await seite.click("#begriff-dazu");
 await seite.waitForFunction(() => !!document.querySelector('[data-begriff="Musterapp"]'), null, { timeout: 30000 });
 ok("Eigener Name eingetragen: neu gesucht, steht als „Selbst eingetragen“ da", await seite.evaluate(() => !!document.querySelector('.buendel[data-art="BEGRIFF"]')));
+ok("Suchen ist die Lupe (Symbol, ohne Wort, mit Erklärung)", await seite.evaluate(() => { const k = document.querySelector("#begriff-dazu"); return !k.textContent.trim() && k.getAttribute("aria-label") === "Suchen" && !!k.querySelector("svg"); }));
+ok("Treffer (Klaus 2026-10-31): die gesuchten Wörter sind in den Funden markiert, mit Zahl", await seite.evaluate(() => {
+  const m = document.querySelectorAll("#befunde mark.treffer"); return m.length >= 1 && [...m].every((x) => /musterapp/i.test(x.textContent)) && !document.querySelector("#treffer-leiste").hidden && /Treffer/.test(document.querySelector("#treffer-zahl").textContent);
+}));
+await seite.click("#alle-zu"); await seite.locator("body").click({ position: { x: 5, y: 5 } }).catch(() => {});
+await seite.keyboard.press("+");
+const t1 = await seite.evaluate(() => { const j = document.querySelector("mark.treffer.jetzt"); return j ? { nr: [...document.querySelectorAll("mark.treffer")].indexOf(j), offen: !j.closest("details:not([open])"), text: document.querySelector("#treffer-zahl").textContent } : null; });
+await seite.keyboard.press("+");
+const t2 = await seite.evaluate(() => [...document.querySelectorAll("mark.treffer")].indexOf(document.querySelector("mark.treffer.jetzt")));
+ok("Treffer: Taste „+“ springt zum ersten, dann zum nächsten — zugeklappte Gruppen gehen dabei auf", !!t1 && t1.nr === 0 && t1.offen && /Treffer 1 von/.test(t1.text) && (t2 === 1 || document.querySelectorAll("mark.treffer").length === 1), JSON.stringify([t1, t2]));
+ok("Keine Spur von „null“ als Wort in den Funden (Klaus 2026-10-31: „nullnull“)", await seite.evaluate(() => {
+  const g = document.createTreeWalker(document.querySelector("#befunde"), NodeFilter.SHOW_TEXT); for (let n = g.nextNode(); n; n = g.nextNode()) if (/^\s*null/.test(n.nodeValue) && n.parentElement.id === "befunde") return false; return true;
+}));
 
 /* Eine leere Prüfung: auch dort die leere Fläche mit Kristall. */
 await seite.setViewportSize({ width: 1280, height: 800 });
@@ -1427,11 +1442,11 @@ await seite.setViewportSize({ width: 1280, height: 800 });
     return !!k && k.parentElement === f.parentElement && !k.textContent.trim() && /Google/.test(k.title) && Math.abs(k.getBoundingClientRect().top - f.getBoundingClientRect().top) < 12;
   }));
   await s8.click("#diktat");
-  const an = await s8.evaluate(() => ({ p: document.querySelector("#diktat").getAttribute("aria-pressed"), h: document.querySelector("#diktat-hinweis").textContent, s: !!(window.__sprache && window.__sprache.gestartet && window.__sprache.lang === "de-DE") }));
+  const an = await s8.evaluate(() => ({ p: document.querySelector("#diktat").getAttribute("aria-pressed"), h: document.querySelector("#diktat-hinweis").textContent, w: document.querySelectorAll("#diktat-hinweis .welle i").length >= 5, s: !!(window.__sprache && window.__sprache.gestartet && window.__sprache.lang === "de-DE") }));
   await s8.evaluate(() => { const r = window.__sprache; r.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: "Quirin Zapf" }], { isFinal: true, length: 1 })] }); r.onend(); });
   const nach = await s8.evaluate(() => ({ v: document.querySelector("#begriff").value, p: document.querySelector("#diktat").getAttribute("aria-pressed"), h: document.querySelector("#diktat-hinweis").textContent }));
-  ok("Mikrofon: Tippen startet (Deutsch, „Hört zu …“, Hinweis auf Google), das Gehörte steht im Suchfeld, danach „Suchen“ tippen",
-    an.p === "true" && an.s && /Hört zu/.test(an.h) && /Google/.test(an.h) && nach.v === "Quirin Zapf" && nach.p === "false" && /Suchen/.test(nach.h), JSON.stringify([an, nach]));
+  ok("Mikrofon: Tippen startet (Deutsch, „Hört zu …“ mit Wellenmuster, Hinweis auf Google), das Gehörte steht im Suchfeld, danach „Suchen“ tippen",
+    an.p === "true" && an.s && an.w && /Hört zu/.test(an.h) && /Google/.test(an.h) && nach.v === "Quirin Zapf" && nach.p === "false" && /Suchen/.test(nach.h), JSON.stringify([an, nach]));
   await s8.click("#diktat"); await s8.click("#diktat");
   ok("Mikrofon: noch einmal tippen beendet sofort", await s8.evaluate(() => document.querySelector("#diktat").getAttribute("aria-pressed") === "false" && window.__sprache.gestoppt));
   await s8.click("#diktat");
