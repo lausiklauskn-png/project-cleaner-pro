@@ -1,7 +1,7 @@
 # Abschluss 2026-10-30/31 — Befund 12: Ablagefeld, Hilfe hinter „?“, Suche mit Treffern, „Nicht ersetzen“ (Claude)
 
 Plan und Stand: [Brief](BRIEF_2026-10-28_projekt-reiniger-pro.md), Abschnitt „Befund 12“. Funde und Lehren:
-[Forschung](FORSCHUNG_2026-10-31_befund-12.md). Bilder: [`bilder-fassung-16/`](bilder-fassung-16/).
+[Forschung](https://github.com/lausiklauskn-png/Kimhub/blob/main/forschung/messungen/projekt-reiniger-pro-2026-10-31-befund-12.md). Bilder: [`bilder-fassung-16/`](bilder-fassung-16/).
 
 ## Was neu ist
 

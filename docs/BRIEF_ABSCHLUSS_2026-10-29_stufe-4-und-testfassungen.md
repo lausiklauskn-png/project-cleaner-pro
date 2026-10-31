@@ -3,7 +3,7 @@
 Eine Claude-Sitzung hat auf Klaus' Kurzauftrag Stufe 4 gebaut, auf seine Hinweise während der Arbeit den Hell/Dunkel-Modus
 und die Schrift-Proben ergänzt und auf sein Wort („die Zwischenstufe schon mal veröffentlichen … die PWA-App, die APK und
 die Windows-Version zum Testen“) veröffentlicht. Plan und Stand: [Brief](BRIEF_2026-10-28_projekt-reiniger-pro.md).
-Funde und Lehren: [Forschung](FORSCHUNG_2026-10-29_stufe-4.md). Bilder: [`bilder-stufe-4/`](bilder-stufe-4/).
+Funde und Lehren: [Forschung](https://github.com/lausiklauskn-png/Kimhub/blob/main/forschung/messungen/projekt-reiniger-pro-2026-10-29-stufe-4.md). Bilder: [`bilder-stufe-4/`](bilder-stufe-4/).
 
 ## Veröffentlicht
 

@@ -2,7 +2,7 @@
 
 Auf Klaus' Kurzauftrag: Befund zu den Testfassungen einarbeiten, danach Stufe 5. Klaus schickte den Befund während der Arbeit
 (Bildschirmfotos vom Tablet), danach den Wunsch nach Hereinladen/Herausladen („Auslieferungsprüfer zum Vorbild“). Plan und Stand:
-[Brief](BRIEF_2026-10-28_projekt-reiniger-pro.md). Funde und Lehren: [Forschung](FORSCHUNG_2026-10-29_stufe-5.md).
+[Brief](BRIEF_2026-10-28_projekt-reiniger-pro.md). Funde und Lehren: [Forschung](https://github.com/lausiklauskn-png/Kimhub/blob/main/forschung/messungen/projekt-reiniger-pro-2026-10-29-stufe-5.md).
 Bilder: [`bilder-stufe-5/`](bilder-stufe-5/) (hell, dunkel, Handy).
 
 ## Veröffentlicht (Fassung 9)
